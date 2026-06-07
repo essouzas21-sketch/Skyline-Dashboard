@@ -1,0 +1,10 @@
+{
+  "name": "skyline-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboards de produção Skyline — Recebimento, Triagem, Produção, CQE",
+  "scripts": {
+    "start": "python3 -m http.server 8080 --bind 0.0.0.0",
+    "serve": "npx --yes serve -l 8080 --no-clipboard"
+  }
+}

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CQE</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="yardex-dash.js"></script>
+  <style>
+    .kpi-card .value { font-size: 2rem; }
+    .kpi-card.aprovado .value { color: #15803d; }
+    .kpi-card.reprovado .value { color: #dc2626; }
+    .kpi-card.total .value { color: var(--bg); }
+    .split-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .split-panel { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a class="back" href="menu.html">← Voltar ao menu</a>
+    <header class="header">
+      <h1>CQE — Controle de Qualidade</h1>
+      <p class="subtitle" id="periodLabel">Carregando período…</p>
+    </header>
+
+    <div class="filter-row">
+      <label>Data inicial <input type="date" id="dateStart" /></label>
+      <label>Data final <input type="date" id="dateEnd" /></label>
+      <button type="button" class="primary" id="btnApply">Atualizar</button>
+      <button type="button" id="btnToday">Hoje</button>
+      <button type="button" id="btnReload">Recarregar dados</button>
+    </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="kpi-row">
+      <div class="kpi-card aprovado">
+        <div class="label">Aprovados</div>
+        <div class="value" id="kpiAprovado">0</div>
+      </div>
+      <div class="kpi-card reprovado">
+        <div class="label">Reprovados</div>
+        <div class="value" id="kpiReprovado">0</div>
+      </div>
+      <div class="kpi-card total">
+        <div class="label">Total</div>
+        <div class="value" id="kpiTotal">0</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Qualidade por colaborador</h2>
+      <div class="split-panel">
+        <div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Usuário qualidade</th>
+                  <th>Aprovados</th>
+                  <th>Reprovados</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+          <div id="tableEmpty" class="empty" hidden>Nenhuma inspeção no período selecionado.</div>
+        </div>
+        <div>
+          <h3 style="margin:0 0 12px;font-size:0.95rem;color:var(--muted)">Top 3 motivos de reprovação</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Motivo</th>
+                  <th>Qtd</th>
+                </tr>
+              </thead>
+              <tbody id="motivosBody"></tbody>
+            </table>
+          </div>
+          <div id="motivosEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const DATE_FIELD = "fim_reparo";
+    const statusEl = document.getElementById("statusMsg");
+
+    let allRows = [];
+
+    function normalizeDecisao(decisao) {
+      const v = String(decisao || "").trim().toLowerCase();
+      if (v.includes("reprov")) return "reprovado";
+      if (v.includes("aprov")) return "aprovado";
+      return null;
+    }
+
+    function mapRow(raw) {
+      const decisao = normalizeDecisao(raw.decisao);
+      if (!decisao) return null;
+      return {
+        fim_reparo: raw["Fim do Reparo"] || null,
+        usuario: raw["Usuario qualidade"] || "—",
+        decisao,
+        motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
+      };
+    }
+
+    function renderMotivosTable(topMotivos) {
+      const tbody = document.getElementById("motivosBody");
+      const empty = document.getElementById("motivosEmpty");
+      if (!topMotivos.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      tbody.innerHTML = topMotivos.map(([motivo, qtd]) => `
+        <tr>
+          <td>${motivo}</td>
+          <td style="font-weight:700;color:var(--bg)">${qtd}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderDashboard() {
+      const { start, end } = YardexDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      const totals = { aprovado: 0, reprovado: 0, total: 0 };
+      const byUser = new Map();
+
+      filtered.forEach((row) => {
+        totals[row.decisao]++;
+        totals.total++;
+
+        if (!byUser.has(row.usuario)) {
+          byUser.set(row.usuario, { usuario: row.usuario, aprovado: 0, reprovado: 0, total: 0 });
+        }
+        const u = byUser.get(row.usuario);
+        u[row.decisao]++;
+        u.total++;
+      });
+
+      const reprovados = filtered.filter((r) => r.decisao === "reprovado");
+      const topMotivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo).slice(0, 3);
+
+      document.getElementById("kpiAprovado").textContent = totals.aprovado;
+      document.getElementById("kpiReprovado").textContent = totals.reprovado;
+      document.getElementById("kpiTotal").textContent = totals.total;
+      document.getElementById("periodLabel").textContent =
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · filtro por Fim do Reparo · decisão`;
+
+      const tbody = document.getElementById("tableBody");
+      const empty = document.getElementById("tableEmpty");
+      const list = [...byUser.values()].sort((a, b) => b.total - a.total);
+
+      if (!list.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+      } else {
+        empty.hidden = true;
+        tbody.innerHTML = list.map((u) => `
+          <tr>
+            <td>${u.usuario}</td>
+            <td style="color:#15803d;font-weight:700">${u.aprovado}</td>
+            <td style="color:#dc2626;font-weight:700">${u.reprovado}</td>
+            <td style="font-weight:700">${u.total}</td>
+          </tr>
+        `).join("");
+      }
+
+      renderMotivosTable(topMotivos);
+
+      YardexDash.showStatus(
+        statusEl,
+        `Exibindo ${filtered.length} inspeção(ões) no período · ${allRows.length} com decisão carregada(s).`,
+        false
+      );
+    }
+
+    async function loadData() {
+      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        allRows = YardexDash.normalizeRows(json)
+          .map(mapRow)
+          .filter(Boolean)
+          .filter((r) => r.fim_reparo);
+        YardexDash.showStatus(statusEl, `Dados carregados: ${allRows.length} inspeção(ões) com decisão.`, false);
+        renderDashboard();
+      } catch (err) {
+        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        ["kpiAprovado", "kpiReprovado", "kpiTotal"].forEach((id) => {
+          document.getElementById(id).textContent = "0";
+        });
+        document.getElementById("tableBody").innerHTML = "";
+        document.getElementById("tableEmpty").hidden = false;
+        renderMotivosTable([]);
+      }
+    }
+
+    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    loadData();
+  </script>
+</body>
+</html>

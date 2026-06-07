@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recebimento</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="yardex-dash.js"></script>
+</head>
+<body>
+  <div class="page">
+    <a class="back" href="menu.html">← Voltar ao menu</a>
+    <header class="header">
+      <h1>Recebimento</h1>
+      <p class="subtitle" id="periodLabel">Carregando período…</p>
+    </header>
+
+    <div class="filter-row">
+      <label>Data inicial <input type="date" id="dateStart" /></label>
+      <label>Data final <input type="date" id="dateEnd" /></label>
+      <button type="button" class="primary" id="btnApply">Atualizar</button>
+      <button type="button" id="btnToday">Hoje</button>
+      <button type="button" id="btnReload">Recarregar dados</button>
+    </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">Recebida total</div>
+        <div class="value" id="kpiTotal">0</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Recebimentos por marca</h2>
+      <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h2>Detalhamento</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Quem recebeu</th>
+              <th>SKU</th>
+              <th>Aparelho</th>
+              <th>Data add</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div id="tableEmpty" class="empty" hidden>Nenhum recebimento no período selecionado.</div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474";
+    const DATE_FIELD = "data_add";
+    const GRUPO_FILTRO = "6151";
+    const statusEl = document.getElementById("statusMsg");
+
+    let allRows = [];
+    let totalFromApi = 0;
+    let chartMarca = null;
+
+    function getGrupo(raw) {
+      return raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "";
+    }
+
+    function passesGrupoFilter(raw) {
+      return String(getGrupo(raw)).trim() === GRUPO_FILTRO;
+    }
+
+    function mapRow(raw) {
+      return {
+        hunit: raw.hunit,
+        data_add: raw.data_add,
+        prod_cprod: raw.prod_cprod || "—",
+        name: raw.name || raw.u?.name || "—",
+        descricao: raw.descricao || "—",
+        grupo: String(getGrupo(raw)).trim()
+      };
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById("tableBody");
+      const empty = document.getElementById("tableEmpty");
+      if (!rows.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      tbody.innerHTML = rows
+        .sort((a, b) => new Date(b.data_add) - new Date(a.data_add))
+        .map((r) => `
+          <tr>
+            <td>${r.name}</td>
+            <td>${r.prod_cprod}</td>
+            <td>${r.descricao}</td>
+            <td>${YardexDash.formatDateBR(r.data_add)}</td>
+          </tr>
+        `)
+        .join("");
+    }
+
+    function renderDashboard() {
+      const { start, end } = YardexDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      const byBrand = YardexDash.aggregateCount(filtered, (r) => YardexDash.extractFirstWord(r.descricao));
+
+      document.getElementById("kpiTotal").textContent = filtered.length;
+      document.getElementById("periodLabel").textContent =
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · grupo ${GRUPO_FILTRO} · Data add`;
+
+      chartMarca = YardexDash.createBarChart(
+        "chartMarca",
+        chartMarca,
+        byBrand.map((x) => x[0]),
+        byBrand.map((x) => x[1])
+      );
+
+      renderTable(filtered);
+      YardexDash.showStatus(
+        statusEl,
+        `Exibindo ${filtered.length} no período · ${allRows.length} com grupo ${GRUPO_FILTRO} (de ${totalFromApi} na API).`,
+        false
+      );
+    }
+
+    async function loadData() {
+      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        const rawRows = YardexDash.normalizeRows(json);
+        totalFromApi = rawRows.length;
+        allRows = rawRows.filter(passesGrupoFilter).map(mapRow);
+        YardexDash.showStatus(
+          statusEl,
+          `Dados carregados: ${allRows.length} com grupo ${GRUPO_FILTRO} (de ${totalFromApi} na API).`,
+          false
+        );
+        renderDashboard();
+      } catch (err) {
+        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        document.getElementById("kpiTotal").textContent = "0";
+        chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
+        renderTable([]);
+      }
+    }
+
+    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    loadData();
+  </script>
+</body>
+</html>
