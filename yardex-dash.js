@@ -86,6 +86,27 @@ const YardexDash = {
     return String(fullName).trim().split(/\s+/).slice(0, 2).join(" ");
   },
 
+  USER_NAME_ALIASES: [
+    { from: "ewerton souza implantação log smart", to: "Helen" },
+    { from: "ewerton souza implantacao log smart", to: "Helen" }
+  ],
+
+  normalizeUserName(name) {
+    if (name == null || name === "—") return name ?? "—";
+    const trimmed = String(name).trim();
+    const norm = trimmed
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    for (const { from, to } of this.USER_NAME_ALIASES) {
+      const fromNorm = from
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (norm === fromNorm) return to;
+    }
+    return trimmed;
+  },
+
   showStatus(el, msg, isError) {
     if (!el) return;
     el.hidden = !msg;

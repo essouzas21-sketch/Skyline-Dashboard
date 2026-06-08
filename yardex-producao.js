@@ -127,7 +127,7 @@ const ProducaoDash = {
         descricao: raw.descricao || "—",
         serial: raw.serial || "—",
         status,
-        user: user || "—",
+        user: YardexDash.normalizeUserName(user || "—"),
         workMs: calcWorkMs(raw)
       };
     };

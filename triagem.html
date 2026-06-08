@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=4"></script>
+  <script src="yardex-dash.js?v=5"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -77,12 +77,13 @@
         data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
         status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
         etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
-        usuario:
+        usuario: YardexDash.normalizeUserName(
           raw["Usuário triagem"] ||
           raw["Usuário reparo"] ||
           raw.usuario_triagem ||
           raw.u?.name ||
-          "—",
+          "—"
+        ),
         descricao: raw.descricao || "—",
         serial: raw.serial || "—",
         hu: raw.hu || "—"

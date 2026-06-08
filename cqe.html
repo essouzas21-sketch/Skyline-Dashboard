@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
-  <script src="yardex-dash.js?v=3"></script>
+  <script src="yardex-dash.js?v=5"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -106,7 +106,7 @@
       return {
         id: raw.id ?? null,
         fim_reparo: raw["Fim do Reparo"] || null,
-        usuario: raw["Usuario qualidade"] || "—",
+        usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
         decisao,
         motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
       };
