@@ -134,6 +134,14 @@ body.dash-page {
   color: #fff;
 }
 
+.last-refresh {
+  font-size: 0.68rem;
+  color: var(--accent);
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .kpi-row {
   display: flex;
   gap: 10px;

@@ -218,7 +218,7 @@ const ProducaoDash = {
       }
     };
 
-    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
-    loadData();
+    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    reload();
   }
 };

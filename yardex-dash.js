@@ -68,33 +68,98 @@ const YardexDash = {
   },
 
   _autoRefreshTimer: null,
+  _autoRefreshBusy: false,
+  _autoRefreshFn: null,
+
+  _ensureRefreshClock() {
+    if (document.getElementById("lastRefresh")) return;
+    const el = document.createElement("span");
+    el.id = "lastRefresh";
+    el.className = "last-refresh";
+    const anchor = document.querySelector(".dash-toolbar") || document.querySelector(".page");
+    anchor?.appendChild(el);
+  },
+
+  markRefresh() {
+    this._ensureRefreshClock();
+    const el = document.getElementById("lastRefresh");
+    if (!el) return;
+    const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    el.textContent = `Atualizado às ${now} · auto 1 min`;
+  },
+
+  stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearTimeout(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
+  },
 
   startAutoRefresh(fn, intervalMs = 60000) {
-    if (this._autoRefreshTimer) clearInterval(this._autoRefreshTimer);
+    this.stopAutoRefresh();
     if (!fn || intervalMs <= 0) return;
-    this._autoRefreshTimer = setInterval(fn, intervalMs);
+
+    this._ensureRefreshClock();
+
+    const run = async () => {
+      if (this._autoRefreshBusy) return;
+      this._autoRefreshBusy = true;
+      try {
+        await Promise.resolve(fn());
+      } catch (err) {
+        console.error("[YardexDash] auto-refresh:", err);
+      } finally {
+        this._autoRefreshBusy = false;
+      }
+    };
+
+    this._autoRefreshFn = run;
+
+    const schedule = () => {
+      this._autoRefreshTimer = setTimeout(async () => {
+        await run();
+        schedule();
+      }, intervalMs);
+    };
+
+    schedule();
+
+    if (!this._visibilityBound) {
+      this._visibilityBound = true;
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && this._autoRefreshFn) this._autoRefreshFn();
+      });
+    }
   },
 
   bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 60000 }) {
     const startEl = document.getElementById("dateStart");
     const endEl = document.getElementById("dateEnd");
     const today = this.todayISO();
-    startEl.value = today;
-    endEl.value = today;
+    if (startEl) startEl.value = today;
+    if (endEl) endEl.value = today;
+
+    const reload = onReload
+      ? async () => {
+          await Promise.resolve(onReload());
+          this.markRefresh();
+        }
+      : null;
 
     document.getElementById("btnApply")?.addEventListener("click", onChange);
     document.getElementById("btnToday")?.addEventListener("click", () => {
-      startEl.value = today;
-      endEl.value = today;
+      const hoje = this.todayISO();
+      if (startEl) startEl.value = hoje;
+      if (endEl) endEl.value = hoje;
       onToday?.() ?? onChange();
     });
-    document.getElementById("btnReload")?.addEventListener("click", onReload);
+    document.getElementById("btnReload")?.addEventListener("click", () => reload?.());
     startEl?.addEventListener("change", onChange);
     endEl?.addEventListener("change", onChange);
 
-    if (onReload) this.startAutoRefresh(onReload, autoRefreshMs);
+    if (reload) this.startAutoRefresh(reload, autoRefreshMs);
 
-    return { startEl, endEl };
+    return { startEl, endEl, reload };
   },
 
   getDateRange() {
@@ -104,7 +169,11 @@ const YardexDash = {
   },
 
   async fetchWebhook(url) {
-    const res = await fetch(url);
+    const sep = url.includes("?") ? "&" : "?";
+    const res = await fetch(`${url}${sep}_t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   },
