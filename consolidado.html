@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consolidado — Skyline</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="yardex-dash.js?v=5"></script>
+  <script src="yardex-producao.js?v=6"></script>
+  <script src="yardex-consolidado.js?v=1"></script>
+</head>
+<body class="dash-page">
+  <div id="authGate" class="auth-gate">
+    <form id="authForm" class="auth-card">
+      <h2>Relatório Consolidado</h2>
+      <p>Digite a senha para acessar</p>
+      <input type="password" id="authPass" placeholder="Senha" autocomplete="current-password" autofocus />
+      <button type="submit">Entrar</button>
+      <p id="authError" class="auth-error" hidden>Senha incorreta</p>
+      <p style="margin-top:16px"><a href="menu.html" style="color:var(--bg);font-size:0.85rem">← Voltar ao menu</a></p>
+    </form>
+  </div>
+
+  <div id="app" class="page" hidden>
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Relatório Consolidado</h1>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
+    </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="consolidado-grid">
+      <section class="consolidado-section">
+        <h2>Recebimento</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Recebida total</div>
+            <div class="value" id="kpiRecTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section">
+        <h2>Triagem</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Triagens no período</div>
+            <div class="value" id="kpiTriagemTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section">
+        <h2>CQE</h2>
+        <div class="kpi-row">
+          <div class="kpi-card aprovado">
+            <div class="label">Aprovados</div>
+            <div class="value" id="kpiCqeAprovado">0</div>
+          </div>
+          <div class="kpi-card reprovado">
+            <div class="label">Reprovados</div>
+            <div class="value" id="kpiCqeReprovado">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Total</div>
+            <div class="value" id="kpiCqeTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section span-2">
+        <h2>Produção Diversas Marcas</h2>
+        <div class="kpi-row">
+          <div class="kpi-card finalizado">
+            <div class="label">Finalizados</div>
+            <div class="value" id="kpiDivFinalizado">0</div>
+          </div>
+          <div class="kpi-card andamento">
+            <div class="label">Em andamento</div>
+            <div class="value" id="kpiDivAndamento">0</div>
+          </div>
+          <div class="kpi-card pausado">
+            <div class="label">Pausados</div>
+            <div class="value" id="kpiDivPausado">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Total</div>
+            <div class="value" id="kpiDivTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section">
+        <h2>Produção iPhone</h2>
+        <div class="kpi-row">
+          <div class="kpi-card finalizado">
+            <div class="label">Finalizados</div>
+            <div class="value" id="kpiIphFinalizado">0</div>
+          </div>
+          <div class="kpi-card andamento">
+            <div class="label">Em andamento</div>
+            <div class="value" id="kpiIphAndamento">0</div>
+          </div>
+          <div class="kpi-card pausado">
+            <div class="label">Pausados</div>
+            <div class="value" id="kpiIphPausado">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Total</div>
+            <div class="value" id="kpiIphTotal">0</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    ConsolidadoDash.init();
+  </script>
+</body>
+</html>

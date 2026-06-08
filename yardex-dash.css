@@ -309,3 +309,131 @@ th {
     grid-template-columns: 1fr;
   }
 }
+
+/* Consolidado */
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--card);
+  color: var(--text-on-card);
+  border-radius: 14px;
+  padding: 28px 32px;
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+.auth-card h2 {
+  margin: 0 0 8px;
+  color: var(--bg);
+  font-size: 1.2rem;
+}
+
+.auth-card p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.auth-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e8e0f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.auth-card button {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-error {
+  margin-top: 10px;
+  color: #dc2626;
+  font-size: 0.82rem;
+}
+
+.consolidado-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+
+.consolidado-section {
+  background: var(--card);
+  color: var(--text-on-card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.consolidado-section h2 {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--bg);
+  flex-shrink: 0;
+}
+
+.consolidado-section .kpi-row {
+  flex: 1;
+  align-items: stretch;
+}
+
+.consolidado-section .kpi-card {
+  padding: 8px 10px;
+}
+
+.consolidado-section .kpi-card .value {
+  font-size: 1.35rem;
+}
+
+.consolidado-section .kpi-card .label {
+  font-size: 0.58rem;
+}
+
+.consolidado-section.span-2 {
+  grid-column: span 2;
+}
+
+.kpi-card.finalizado .value { color: #15803d; }
+.kpi-card.andamento .value { color: #1d4ed8; }
+.kpi-card.pausado .value { color: #b45309; }
+.kpi-card.aprovado .value { color: #15803d; }
+.kpi-card.reprovado .value { color: #dc2626; }
+
+@media (max-width: 1000px) {
+  .consolidado-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+    overflow-y: auto;
+  }
+  .consolidado-section.span-2 {
+    grid-column: span 1;
+  }
+}

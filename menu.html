@@ -69,12 +69,19 @@
     .menu-grid {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(2, 1fr);
       gap: 14px;
       height: 100%;
-      max-height: 420px;
+      max-height: 440px;
     }
+
+    .menu-btn.consolidado {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: linear-gradient(135deg, #ffffff 0%, #f3ecfa 100%);
+    }
+
+    .menu-btn.consolidado .badge { color: #b45309; }
 
     .menu-btn {
       display: flex;
@@ -150,6 +157,10 @@
       <a class="menu-btn ready" href="cqe.html">
         CQE
         <span class="badge">Dashboard ativo</span>
+      </a>
+      <a class="menu-btn ready consolidado" href="consolidado.html">
+        Consolidado
+        <span class="badge">Senha requerida</span>
       </a>
     </nav>
   </div>
