@@ -67,7 +67,15 @@ const YardexDash = {
     el.classList.toggle("error", !!isError);
   },
 
-  bindDateFilters({ onChange, onToday, onReload }) {
+  _autoRefreshTimer: null,
+
+  startAutoRefresh(fn, intervalMs = 60000) {
+    if (this._autoRefreshTimer) clearInterval(this._autoRefreshTimer);
+    if (!fn || intervalMs <= 0) return;
+    this._autoRefreshTimer = setInterval(fn, intervalMs);
+  },
+
+  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 60000 }) {
     const startEl = document.getElementById("dateStart");
     const endEl = document.getElementById("dateEnd");
     const today = this.todayISO();
@@ -83,6 +91,8 @@ const YardexDash = {
     document.getElementById("btnReload")?.addEventListener("click", onReload);
     startEl?.addEventListener("change", onChange);
     endEl?.addEventListener("change", onChange);
+
+    if (onReload) this.startAutoRefresh(onReload, autoRefreshMs);
 
     return { startEl, endEl };
   },
