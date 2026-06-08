@@ -13,6 +13,7 @@
       --accent: #c4a8e8;
       --accent-strong: #8b6bb8;
       --shadow: 0 4px 16px rgba(45, 31, 66, 0.22);
+      --side-space: 48px;
       font-family: "Segoe UI", system-ui, sans-serif;
     }
 
@@ -27,11 +28,13 @@
     body {
       background: var(--bg);
       color: var(--text-on-bg);
-      padding: 16px 20px;
+      padding: 16px var(--side-space);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      border-left: 3px solid rgba(255, 255, 255, 0.2);
+      border-right: 3px solid rgba(255, 255, 255, 0.2);
     }
 
     .page-header {

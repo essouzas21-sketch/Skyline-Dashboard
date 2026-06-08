@@ -7,6 +7,7 @@
   --accent-strong: #8b6bb8;
   --muted: #6b5b7a;
   --shadow: 0 4px 16px rgba(45, 31, 66, 0.22);
+  --side-space: 48px;
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 
@@ -25,9 +26,11 @@ body {
 }
 
 body.dash-page {
-  padding: 10px 14px;
+  padding: 10px var(--side-space);
   display: flex;
   flex-direction: column;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  border-right: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .page {
