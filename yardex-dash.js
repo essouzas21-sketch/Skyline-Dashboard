@@ -31,6 +31,32 @@ const YardexDash = {
     return [];
   },
 
+  isCqeMotivoTeste(motivo) {
+    return String(motivo || "").trim().toLowerCase() === "teste";
+  },
+
+  /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão. */
+  processCqeRows(rows) {
+    const seen = new Set();
+    const result = [];
+
+    rows.forEach((row) => {
+      if (row.decisao === "reprovado" && this.isCqeMotivoTeste(row.motivo)) return;
+
+      const id = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : null;
+      if (id) {
+        const day = this.toLocalDateStr(row.fim_reparo);
+        const key = `${id}|${day}|${row.decisao}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+      }
+
+      result.push(row);
+    });
+
+    return result;
+  },
+
   /** Mantém um registro por ID (última ocorrência prevalece). */
   distinctById(rows, idField = "id") {
     const map = new Map();

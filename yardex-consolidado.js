@@ -62,20 +62,21 @@ const ConsolidadoDash = {
     return {
       id: raw.id ?? null,
       fim_reparo: raw["Fim do Reparo"] || null,
-      decisao
+      decisao,
+      motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
     };
   },
 
   loadCqeRows(json) {
-    const mapped = YardexDash.normalizeRows(json)
+    return YardexDash.normalizeRows(json)
       .map((raw) => this.mapCqe(raw))
       .filter(Boolean)
       .filter((r) => r.fim_reparo);
-    return YardexDash.distinctById(mapped, "id");
   },
 
   kpiCqe(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "fim_reparo");
+    const inPeriod = YardexDash.filterByDateField(rows, start, end, "fim_reparo");
+    const filtered = YardexDash.processCqeRows(inPeriod);
     const totals = { aprovado: 0, reprovado: 0, total: 0 };
     filtered.forEach((r) => {
       totals[r.decisao]++;
