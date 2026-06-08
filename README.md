@@ -58,23 +58,21 @@ Substitua `IP-DO-SERVIDOR` pelo IP da máquina que está rodando o servidor (ex.
 
 ## Link público (GitHub Pages)
 
-Após o deploy automático, o dashboard fica disponível na internet em:
+Após ativar (passos abaixo), o dashboard fica em:
 
-**https://essouzas21-sketch.github.io/skyline-dashboard/menu.html**
-
-Menu principal (atalho): **https://essouzas21-sketch.github.io/skyline-dashboard/**
+**https://essouzas21-sketch.github.io/Skyline-Dashboard/menu.html**
 
 ### Ativar (só na primeira vez)
 
-1. Abra o repositório: https://github.com/essouzas21-sketch/skyline-dashboard
-2. **Settings** → **Pages**
-3. Em **Build and deployment**, escolha **Source: GitHub Actions**
-4. Aguarde o workflow **Deploy GitHub Pages** terminar (aba **Actions**)
-5. O link aparece em **Settings → Pages**
+1. Abra: https://github.com/essouzas21-sketch/Skyline-Dashboard/settings/pages
+2. Em **Build and deployment** → **Source**, escolha **Deploy from a branch**
+3. Em **Branch**, selecione **main** e pasta **/ (root)**
+4. Clique em **Save**
+5. Aguarde 2–5 minutos — o link verde aparece na mesma página
 
-Cada `git push` na branch `main` republica o site automaticamente.
+Não use GitHub Actions para este projeto; a publicação é direto da branch `main`.
 
-> **CORS:** a API Yardex precisa aceitar requisições do domínio `github.io`. Se os dados não carregarem no link público, use o servidor local (`./start.sh`) na rede da empresa — isso já funciona.
+> **CORS:** a API Yardex precisa aceitar requisições do domínio `github.io`. Se os dados não carregarem no link público, use o servidor local (`./start.sh`) na rede da empresa.
 
 ## Subir no GitHub
 
