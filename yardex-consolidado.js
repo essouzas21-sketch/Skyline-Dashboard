@@ -2,90 +2,10 @@
  * Relatório consolidado — KPIs de todos os módulos.
  */
 const ConsolidadoDash = {
-  AUTH_KEY: "skyline_consolidado_auth",
-  PASSWORD: "75395123",
-
   API_RECEBIMENTO: "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474",
   API_REPARO: "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d",
   GRUPO_FILTRO: "6151",
   ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas"]),
-
-  isAuthed() {
-    try {
-      return sessionStorage.getItem(this.AUTH_KEY) === "1";
-    } catch (_) {
-      return false;
-    }
-  },
-
-  setAuthed() {
-    try {
-      sessionStorage.setItem(this.AUTH_KEY, "1");
-    } catch (_) {}
-  },
-
-  checkPassword(value) {
-    return String(value || "").trim() === this.PASSWORD;
-  },
-
-  showGate() {
-    const gate = document.getElementById("authGate");
-    const app = document.getElementById("app");
-    if (gate) gate.style.display = "flex";
-    if (app) app.style.display = "none";
-  },
-
-  showApp() {
-    const gate = document.getElementById("authGate");
-    const app = document.getElementById("app");
-    if (gate) gate.style.display = "none";
-    if (app) app.style.display = "flex";
-  },
-
-  tryLogin() {
-    const input = document.getElementById("authPass");
-    const error = document.getElementById("authError");
-    if (!input) return false;
-
-    if (this.checkPassword(input.value)) {
-      this.setAuthed();
-      if (error) error.style.display = "none";
-      this.showApp();
-      this.startDashboard();
-      return true;
-    }
-
-    if (error) error.style.display = "block";
-    input.value = "";
-    input.focus();
-    return false;
-  },
-
-  setupAuth() {
-    const btn = document.getElementById("btnEntrar");
-    const input = document.getElementById("authPass");
-
-    if (this.isAuthed()) {
-      this.showApp();
-      this.startDashboard();
-      return;
-    }
-
-    this.showGate();
-
-    if (btn) {
-      btn.onclick = () => this.tryLogin();
-    }
-
-    if (input) {
-      input.onkeydown = (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          this.tryLogin();
-        }
-      };
-    }
-  },
 
   mapRecebimento(raw) {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
@@ -235,29 +155,11 @@ const ConsolidadoDash = {
     }
   },
 
-  startDashboard() {
-    if (this._started) {
-      this.loadAndRender();
-      return;
-    }
-    this._started = true;
-
+  init() {
     const { reload } = YardexDash.bindDateFilters({
       onChange: () => this.loadAndRender(),
       onReload: () => this.loadAndRender()
     });
     reload();
-  },
-
-  init() {
-    if (typeof YardexDash === "undefined" || typeof ProducaoDash === "undefined") {
-      const error = document.getElementById("authError");
-      if (error) {
-        error.textContent = "Scripts não carregaram. Verifique a conexão.";
-        error.style.display = "block";
-      }
-      return;
-    }
-    this.setupAuth();
   }
 };

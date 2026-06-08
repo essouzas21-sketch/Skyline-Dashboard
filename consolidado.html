@@ -7,26 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
 </head>
 <body class="dash-page consolidado-page">
-  <div id="authGate" class="auth-gate">
-    <div class="auth-card">
-      <h2>Relatório Consolidado</h2>
-      <p>Digite a senha para acessar</p>
-      <input
-        type="text"
-        id="authPass"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        placeholder="Senha"
-        autocomplete="off"
-        autofocus
-      />
-      <button type="button" id="btnEntrar">Entrar</button>
-      <p id="authError" class="auth-error" style="display:none">Senha incorreta</p>
-      <p style="margin-top:16px"><a href="menu.html" style="color:var(--bg);font-size:0.85rem">← Voltar ao menu</a></p>
-    </div>
-  </div>
-
-  <div id="app" class="page consolidado-app" style="display:none">
+  <div id="app" class="page consolidado-app">
     <div class="dash-toolbar">
       <a class="back" href="menu.html">← Menu</a>
       <div class="dash-title">
@@ -131,14 +112,9 @@
 
   <script src="yardex-dash.js?v=6"></script>
   <script src="yardex-producao.js?v=7"></script>
-  <script src="yardex-consolidado.js?v=3"></script>
+  <script src="yardex-consolidado.js?v=4"></script>
   <script>
-    if (typeof ConsolidadoDash !== "undefined") {
-      ConsolidadoDash.init();
-    } else {
-      document.getElementById("authError").textContent = "Erro ao carregar scripts. Atualize a página.";
-      document.getElementById("authError").style.display = "block";
-    }
+    ConsolidadoDash.init();
   </script>
 </body>
 </html>
