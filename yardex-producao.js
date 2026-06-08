@@ -4,8 +4,19 @@
  */
 const ProducaoDash = {
   USER_FILTERS: {
-    diversas: null,
-    iphone: null
+    diversas: [
+      "claudia paz",
+      "fernanda maria",
+      "Francisco Chagas",
+      "Karoline Alexandre",
+      "keytman janaína",
+      "Michelle Alves"
+    ],
+    iphone: [
+      "thaís mazoline",
+      "noemi firmo",
+      "fran dias"
+    ]
   },
 
   init(moduleKey) {
