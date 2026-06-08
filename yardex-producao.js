@@ -119,6 +119,7 @@ const ProducaoDash = {
     const mapRow = (raw) => {
       const { status, user } = classify(raw);
       return {
+        id: raw.id ?? null,
         iniciado_reparo: raw["Iniciado_Reparo"] || null,
         descricao: raw.descricao || "—",
         serial: raw.serial || "—",
@@ -203,10 +204,11 @@ const ProducaoDash = {
       YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        allRows = YardexDash.normalizeRows(json)
+        const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter((r) => r.iniciado_reparo);
-        YardexDash.showStatus(statusEl, `Dados carregados: ${allRows.length} aparelho(s).`, false);
+        allRows = YardexDash.distinctById(mapped, "id");
+        YardexDash.showStatus(statusEl, `${allRows.length} único(s) · ${mapped.length} bruto(s).`, false);
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);

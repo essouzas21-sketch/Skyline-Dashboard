@@ -31,6 +31,21 @@ const YardexDash = {
     return [];
   },
 
+  /** Mantém um registro por ID (última ocorrência prevalece). */
+  distinctById(rows, idField = "id") {
+    const map = new Map();
+    const noId = [];
+    rows.forEach((row) => {
+      const rawId = row?.[idField];
+      if (rawId == null || String(rawId).trim() === "") {
+        noId.push(row);
+        return;
+      }
+      map.set(String(rawId).trim(), row);
+    });
+    return [...map.values(), ...noId];
+  },
+
   filterByDateField(rows, start, end, field) {
     return rows.filter((r) => {
       const raw = r[field];

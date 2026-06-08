@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
-  <script src="yardex-dash.js?v=2"></script>
+  <script src="yardex-dash.js?v=3"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -104,6 +104,7 @@
       const decisao = normalizeDecisao(raw.decisao);
       if (!decisao) return null;
       return {
+        id: raw.id ?? null,
         fim_reparo: raw["Fim do Reparo"] || null,
         usuario: raw["Usuario qualidade"] || "—",
         decisao,
@@ -193,11 +194,12 @@
       YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        allRows = YardexDash.normalizeRows(json)
+        const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)
           .filter((r) => r.fim_reparo);
-        YardexDash.showStatus(statusEl, `${allRows.length} inspeção(ões) carregada(s).`, false);
+        allRows = YardexDash.distinctById(mapped, "id");
+        YardexDash.showStatus(statusEl, `${allRows.length} única(s) · ${mapped.length} bruta(s).`, false);
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);

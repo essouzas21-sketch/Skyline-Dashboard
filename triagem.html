@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=2"></script>
+  <script src="yardex-dash.js?v=3"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -72,6 +72,7 @@
 
     function mapRow(raw) {
       return {
+        id: raw.id ?? null,
         data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
         usuario: raw["Usuário triagem"] || raw.usuario_triagem || raw.u?.name || "—",
         descricao: raw.descricao || "—",
@@ -138,10 +139,11 @@
       YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        allRows = YardexDash.normalizeRows(json)
+        const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter((r) => r.data_triagem);
-        YardexDash.showStatus(statusEl, `${allRows.length} triagem(ns) carregada(s).`, false);
+        allRows = YardexDash.distinctById(mapped, "id");
+        YardexDash.showStatus(statusEl, `${allRows.length} única(s) · ${mapped.length} bruta(s).`, false);
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);

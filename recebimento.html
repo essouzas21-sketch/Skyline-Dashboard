@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=2"></script>
+  <script src="yardex-dash.js?v=3"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -84,6 +84,7 @@
 
     function mapRow(raw) {
       return {
+        id: raw.id ?? raw.hunit ?? null,
         hunit: raw.hunit,
         data_add: raw.data_add,
         prod_cprod: raw.prod_cprod || "—",
@@ -153,8 +154,9 @@
         const json = await YardexDash.fetchWebhook(API_URL);
         const rawRows = YardexDash.normalizeRows(json);
         totalFromApi = rawRows.length;
-        allRows = rawRows.filter(passesGrupoFilter).map(mapRow);
-        YardexDash.showStatus(statusEl, `${allRows.length} carregado(s).`, false);
+        const mapped = rawRows.filter(passesGrupoFilter).map(mapRow);
+        allRows = YardexDash.distinctById(mapped, "id");
+        YardexDash.showStatus(statusEl, `${allRows.length} único(s) · ${mapped.length} bruto(s).`, false);
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
