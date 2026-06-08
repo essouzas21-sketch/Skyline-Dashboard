@@ -7,35 +7,26 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="yardex-dash.js"></script>
   <style>
-    .kpi-card .value { font-size: 2rem; }
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
     .kpi-card.total .value { color: var(--bg); }
-    .split-panel {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-    @media (max-width: 900px) {
-      .split-panel { grid-template-columns: 1fr; }
-    }
   </style>
 </head>
-<body>
+<body class="dash-page">
   <div class="page">
-    <a class="back" href="menu.html">← Voltar ao menu</a>
-    <header class="header">
-      <h1>CQE — Controle de Qualidade</h1>
-      <p class="subtitle" id="periodLabel">Carregando período…</p>
-    </header>
-
-    <div class="filter-row">
-      <label>Data inicial <input type="date" id="dateStart" /></label>
-      <label>Data final <input type="date" id="dateEnd" /></label>
-      <button type="button" class="primary" id="btnApply">Atualizar</button>
-      <button type="button" id="btnToday">Hoje</button>
-      <button type="button" id="btnReload">Recarregar dados</button>
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>CQE — Controle de Qualidade</h1>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
     </div>
 
     <div id="statusMsg" class="status" hidden></div>
@@ -55,39 +46,41 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Qualidade por colaborador</h2>
-      <div class="split-panel">
-        <div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Usuário qualidade</th>
-                  <th>Aprovados</th>
-                  <th>Reprovados</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
+    <div class="dash-main dash-main--table-only">
+      <div class="panel">
+        <h2>Qualidade por colaborador</h2>
+        <div class="split-panel">
+          <div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Usuário qualidade</th>
+                    <th>Aprovados</th>
+                    <th>Reprovados</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+            <div id="tableEmpty" class="empty" hidden>Nenhuma inspeção no período.</div>
           </div>
-          <div id="tableEmpty" class="empty" hidden>Nenhuma inspeção no período selecionado.</div>
-        </div>
-        <div>
-          <h3 style="margin:0 0 12px;font-size:0.95rem;color:var(--muted)">Top 3 motivos de reprovação</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Motivo</th>
-                  <th>Qtd</th>
-                </tr>
-              </thead>
-              <tbody id="motivosBody"></tbody>
-            </table>
+          <div>
+            <h3>Top 3 motivos de reprovação</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Motivo</th>
+                    <th>Qtd</th>
+                  </tr>
+                </thead>
+                <tbody id="motivosBody"></tbody>
+              </table>
+            </div>
+            <div id="motivosEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
           </div>
-          <div id="motivosEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
         </div>
       </div>
     </div>
@@ -166,7 +159,7 @@
       document.getElementById("kpiReprovado").textContent = totals.reprovado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · filtro por Fim do Reparo · decisão`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Fim do Reparo`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -191,23 +184,23 @@
 
       YardexDash.showStatus(
         statusEl,
-        `Exibindo ${filtered.length} inspeção(ões) no período · ${allRows.length} com decisão carregada(s).`,
+        `${filtered.length} inspeção(ões) no período · ${allRows.length} carregada(s).`,
         false
       );
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         allRows = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)
           .filter((r) => r.fim_reparo);
-        YardexDash.showStatus(statusEl, `Dados carregados: ${allRows.length} inspeção(ões) com decisão.`, false);
+        YardexDash.showStatus(statusEl, `${allRows.length} inspeção(ões) carregada(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         ["kpiAprovado", "kpiReprovado", "kpiTotal"].forEach((id) => {
           document.getElementById(id).textContent = "0";
         });

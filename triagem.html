@@ -9,20 +9,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-dash.js"></script>
 </head>
-<body>
+<body class="dash-page">
   <div class="page">
-    <a class="back" href="menu.html">← Voltar ao menu</a>
-    <header class="header">
-      <h1>Triagem</h1>
-      <p class="subtitle" id="periodLabel">Carregando período…</p>
-    </header>
-
-    <div class="filter-row">
-      <label>Data inicial <input type="date" id="dateStart" /></label>
-      <label>Data final <input type="date" id="dateEnd" /></label>
-      <button type="button" class="primary" id="btnApply">Atualizar</button>
-      <button type="button" id="btnToday">Hoje</button>
-      <button type="button" id="btnReload">Recarregar dados</button>
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Triagem</h1>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
     </div>
 
     <div id="statusMsg" class="status" hidden></div>
@@ -34,25 +35,27 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Triagens por usuário</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Usuário triagem</th>
-              <th>Quantidade</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+    <div class="dash-main dash-main--split">
+      <div class="panel">
+        <h2>Triagens por usuário</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário triagem</th>
+                <th>Qtd</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="tableEmpty" class="empty" hidden>Nenhuma triagem no período.</div>
       </div>
-      <div id="tableEmpty" class="empty" hidden>Nenhuma triagem no período selecionado.</div>
-    </div>
 
-    <div class="panel">
-      <h2>Principais marcas triadas</h2>
-      <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+      <div class="panel">
+        <h2>Principais marcas triadas</h2>
+        <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+      </div>
     </div>
   </div>
 
@@ -113,7 +116,7 @@
 
       document.getElementById("kpiTotal").textContent = filtered.length;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · filtro por Data Triagem`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem`;
 
       chartMarca = YardexDash.createBarChart(
         "chartMarca",
@@ -126,22 +129,22 @@
       renderUserTable(filtered);
       YardexDash.showStatus(
         statusEl,
-        `Exibindo ${filtered.length} triagem(ns) no período · ${allRows.length} no total carregado.`,
+        `${filtered.length} triagem(ns) no período · ${allRows.length} carregada(s).`,
         false
       );
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         allRows = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter((r) => r.data_triagem);
-        YardexDash.showStatus(statusEl, `Dados carregados: ${allRows.length} triagem(ns).`, false);
+        YardexDash.showStatus(statusEl, `${allRows.length} triagem(ns) carregada(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
         renderUserTable([]);

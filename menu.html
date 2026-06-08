@@ -12,31 +12,37 @@
       --text-on-card: #2d1f42;
       --accent: #c4a8e8;
       --accent-strong: #8b6bb8;
-      --shadow: 0 8px 28px rgba(45, 31, 66, 0.25);
+      --shadow: 0 4px 16px rgba(45, 31, 66, 0.22);
       font-family: "Segoe UI", system-ui, sans-serif;
     }
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
+      height: 100vh;
+      overflow: hidden;
       margin: 0;
-      min-height: 100vh;
+    }
+
+    body {
       background: var(--bg);
       color: var(--text-on-bg);
-      padding: 24px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .page-header {
-      margin-bottom: 32px;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
       text-align: center;
+      margin-bottom: 24px;
+      flex-shrink: 0;
     }
 
     .page-header h1 {
-      margin: 0 0 8px;
-      font-size: clamp(1.35rem, 4vw, 2rem);
+      margin: 0 0 6px;
+      font-size: clamp(1.2rem, 2.5vw, 1.75rem);
       font-weight: 800;
       letter-spacing: 0.04em;
       line-height: 1.2;
@@ -45,53 +51,55 @@
     .page-header .subtitle {
       margin: 0;
       color: var(--accent);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .wrap {
       width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
+      max-width: 1100px;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
     }
 
     .menu-grid {
+      width: 100%;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 14px;
+      height: 100%;
+      max-height: 420px;
     }
 
     .menu-btn {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 88px;
-      padding: 20px 24px;
+      padding: 16px 18px;
       background: var(--card);
       color: var(--text-on-card);
       text-decoration: none;
-      border-radius: 16px;
-      font-size: 1.05rem;
+      border-radius: 14px;
+      font-size: 0.95rem;
       font-weight: 700;
       text-align: center;
       box-shadow: var(--shadow);
       border: 2px solid transparent;
-      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, border-color 0.15s ease;
     }
 
     .menu-btn:hover {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
       border-color: var(--accent);
-      box-shadow: 0 12px 32px rgba(45, 31, 66, 0.35);
-    }
-
-    .menu-btn:active {
-      transform: translateY(-1px);
     }
 
     .menu-btn .badge {
       display: block;
       margin-top: 6px;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 600;
       color: var(--accent-strong);
     }
@@ -99,6 +107,13 @@
     .menu-btn.ready .badge { color: #15803d; }
     .menu-btn.pending .badge { color: #9b7bc4; }
 
+    @media (max-width: 700px) {
+      .menu-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -135,6 +150,5 @@
       </a>
     </nav>
   </div>
-
 </body>
 </html>

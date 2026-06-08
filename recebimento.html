@@ -9,20 +9,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-dash.js"></script>
 </head>
-<body>
+<body class="dash-page">
   <div class="page">
-    <a class="back" href="menu.html">← Voltar ao menu</a>
-    <header class="header">
-      <h1>Recebimento</h1>
-      <p class="subtitle" id="periodLabel">Carregando período…</p>
-    </header>
-
-    <div class="filter-row">
-      <label>Data inicial <input type="date" id="dateStart" /></label>
-      <label>Data final <input type="date" id="dateEnd" /></label>
-      <button type="button" class="primary" id="btnApply">Atualizar</button>
-      <button type="button" id="btnToday">Hoje</button>
-      <button type="button" id="btnReload">Recarregar dados</button>
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Recebimento</h1>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
     </div>
 
     <div id="statusMsg" class="status" hidden></div>
@@ -34,27 +35,29 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Recebimentos por marca</h2>
-      <div class="chart-box"><canvas id="chartMarca"></canvas></div>
-    </div>
-
-    <div class="panel">
-      <h2>Detalhamento</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Quem recebeu</th>
-              <th>SKU</th>
-              <th>Aparelho</th>
-              <th>Data add</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+    <div class="dash-main dash-main--chart-table">
+      <div class="panel">
+        <h2>Recebimentos por marca</h2>
+        <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
-      <div id="tableEmpty" class="empty" hidden>Nenhum recebimento no período selecionado.</div>
+
+      <div class="panel">
+        <h2>Últimos recebimentos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Quem recebeu</th>
+                <th>SKU</th>
+                <th>Aparelho</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="tableEmpty" class="empty" hidden>Nenhum recebimento no período.</div>
+      </div>
     </div>
   </div>
 
@@ -64,6 +67,7 @@
     const API_URL = "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474";
     const DATE_FIELD = "data_add";
     const GRUPO_FILTRO = "6151";
+    const MAX_TABLE_ROWS = 14;
     const statusEl = document.getElementById("statusMsg");
 
     let allRows = [];
@@ -92,14 +96,16 @@
     function renderTable(rows) {
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
-      if (!rows.length) {
+      const sorted = rows.sort((a, b) => new Date(b.data_add) - new Date(a.data_add));
+      const display = sorted.slice(0, MAX_TABLE_ROWS);
+
+      if (!display.length) {
         tbody.innerHTML = "";
         empty.hidden = false;
         return;
       }
       empty.hidden = true;
-      tbody.innerHTML = rows
-        .sort((a, b) => new Date(b.data_add) - new Date(a.data_add))
+      tbody.innerHTML = display
         .map((r) => `
           <tr>
             <td>${r.name}</td>
@@ -124,7 +130,7 @@
 
       document.getElementById("kpiTotal").textContent = filtered.length;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · grupo ${GRUPO_FILTRO} · Data add`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · grupo ${GRUPO_FILTRO}`;
 
       chartMarca = YardexDash.createBarChart(
         "chartMarca",
@@ -136,26 +142,22 @@
       renderTable(filtered);
       YardexDash.showStatus(
         statusEl,
-        `Exibindo ${filtered.length} no período · ${allRows.length} com grupo ${GRUPO_FILTRO} (de ${totalFromApi} na API).`,
+        `${filtered.length} no período · ${allRows.length} grupo ${GRUPO_FILTRO} (API: ${totalFromApi}).`,
         false
       );
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         const rawRows = YardexDash.normalizeRows(json);
         totalFromApi = rawRows.length;
         allRows = rawRows.filter(passesGrupoFilter).map(mapRow);
-        YardexDash.showStatus(
-          statusEl,
-          `Dados carregados: ${allRows.length} com grupo ${GRUPO_FILTRO} (de ${totalFromApi} na API).`,
-          false
-        );
+        YardexDash.showStatus(statusEl, `${allRows.length} carregado(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
         renderTable([]);
