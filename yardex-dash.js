@@ -55,6 +55,17 @@ const YardexDash = {
     });
   },
 
+  filterByAnyDateField(rows, start, end, fields) {
+    return rows.filter((r) =>
+      fields.some((field) => {
+        const raw = r[field];
+        if (!raw) return false;
+        const local = this.toLocalDateStr(raw);
+        return local >= start && local <= end;
+      })
+    );
+  },
+
   aggregateCount(rows, keyFn) {
     const map = new Map();
     rows.forEach((r) => {

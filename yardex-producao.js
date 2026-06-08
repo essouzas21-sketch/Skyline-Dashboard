@@ -21,7 +21,7 @@ const ProducaoDash = {
 
   init(moduleKey) {
     const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
-    const DATE_FIELD = "iniciado_reparo";
+    const DATE_FIELDS = ["iniciado_reparo", "retorno_1", "retorno_2", "retorno_3"];
     const statusEl = document.getElementById("statusMsg");
     const userFilter = this.USER_FILTERS[moduleKey] || null;
 
@@ -121,6 +121,9 @@ const ProducaoDash = {
       return {
         id: raw.id ?? null,
         iniciado_reparo: raw["Iniciado_Reparo"] || null,
+        retorno_1: raw["1 Retorno"] || null,
+        retorno_2: raw["2 Retorno"] || null,
+        retorno_3: raw["3 Retorno"] || null,
         descricao: raw.descricao || "—",
         serial: raw.serial || "—",
         status,
@@ -143,7 +146,7 @@ const ProducaoDash = {
         return;
       }
 
-      let filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      let filtered = YardexDash.filterByAnyDateField(allRows, start, end, DATE_FIELDS);
       if (userFilter && userFilter.length) {
         filtered = filtered.filter((row) => matchesUserFilter(row.user));
       }
@@ -170,7 +173,7 @@ const ProducaoDash = {
       document.getElementById("kpiPausado").textContent = totals.pausado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · filtro por Iniciado_Reparo`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Iniciado_Reparo ou Retorno 1/2/3`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -206,7 +209,7 @@ const ProducaoDash = {
         const json = await YardexDash.fetchWebhook(API_URL);
         const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
-          .filter((r) => r.iniciado_reparo);
+          .filter((r) => DATE_FIELDS.some((f) => r[f]));
         allRows = YardexDash.distinctById(mapped, "id");
         YardexDash.showStatus(statusEl, `${allRows.length} único(s) · ${mapped.length} bruto(s).`, false);
         renderDashboard();
