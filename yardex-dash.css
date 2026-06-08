@@ -311,6 +311,10 @@ th {
 }
 
 /* Consolidado */
+[hidden] {
+  display: none !important;
+}
+
 .auth-gate {
   position: fixed;
   inset: 0;
@@ -320,6 +324,17 @@ th {
   justify-content: center;
   background: var(--bg);
   padding: 20px;
+}
+
+.auth-gate.is-hidden {
+  display: none !important;
+}
+
+#app.is-visible {
+  display: flex !important;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .auth-card {

@@ -28,11 +28,41 @@ const ConsolidadoDash = {
     const form = document.getElementById("authForm");
     const input = document.getElementById("authPass");
     const error = document.getElementById("authError");
+    const btn = form?.querySelector('button[type="submit"]');
 
     const unlock = () => {
-      gate.hidden = true;
-      app.hidden = false;
-      onSuccess();
+      if (gate) {
+        gate.hidden = true;
+        gate.classList.add("is-hidden");
+        gate.style.display = "none";
+      }
+      if (app) {
+        app.hidden = false;
+        app.classList.add("is-visible");
+        app.style.display = "flex";
+      }
+      try {
+        onSuccess?.();
+      } catch (err) {
+        console.error("[ConsolidadoDash] init:", err);
+      }
+    };
+
+    const tryLogin = () => {
+      if (!input) return;
+      if (this.checkPassword(input.value)) {
+        try {
+          this.setAuthed();
+        } catch (_) {
+          /* sessionStorage pode estar bloqueado — segue mesmo assim */
+        }
+        if (error) error.hidden = true;
+        unlock();
+      } else {
+        if (error) error.hidden = false;
+        input.value = "";
+        input.focus();
+      }
     };
 
     if (this.isAuthed()) {
@@ -42,14 +72,18 @@ const ConsolidadoDash = {
 
     form?.addEventListener("submit", (e) => {
       e.preventDefault();
-      if (this.checkPassword(input.value)) {
-        this.setAuthed();
-        error.hidden = true;
-        unlock();
-      } else {
-        error.hidden = false;
-        input.value = "";
-        input.focus();
+      tryLogin();
+    });
+
+    btn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      tryLogin();
+    });
+
+    input?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        tryLogin();
       }
     });
   },
