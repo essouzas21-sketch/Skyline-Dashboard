@@ -11,81 +11,80 @@ const ConsolidadoDash = {
   ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas"]),
 
   isAuthed() {
-    return sessionStorage.getItem(this.AUTH_KEY) === "1";
+    try {
+      return sessionStorage.getItem(this.AUTH_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
   },
 
   setAuthed() {
-    sessionStorage.setItem(this.AUTH_KEY, "1");
+    try {
+      sessionStorage.setItem(this.AUTH_KEY, "1");
+    } catch (_) {}
   },
 
   checkPassword(value) {
-    return String(value).trim() === this.PASSWORD;
+    return String(value || "").trim() === this.PASSWORD;
   },
 
-  setupAuth(onSuccess) {
+  showGate() {
     const gate = document.getElementById("authGate");
     const app = document.getElementById("app");
-    const form = document.getElementById("authForm");
+    if (gate) gate.style.display = "flex";
+    if (app) app.style.display = "none";
+  },
+
+  showApp() {
+    const gate = document.getElementById("authGate");
+    const app = document.getElementById("app");
+    if (gate) gate.style.display = "none";
+    if (app) app.style.display = "flex";
+  },
+
+  tryLogin() {
     const input = document.getElementById("authPass");
     const error = document.getElementById("authError");
-    const btn = form?.querySelector('button[type="submit"]');
+    if (!input) return false;
 
-    const unlock = () => {
-      if (gate) {
-        gate.hidden = true;
-        gate.classList.add("is-hidden");
-        gate.style.display = "none";
-      }
-      if (app) {
-        app.hidden = false;
-        app.classList.add("is-visible");
-        app.style.display = "flex";
-      }
-      try {
-        onSuccess?.();
-      } catch (err) {
-        console.error("[ConsolidadoDash] init:", err);
-      }
-    };
+    if (this.checkPassword(input.value)) {
+      this.setAuthed();
+      if (error) error.style.display = "none";
+      this.showApp();
+      this.startDashboard();
+      return true;
+    }
 
-    const tryLogin = () => {
-      if (!input) return;
-      if (this.checkPassword(input.value)) {
-        try {
-          this.setAuthed();
-        } catch (_) {
-          /* sessionStorage pode estar bloqueado — segue mesmo assim */
-        }
-        if (error) error.hidden = true;
-        unlock();
-      } else {
-        if (error) error.hidden = false;
-        input.value = "";
-        input.focus();
-      }
-    };
+    if (error) error.style.display = "block";
+    input.value = "";
+    input.focus();
+    return false;
+  },
+
+  setupAuth() {
+    const btn = document.getElementById("btnEntrar");
+    const input = document.getElementById("authPass");
 
     if (this.isAuthed()) {
-      unlock();
+      this.showApp();
+      this.startDashboard();
       return;
     }
 
-    form?.addEventListener("submit", (e) => {
-      e.preventDefault();
-      tryLogin();
-    });
+    this.showGate();
 
-    btn?.addEventListener("click", (e) => {
-      e.preventDefault();
-      tryLogin();
-    });
+    if (btn) {
+      btn.onclick = () => this.tryLogin();
+    }
 
-    input?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        tryLogin();
-      }
-    });
+    if (input) {
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this.tryLogin();
+        }
+      };
+    }
   },
 
   mapRecebimento(raw) {
@@ -217,8 +216,10 @@ const ConsolidadoDash = {
       };
 
       this.renderKpis(data);
-      document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · visão consolidada`;
+      const periodLabel = document.getElementById("periodLabel");
+      if (periodLabel) {
+        periodLabel.textContent = `Período: ${YardexDash.formatPeriodBR(start, end)} · visão consolidada`;
+      }
 
       YardexDash.showStatus(statusEl, "Consolidado atualizado.", false);
       YardexDash.markRefresh();
@@ -234,13 +235,29 @@ const ConsolidadoDash = {
     }
   },
 
-  init() {
-    this.setupAuth(() => {
-      const { reload } = YardexDash.bindDateFilters({
-        onChange: () => this.loadAndRender(),
-        onReload: () => this.loadAndRender()
-      });
-      reload();
+  startDashboard() {
+    if (this._started) {
+      this.loadAndRender();
+      return;
+    }
+    this._started = true;
+
+    const { reload } = YardexDash.bindDateFilters({
+      onChange: () => this.loadAndRender(),
+      onReload: () => this.loadAndRender()
     });
+    reload();
+  },
+
+  init() {
+    if (typeof YardexDash === "undefined" || typeof ProducaoDash === "undefined") {
+      const error = document.getElementById("authError");
+      if (error) {
+        error.textContent = "Scripts não carregaram. Verifique a conexão.";
+        error.style.display = "block";
+      }
+      return;
+    }
+    this.setupAuth();
   }
 };

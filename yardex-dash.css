@@ -311,8 +311,16 @@ th {
 }
 
 /* Consolidado */
-[hidden] {
-  display: none !important;
+.consolidado-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.consolidado-app {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .auth-gate {
@@ -324,17 +332,6 @@ th {
   justify-content: center;
   background: var(--bg);
   padding: 20px;
-}
-
-.auth-gate.is-hidden {
-  display: none !important;
-}
-
-#app.is-visible {
-  display: flex !important;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
 }
 
 .auth-card {
