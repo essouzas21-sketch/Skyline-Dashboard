@@ -56,6 +56,26 @@ Substitua `IP-DO-SERVIDOR` pelo IP da máquina que está rodando o servidor (ex.
 3. Cada módulo tem filtro **Hoje** por padrão; use **Recarregar dados** para atualizar
 4. Deixe o PC/servidor ligado e o comando `start.sh` rodando
 
+## Link público (GitHub Pages)
+
+Após o deploy automático, o dashboard fica disponível na internet em:
+
+**https://essouzas21-sketch.github.io/skyline-dashboard/menu.html**
+
+Menu principal (atalho): **https://essouzas21-sketch.github.io/skyline-dashboard/**
+
+### Ativar (só na primeira vez)
+
+1. Abra o repositório: https://github.com/essouzas21-sketch/skyline-dashboard
+2. **Settings** → **Pages**
+3. Em **Build and deployment**, escolha **Source: GitHub Actions**
+4. Aguarde o workflow **Deploy GitHub Pages** terminar (aba **Actions**)
+5. O link aparece em **Settings → Pages**
+
+Cada `git push` na branch `main` republica o site automaticamente.
+
+> **CORS:** a API Yardex precisa aceitar requisições do domínio `github.io`. Se os dados não carregarem no link público, use o servidor local (`./start.sh`) na rede da empresa — isso já funciona.
+
 ## Subir no GitHub
 
 ```bash
@@ -64,11 +84,11 @@ git init
 git add .
 git commit -m "Dashboard produção Skyline para TVs"
 git branch -M main
-git remote add origin https://github.com/SUA-ORG/skyline-dashboard.git
+git remote add origin https://github.com/essouzas21-sketch/skyline-dashboard.git
 git push -u origin main
 ```
 
-> O Git guarda os arquivos. Para as **TVs** continuarem funcionando, ainda é necessário um servidor HTTP na rede interna (clone + `./start.sh` em um PC sempre ligado).
+> Para **TVs na rede interna**, clone + `./start.sh` em um PC sempre ligado. Para **acesso pela internet**, use o link do GitHub Pages acima.
 
 ## Estrutura
 
