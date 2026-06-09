@@ -5,6 +5,7 @@ const ConsolidadoDash = {
   API_RECEBIMENTO: "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474",
   API_REPARO: "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d",
   GRUPO_FILTRO: "6151",
+  ETAPAS_GESTAO: new Set(["reparo", "gestao_pecas"]),
 
   mapRecebimento(raw) {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
@@ -67,7 +68,7 @@ const ConsolidadoDash = {
     const etapa = String(row.etapa_origem || "").trim().toLowerCase();
     return (
       status === "sucesso" &&
-      this.ETAPAS_TRIAGEM.has(etapa) &&
+      this.ETAPAS_GESTAO.has(etapa) &&
       !!row.data_pedido_sankhya &&
       !!row.produto_requisitado_id
     );
