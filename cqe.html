@@ -6,7 +6,7 @@
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="yardex-version.js"></script>
-  <script src="yardex-dash.js?v=20"></script>
+  <script src="yardex-dash.js?v=21"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -89,7 +89,7 @@
 
   <script>
     const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
-    const DATE_FIELD = "fim_reparo";
+    const DATE_FIELD = "data_pedido_sankhya";
     const statusEl = document.getElementById("statusMsg");
 
     let allRows = [];
@@ -106,7 +106,7 @@
       if (!decisao) return null;
       return {
         id: raw.id ?? null,
-        fim_reparo: raw["Fim do Reparo"] || null,
+        data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
         usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
         decisao,
         motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
@@ -162,7 +162,7 @@
       document.getElementById("kpiReprovado").textContent = totals.reprovado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · 1x id/dia por decisão · sem motivo teste`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · 1x id/dia por decisão · sem motivo teste`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -199,7 +199,7 @@
         const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)
-          .filter((r) => r.fim_reparo);
+          .filter((r) => r.data_pedido_sankhya);
         allRows = mapped;
         YardexDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
         renderDashboard();

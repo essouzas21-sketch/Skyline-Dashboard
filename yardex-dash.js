@@ -36,7 +36,7 @@ const YardexDash = {
   },
 
   /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão. */
-  processCqeRows(rows) {
+  processCqeRows(rows, dateField = "data_pedido_sankhya") {
     const seen = new Set();
     const result = [];
 
@@ -45,7 +45,7 @@ const YardexDash = {
 
       const id = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : null;
       if (id) {
-        const day = this.toLocalDateStr(row.fim_reparo);
+        const day = this.toLocalDateStr(row[dateField]);
         const key = `${id}|${day}|${row.decisao}`;
         if (seen.has(key)) return;
         seen.add(key);
