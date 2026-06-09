@@ -261,6 +261,7 @@ const YardexDash = {
       if (this._autoRefreshBusy) return;
       this._autoRefreshBusy = true;
       try {
+        if (typeof YardexVersion !== "undefined") await YardexVersion.check();
         this.checkDayRollover();
         await Promise.resolve(fn());
       } catch (err) {
@@ -285,6 +286,7 @@ const YardexDash = {
       this._visibilityBound = true;
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) return;
+        if (typeof YardexVersion !== "undefined") YardexVersion.check();
         const dayChanged = this.checkDayRollover();
         const { reload, onChange } = this._dayRolloverState || {};
         if (dayChanged && reload) reload();
@@ -491,3 +493,7 @@ const YardexDash = {
     });
   }
 };
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof YardexVersion !== "undefined") YardexVersion.start(60000);
+});

@@ -5,6 +5,7 @@
   "description": "Dashboards de produção Skyline — Recebimento, Triagem, Produção, CQE",
   "scripts": {
     "start": "python3 -m http.server 8080 --bind 0.0.0.0",
+    "bump-version": "python3 scripts/bump-version.py",
     "serve": "npx --yes serve -l 8080 --no-clipboard"
   }
 }
