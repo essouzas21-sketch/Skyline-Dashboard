@@ -1,5 +1,13 @@
 /**
  * Relatório consolidado — KPIs de todos os módulos.
+ *
+ * Ao alterar regra/campo/filtro em um dashboard individual, espelhar aqui:
+ *   recebimento.html     → mapRecebimento / loadRecebimentoRows / kpiRecebimento
+ *   triagem.html         → mapTriagem / passesTriagem / kpiTriagem
+ *   gestao-produto.html  → mapGestao / passesGestao / kpiGestao
+ *   producao-*.html      → ProducaoDash (yardex-producao.js)
+ *   cqe.html             → mapCqe / loadCqeRows / kpiCqe (+ processCqeRows em yardex-dash.js)
+ *   consolidado.html     → labels/hints das seções
  */
 const ConsolidadoDash = {
   API_RECEBIMENTO: "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474",

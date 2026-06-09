@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consolidado — Skyline</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=11" />
+  <link rel="stylesheet" href="yardex-dash.css?v=12" />
 </head>
 <body class="dash-page consolidado-page">
   <div id="app" class="page consolidado-app">
@@ -28,6 +28,7 @@
     <div class="consolidado-grid">
       <section class="consolidado-section">
         <h2>Recebimento</h2>
+        <p class="section-hint">data_add · grupo 6151 · distinct id</p>
         <div class="kpi-row">
           <div class="kpi-card">
             <div class="label">Recebida total</div>
@@ -38,6 +39,7 @@
 
       <section class="consolidado-section">
         <h2>Triagem</h2>
+        <p class="section-hint">DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas · distinct id</p>
         <div class="kpi-row">
           <div class="kpi-card">
             <div class="label">Triagens no período</div>
@@ -48,6 +50,7 @@
 
       <section class="consolidado-section">
         <h2>Gestão de Peças</h2>
+        <p class="section-hint">DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas</p>
         <div class="kpi-row">
           <div class="kpi-card">
             <div class="label">Peças pedidas</div>
@@ -62,6 +65,7 @@
 
       <section class="consolidado-section">
         <h2>Produção Diversas Marcas</h2>
+        <p class="section-hint">Iniciado_Reparo ou Retorno 1/2/3 · distinct id · filtro usuários</p>
         <div class="kpi-row">
           <div class="kpi-card finalizado">
             <div class="label">Finalizados</div>
@@ -84,6 +88,7 @@
 
       <section class="consolidado-section">
         <h2>Produção iPhone</h2>
+        <p class="section-hint">Iniciado_Reparo ou Retorno 1/2/3 · distinct id · filtro usuários</p>
         <div class="kpi-row">
           <div class="kpi-card finalizado">
             <div class="label">Finalizados</div>
@@ -106,6 +111,7 @@
 
       <section class="consolidado-section">
         <h2>Qualidade — CQE</h2>
+        <p class="section-hint">DATA_PEDIDO_SANKHYA · 1x id/dia por decisão · sem motivo teste</p>
         <div class="kpi-row">
           <div class="kpi-card aprovado">
             <div class="label">Aprovados</div>
@@ -127,7 +133,7 @@
   <script src="yardex-version.js"></script>
   <script src="yardex-dash.js?v=21"></script>
   <script src="yardex-producao.js?v=8"></script>
-  <script src="yardex-consolidado.js?v=14"></script>
+  <script src="yardex-consolidado.js?v=15"></script>
   <script>
     ConsolidadoDash.init();
   </script>

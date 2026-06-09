@@ -444,9 +444,17 @@ th {
 }
 
 .consolidado-section h2 {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 0.95rem;
   color: var(--bg);
+  flex-shrink: 0;
+}
+
+.consolidado-section .section-hint {
+  margin: 0 0 6px;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: var(--muted);
   flex-shrink: 0;
 }
 

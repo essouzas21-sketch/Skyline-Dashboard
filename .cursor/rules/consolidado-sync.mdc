@@ -1,0 +1,29 @@
+---
+description: Ao alterar dashboards Skyline, manter consolidado sincronizado
+globs: skyline-dashboard/**/*.{html,js}
+alwaysApply: false
+---
+
+# Skyline — sincronizar com o Consolidado
+
+O menu aponta para `consolidado.html`, que agrega KPIs de todos os módulos via `yardex-consolidado.js`.
+
+## Ao mudar regra, campo de data, filtro ou KPI em um dashboard
+
+Atualizar **também**:
+
+| Dashboard | Arquivo consolidado |
+|-----------|---------------------|
+| `recebimento.html` | `mapRecebimento`, `loadRecebimentoRows`, `kpiRecebimento` |
+| `triagem.html` | `mapTriagem`, `passesTriagem`, `kpiTriagem` |
+| `gestao-produto.html` | `mapGestao`, `passesGestao`, `kpiGestao` |
+| `producao-*.html` | `yardex-producao.js` (`ProducaoDash`) |
+| `cqe.html` | `mapCqe`, `loadCqeRows`, `kpiCqe` e `processCqeRows` em `yardex-dash.js` |
+
+E em `consolidado.html`: texto do `.section-hint` da seção correspondente e `periodLabel` se aplicável.
+
+## Checklist antes de concluir
+
+1. KPI do dashboard individual = KPI do consolidado (mesmo período, mesmos filtros).
+2. Campo de data e deduplicação idênticos.
+3. Bump em `version.json` (`npm run bump-version`) em deploys para TVs recarregarem.
