@@ -5,7 +5,6 @@ const ConsolidadoDash = {
   API_RECEBIMENTO: "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474",
   API_REPARO: "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d",
   GRUPO_FILTRO: "6151",
-  ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas"]),
 
   mapRecebimento(raw) {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
@@ -39,8 +38,7 @@ const ConsolidadoDash = {
 
   passesTriagem(row) {
     const status = String(row.status_sankhya || "").trim().toLowerCase();
-    const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-    return status === "sucesso" && this.ETAPAS_TRIAGEM.has(etapa) && !!row.data_pedido_sankhya;
+    return status === "sucesso" && !!row.data_pedido_sankhya;
   },
 
   loadTriagemRows(json) {

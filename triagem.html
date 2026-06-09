@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=13"></script>
+  <script src="yardex-dash.js?v=14"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -69,7 +69,6 @@
 
     const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
     const DATE_FIELD = "data_pedido_sankhya";
-    const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
     const TOP_MARCAS = 12;
     const statusEl = document.getElementById("statusMsg");
 
@@ -101,8 +100,7 @@
 
     function passesTriagemRules(row) {
       const status = String(row.status_sankhya || "").trim().toLowerCase();
-      const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-      return status === "sucesso" && ETAPAS_PERMITIDAS.has(etapa) && !!row.data_pedido_sankhya;
+      return status === "sucesso" && !!row.data_pedido_sankhya;
     }
 
     function renderUserTable(rows) {
@@ -142,7 +140,7 @@
 
       document.getElementById("kpiTotal").textContent = filtered.length;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · STATUS sucesso`;
 
       chartMarca = YardexDash.createBarChart(
         "chartMarca",
