@@ -81,7 +81,10 @@ const ConsolidadoDash = {
 
   kpiGestao(rows, start, end) {
     const filtered = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
-    return { total: filtered.length };
+    return {
+      total: filtered.length,
+      distintos: YardexDash.distinctById(filtered, "id").length
+    };
   },
 
   mapCqe(raw) {
@@ -183,7 +186,7 @@ const ConsolidadoDash = {
       this.renderKpis({
         recebimento: { total: 0 },
         triagem: { total: 0 },
-        gestao: { total: 0 },
+        gestao: { total: 0, distintos: 0 },
         producaoDiversas: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         cqe: { aprovado: 0, reprovado: 0, total: 0 }

@@ -124,7 +124,7 @@
       }
 
       const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const produtosDistintos = new Set(filtered.map((r) => r.produto_requisitado_id)).size;
+      const produtosDistintos = YardexDash.distinctById(filtered, "id").length;
 
       document.getElementById("kpiTotal").textContent = filtered.length;
       document.getElementById("kpiProdutos").textContent = produtosDistintos;
