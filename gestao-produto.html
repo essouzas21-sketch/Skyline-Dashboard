@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gestão de Produto</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=10" />
+  <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-dash.js?v=9"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
@@ -32,7 +32,7 @@
         <div class="value" id="kpiTotal">0</div>
       </div>
       <div class="kpi-card">
-        <div class="label">Produtos distintos</div>
+        <div class="label">Quantidade de aparelhos</div>
         <div class="value" id="kpiProdutos">0</div>
       </div>
     </div>
@@ -134,7 +134,7 @@
       renderTable(filtered);
       YardexDash.showStatus(
         statusEl,
-        `${filtered.length} peça(s) no período · ${produtosDistintos} produto(s) distinto(s).`,
+        `${filtered.length} peça(s) no período · ${produtosDistintos} aparelho(s).`,
         false
       );
     }
