@@ -123,6 +123,26 @@ const YardexDash = {
       .map(([hour, count]) => [`${String(hour).padStart(2, "0")}h`, count]);
   },
 
+  getCurrentHourBucket(fromHour = 7, toHour = 17) {
+    const bucket = new Date().getHours() + 1;
+    const firstBucket = fromHour + 1;
+    if (bucket < firstBucket) return firstBucket - 1;
+    if (bucket > toHour) return toHour;
+    return bucket;
+  },
+
+  /** Oculta linha/rótulo das horas futuras quando o período inclui hoje. */
+  maskFutureHourLineValues(byHour, endDate, fromHour = 7, toHour = 17) {
+    if (endDate !== this.todayISO()) {
+      return byHour.map(([, count]) => count);
+    }
+    const currentBucket = this.getCurrentHourBucket(fromHour, toHour);
+    return byHour.map(([label, count]) => {
+      const hour = parseInt(label, 10);
+      return hour > currentBucket ? null : count;
+    });
+  },
+
   extractFirstWord(text) {
     if (!text || text === "—") return "Outros";
     const first = String(text).trim().split(/\s+/)[0];
@@ -371,7 +391,7 @@ const YardexDash = {
   },
 
   createLineChart(canvasId, chartRef, labels, values, color = "#694992") {
-    const hasData = values.some((v) => v > 0);
+    const hasData = values.some((v) => v != null && v > 0);
     if (chartRef) chartRef.destroy();
 
     return new Chart(document.getElementById(canvasId), {
@@ -386,10 +406,11 @@ const YardexDash = {
           pointBackgroundColor: color,
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
-          pointRadius: 5,
-          pointHoverRadius: 6,
+          pointRadius: (ctx) => (ctx.raw == null ? 0 : 5),
+          pointHoverRadius: (ctx) => (ctx.raw == null ? 0 : 6),
           borderWidth: 2,
           tension: 0.25,
+          spanGaps: false,
           fill: false
         }]
       },
@@ -400,7 +421,10 @@ const YardexDash = {
         plugins: {
           legend: { display: false },
           datalabels: {
-            display: (ctx) => hasData && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+            display: (ctx) => {
+              const value = ctx.dataset.data[ctx.dataIndex];
+              return hasData && value != null && Number(value) > 0;
+            },
             anchor: "end",
             align: "top",
             offset: 4,
