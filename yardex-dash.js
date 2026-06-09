@@ -101,6 +101,28 @@ const YardexDash = {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   },
 
+  /** Faixas 07h–17h: registro das 07:00–07:59 conta em 08h, e assim por diante. */
+  aggregateHourBuckets(rows, dateField, fromHour = 7, toHour = 17) {
+    const firstBucket = fromHour + 1;
+    const counts = new Map();
+    for (let b = firstBucket; b <= toHour; b++) counts.set(b, 0);
+
+    rows.forEach((row) => {
+      const raw = row[dateField];
+      if (!raw) return;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return;
+      const bucket = d.getHours() + 1;
+      if (bucket >= firstBucket && bucket <= toHour) {
+        counts.set(bucket, counts.get(bucket) + 1);
+      }
+    });
+
+    return [...counts.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([hour, count]) => [`${String(hour).padStart(2, "0")}h`, count]);
+  },
+
   extractFirstWord(text) {
     if (!text || text === "—") return "Outros";
     const first = String(text).trim().split(/\s+/)[0];

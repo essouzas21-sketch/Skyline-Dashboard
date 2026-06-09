@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=9"></script>
+  <script src="yardex-dash.js?v=10"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <div class="dash-main dash-main--split">
+    <div class="dash-main dash-main--triagem">
       <div class="panel">
         <h2>Triagens por usuário</h2>
         <div class="table-wrap">
@@ -56,6 +56,11 @@
         <h2>Principais marcas triadas</h2>
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
+
+      <div class="panel panel--hour">
+        <h2>Triagens por hora (07h–17h)</h2>
+        <div class="chart-box chart-box--hour"><canvas id="chartHora"></canvas></div>
+      </div>
     </div>
   </div>
 
@@ -68,13 +73,16 @@
     const TOP_MARCAS = 12;
     const statusEl = document.getElementById("statusMsg");
 
+    const HOUR_FIELD = "data_triagem";
     let allRows = [];
     let chartMarca = null;
+    let chartHora = null;
 
     function mapRow(raw) {
       return {
         id: raw.id ?? null,
         data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
+        data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
         status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
         etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
         usuario: YardexDash.normalizeUserName(
@@ -129,6 +137,10 @@
       const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
       const byBrand = YardexDash.aggregateCount(filtered, (r) => YardexDash.extractFirstWord(r.descricao))
         .slice(0, TOP_MARCAS);
+      const byHour = YardexDash.aggregateHourBuckets(
+        filtered.map((r) => ({ ...r, _hora_ref: r[HOUR_FIELD] || r[DATE_FIELD] })),
+        "_hora_ref"
+      );
 
       document.getElementById("kpiTotal").textContent = filtered.length;
       document.getElementById("periodLabel").textContent =
@@ -140,6 +152,14 @@
         byBrand.map((x) => x[0]),
         byBrand.map((x) => x[1]),
         "#8b6bb8"
+      );
+
+      chartHora = YardexDash.createBarChart(
+        "chartHora",
+        chartHora,
+        byHour.map((x) => x[0]),
+        byHour.map((x) => x[1]),
+        "#694992"
       );
 
       renderUserTable(filtered);
@@ -162,6 +182,7 @@
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
+        chartHora = YardexDash.createBarChart("chartHora", chartHora, [], []);
         renderUserTable([]);
       }
     }

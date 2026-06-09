@@ -301,6 +301,22 @@ th {
   grid-template-columns: 1fr;
 }
 
+.dash-main--triagem {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr auto;
+}
+
+.dash-main--triagem .panel--hour {
+  grid-column: 1 / -1;
+  flex-shrink: 0;
+}
+
+.dash-main--triagem .chart-box--hour {
+  flex: none;
+  height: clamp(100px, 14vh, 150px);
+  min-height: 100px;
+}
+
 .split-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -326,6 +342,7 @@ th {
 @media (max-width: 900px) {
   .dash-main--split,
   .dash-main--chart-table,
+  .dash-main--triagem,
   .split-panel {
     grid-template-columns: 1fr;
   }
