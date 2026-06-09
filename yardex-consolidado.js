@@ -76,8 +76,7 @@ const ConsolidadoDash = {
   },
 
   loadGestaoRows(json) {
-    const mapped = YardexDash.normalizeRows(json).map((raw) => this.mapGestao(raw)).filter((r) => this.passesGestao(r));
-    return YardexDash.distinctById(mapped, "id");
+    return YardexDash.normalizeRows(json).map((raw) => this.mapGestao(raw)).filter((r) => this.passesGestao(r));
   },
 
   kpiGestao(rows, start, end) {
