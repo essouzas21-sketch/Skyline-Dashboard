@@ -437,8 +437,12 @@ th {
   font-size: 0.62rem;
 }
 
-.consolidado-section.span-2 {
-  grid-column: span 2;
+.consolidado-section.consolidado-pending {
+  border: 2px dashed rgba(105, 73, 146, 0.35);
+}
+
+.consolidado-section.consolidado-pending .kpi-card {
+  background: #faf8fc;
 }
 
 .kpi-card.finalizado .value { color: #15803d; }
@@ -452,8 +456,5 @@ th {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: auto;
     overflow-y: auto;
-  }
-  .consolidado-section.span-2 {
-    grid-column: span 1;
   }
 }

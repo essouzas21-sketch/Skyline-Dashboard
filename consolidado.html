@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consolidado — Skyline</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=7" />
+  <link rel="stylesheet" href="yardex-dash.css?v=10" />
 </head>
 <body class="dash-page consolidado-page">
   <div id="app" class="page consolidado-app">
@@ -26,6 +26,58 @@
     <div id="statusMsg" class="status" style="display:none"></div>
 
     <div class="consolidado-grid">
+      <section class="consolidado-section">
+        <h2>Recebimento</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Recebida total</div>
+            <div class="value" id="kpiRecTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section">
+        <h2>Triagem</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Triagens no período</div>
+            <div class="value" id="kpiTriagemTotal">0</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section consolidado-pending">
+        <h2>Gestão de Peças</h2>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Em breve</div>
+            <div class="value" style="font-size:clamp(1.2rem,3vw,2rem);color:var(--muted)">—</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="consolidado-section">
+        <h2>Produção Diversas Marcas</h2>
+        <div class="kpi-row">
+          <div class="kpi-card finalizado">
+            <div class="label">Finalizados</div>
+            <div class="value" id="kpiDivFinalizado">0</div>
+          </div>
+          <div class="kpi-card andamento">
+            <div class="label">Em andamento</div>
+            <div class="value" id="kpiDivAndamento">0</div>
+          </div>
+          <div class="kpi-card pausado">
+            <div class="label">Pausados</div>
+            <div class="value" id="kpiDivPausado">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Total</div>
+            <div class="value" id="kpiDivTotal">0</div>
+          </div>
+        </div>
+      </section>
+
       <section class="consolidado-section">
         <h2>Produção iPhone</h2>
         <div class="kpi-row">
@@ -49,49 +101,7 @@
       </section>
 
       <section class="consolidado-section">
-        <h2>Recebimento</h2>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Recebida total</div>
-            <div class="value" id="kpiRecTotal">0</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="consolidado-section">
-        <h2>Triagem</h2>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Triagens no período</div>
-            <div class="value" id="kpiTriagemTotal">0</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="consolidado-section span-2">
-        <h2>Produção Diversas Marcas</h2>
-        <div class="kpi-row">
-          <div class="kpi-card finalizado">
-            <div class="label">Finalizados</div>
-            <div class="value" id="kpiDivFinalizado">0</div>
-          </div>
-          <div class="kpi-card andamento">
-            <div class="label">Em andamento</div>
-            <div class="value" id="kpiDivAndamento">0</div>
-          </div>
-          <div class="kpi-card pausado">
-            <div class="label">Pausados</div>
-            <div class="value" id="kpiDivPausado">0</div>
-          </div>
-          <div class="kpi-card">
-            <div class="label">Total</div>
-            <div class="value" id="kpiDivTotal">0</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="consolidado-section">
-        <h2>CQE — Qualidade</h2>
+        <h2>Qualidade — CQE</h2>
         <div class="kpi-row">
           <div class="kpi-card aprovado">
             <div class="label">Aprovados</div>
