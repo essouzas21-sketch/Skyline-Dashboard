@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=10"></script>
+  <script src="yardex-dash.js?v=11"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -154,7 +154,7 @@
         "#8b6bb8"
       );
 
-      chartHora = YardexDash.createBarChart(
+      chartHora = YardexDash.createLineChart(
         "chartHora",
         chartHora,
         byHour.map((x) => x[0]),
@@ -182,7 +182,7 @@
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
-        chartHora = YardexDash.createBarChart("chartHora", chartHora, [], []);
+        chartHora = YardexDash.createLineChart("chartHora", chartHora, [], []);
         renderUserTable([]);
       }
     }

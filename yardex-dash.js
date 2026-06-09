@@ -129,9 +129,18 @@ const YardexDash = {
     return first || "Outros";
   },
 
+  titleCaseWords(name) {
+    if (!name || name === "—") return name ?? "—";
+    return String(name)
+      .trim()
+      .split(/\s+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  },
+
   shortName(fullName) {
     if (!fullName || fullName === "—") return "—";
-    return String(fullName).trim().split(/\s+/).slice(0, 2).join(" ");
+    return this.titleCaseWords(String(fullName).trim().split(/\s+/).slice(0, 2).join(" "));
   },
 
   USER_NAME_ALIASES: [
@@ -152,7 +161,7 @@ const YardexDash = {
         .replace(/[\u0300-\u036f]/g, "");
       if (norm === fromNorm) return to;
     }
-    return trimmed;
+    return this.titleCaseWords(trimmed);
   },
 
   showStatus(el, msg, isError) {
@@ -354,6 +363,60 @@ const YardexDash = {
           },
           x: {
             ticks: { maxRotation: 45, minRotation: 0, font: { size: 11 }, color: "#2d1f42" },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  },
+
+  createLineChart(canvasId, chartRef, labels, values, color = "#694992") {
+    const hasData = values.some((v) => v > 0);
+    if (chartRef) chartRef.destroy();
+
+    return new Chart(document.getElementById(canvasId), {
+      type: "line",
+      data: {
+        labels: labels.length ? labels : ["Nenhum registro"],
+        datasets: [{
+          label: "Quantidade",
+          data: values.length ? values : [0],
+          borderColor: color,
+          backgroundColor: color,
+          pointBackgroundColor: color,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          tension: 0.25,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            display: (ctx) => hasData && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+            anchor: "end",
+            align: "top",
+            offset: 4,
+            color,
+            font: { weight: "700", size: 12 },
+            formatter: (value) => value
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0, color: "#6b5b7a" },
+            grid: { color: "#e8e0f0" }
+          },
+          x: {
+            ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 }, color: "#2d1f42" },
             grid: { display: false }
           }
         }
