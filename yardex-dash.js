@@ -101,7 +101,14 @@ const YardexDash = {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   },
 
-  /** Faixas 07h–17h: registro das 07:00–07:59 conta em 08h, e assim por diante. */
+  /** Hora do timestamp em UTC (DATA_PEDIDO_SANKHYA vem como …Z). 08:15Z → rótulo 09h. */
+  hourBucketFromIso(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.getUTCHours() + 1;
+  },
+
+  /** Faixas 07h–17h UTC: 07:00–07:59Z conta em 08h, 08:00–08:59Z em 09h, etc. */
   aggregateHourBuckets(rows, dateField, fromHour = 7, toHour = 17) {
     const firstBucket = fromHour + 1;
     const counts = new Map();
@@ -110,9 +117,8 @@ const YardexDash = {
     rows.forEach((row) => {
       const raw = row[dateField];
       if (!raw) return;
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) return;
-      const bucket = d.getHours() + 1;
+      const bucket = this.hourBucketFromIso(raw);
+      if (bucket == null) return;
       if (bucket >= firstBucket && bucket <= toHour) {
         counts.set(bucket, counts.get(bucket) + 1);
       }
@@ -124,7 +130,7 @@ const YardexDash = {
   },
 
   getCurrentHourBucket(fromHour = 7, toHour = 17) {
-    const bucket = new Date().getHours() + 1;
+    const bucket = new Date().getUTCHours() + 1;
     const firstBucket = fromHour + 1;
     if (bucket < firstBucket) return firstBucket - 1;
     if (bucket > toHour) return toHour;
