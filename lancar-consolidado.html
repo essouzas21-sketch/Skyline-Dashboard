@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lançar — Consolidado</title>
+  <link rel="stylesheet" href="yardex-dash.css?v=12" />
+  <style>
+    .lancar-page { max-width: 520px; margin: 0 auto; }
+    .lancar-card {
+      background: var(--card);
+      color: var(--text-on-card);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+    .lancar-card h2 { margin: 0 0 4px; font-size: 1rem; color: var(--bg); }
+    .lancar-card p { margin: 0 0 12px; font-size: 0.78rem; color: var(--muted); }
+    .lancar-current { font-size: 1.4rem; font-weight: 800; color: var(--bg); margin-bottom: 10px; }
+    .lancar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .lancar-row input[type="number"] {
+      width: 88px;
+      padding: 8px 10px;
+      border: 1px solid #e8e0f0;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .lancar-row button { min-width: 64px; }
+    .lancar-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 16px;
+      line-height: 1.45;
+    }
+    .lancar-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  </style>
+</head>
+<body class="dash-page">
+  <div class="page lancar-page">
+    <div class="dash-toolbar">
+      <a class="back" href="consolidado.html">← Consolidado</a>
+      <div class="dash-title">
+        <h1>Lançamentos manuais</h1>
+        <p class="subtitle">Valores exibidos só no consolidado</p>
+      </div>
+    </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="lancar-card">
+      <h2>Triagem — Saldo atual</h2>
+      <p>Soma ao saldo exibido no consolidado (não altera triagens da API).</p>
+      <div class="lancar-current" id="curSaldo">0</div>
+      <div class="lancar-row">
+        <input type="number" id="amtSaldo" min="1" value="1" />
+        <button type="button" class="primary" data-field="saldoAtual" data-amt="amtSaldo">Lançar</button>
+        <button type="button" data-quick="saldoAtual" data-n="1">+1</button>
+        <button type="button" data-quick="saldoAtual" data-n="5">+5</button>
+      </div>
+    </div>
+
+    <div class="lancar-card">
+      <h2>Triagem — Produtos desmontados</h2>
+      <p>Contador separado no bloco de triagem.</p>
+      <div class="lancar-current" id="curDesmontados">0</div>
+      <div class="lancar-row">
+        <input type="number" id="amtDesmontados" min="1" value="1" />
+        <button type="button" class="primary" data-field="produtosDesmontados" data-amt="amtDesmontados">Lançar</button>
+        <button type="button" data-quick="produtosDesmontados" data-n="1">+1</button>
+        <button type="button" data-quick="produtosDesmontados" data-n="5">+5</button>
+      </div>
+    </div>
+
+    <div class="lancar-card">
+      <h2>Produção iPhone — PLL</h2>
+      <p>Exibido à parte; não entra no total de iPhone.</p>
+      <div class="lancar-current" id="curPll">0</div>
+      <div class="lancar-row">
+        <input type="number" id="amtPll" min="1" value="1" />
+        <button type="button" class="primary" data-field="pll" data-amt="amtPll">Lançar</button>
+        <button type="button" data-quick="pll" data-n="1">+1</button>
+        <button type="button" data-quick="pll" data-n="5">+5</button>
+      </div>
+    </div>
+
+    <p class="lancar-note">
+      Base fixa em <code>consolidado-manual.json</code> (vale para todas as TVs após deploy).
+      Lançamentos desta tela ficam no navegador desta TV (<code>localStorage</code>).
+    </p>
+
+    <div class="lancar-actions">
+      <button type="button" id="btnRefresh">Atualizar valores</button>
+      <button type="button" id="btnResetDelta">Zerar lançamentos desta TV</button>
+      <a class="back" href="consolidado.html">Ver consolidado</a>
+    </div>
+  </div>
+
+  <script src="yardex-dash.js?v=21"></script>
+  <script src="yardex-consolidado-manual.js?v=1"></script>
+  <script>
+    const statusEl = document.getElementById("statusMsg");
+
+    async function refreshDisplay() {
+      const v = await ConsolidadoManual.getValues();
+      document.getElementById("curSaldo").textContent = v.saldoAtual;
+      document.getElementById("curDesmontados").textContent = v.produtosDesmontados;
+      document.getElementById("curPll").textContent = v.pll;
+    }
+
+    async function doLaunch(field, amount) {
+      ConsolidadoManual.addLaunch(field, amount);
+      await refreshDisplay();
+      YardexDash.showStatus(statusEl, "Lançamento registrado nesta TV.", false);
+    }
+
+    document.querySelectorAll("[data-field]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const field = btn.dataset.field;
+        const input = document.getElementById(btn.dataset.amt);
+        doLaunch(field, input?.value ?? 1);
+      });
+    });
+
+    document.querySelectorAll("[data-quick]").forEach((btn) => {
+      btn.addEventListener("click", () => doLaunch(btn.dataset.quick, btn.dataset.n));
+    });
+
+    document.getElementById("btnRefresh").addEventListener("click", refreshDisplay);
+    document.getElementById("btnResetDelta").addEventListener("click", async () => {
+      if (!confirm("Zerar só os lançamentos feitos nesta TV? (JSON base mantém.)")) return;
+      ConsolidadoManual.resetDelta();
+      await refreshDisplay();
+      YardexDash.showStatus(statusEl, "Lançamentos desta TV zerados.", false);
+    });
+
+    refreshDisplay();
+  </script>
+</body>
+</html>
