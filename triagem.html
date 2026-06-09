@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-dash.js?v=17"></script>
+  <script src="yardex-dash.js?v=18"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -58,7 +58,7 @@
       </div>
 
       <div class="panel panel--hour">
-        <h2>Triagens por hora — DATA_PEDIDO_SANKHYA (08h–17h)</h2>
+        <h2>Triagens por hora — DATA_PEDIDO_SANKHYA (06h–17h)</h2>
         <div class="chart-box chart-box--hour"><canvas id="chartHora"></canvas></div>
       </div>
     </div>
@@ -73,7 +73,7 @@
     const TOP_MARCAS = 12;
     const statusEl = document.getElementById("statusMsg");
 
-    const HOUR_FROM = 7;
+    const HOUR_FROM = 5;
     const HOUR_TO = 17;
     let allRows = [];
     let chartMarca = null;
@@ -135,11 +135,12 @@
       }
 
       const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const byBrand = YardexDash.aggregateCount(filtered, (r) => YardexDash.extractFirstWord(r.descricao))
+      const dashRows = YardexDash.distinctById(filtered, "id");
+      const byBrand = YardexDash.aggregateCount(dashRows, (r) => YardexDash.extractFirstWord(r.descricao))
         .slice(0, TOP_MARCAS);
-      const byHour = YardexDash.aggregateHourBuckets(filtered, DATE_FIELD, HOUR_FROM, HOUR_TO);
+      const byHour = YardexDash.aggregateHourBuckets(dashRows, DATE_FIELD, HOUR_FROM, HOUR_TO);
 
-      document.getElementById("kpiTotal").textContent = filtered.length;
+      document.getElementById("kpiTotal").textContent = dashRows.length;
       document.getElementById("periodLabel").textContent =
         `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
 
@@ -159,10 +160,10 @@
         "#694992"
       );
 
-      renderUserTable(filtered);
+      renderUserTable(dashRows);
       YardexDash.showStatus(
         statusEl,
-        `${filtered.length} triagem(ns) no período · ${allRows.length} elegível(is) após filtros.`,
+        `${dashRows.length} aparelho(s) no período · ${filtered.length} linha(s) · distinct por id.`,
         false
       );
     }
@@ -172,8 +173,8 @@
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         const mapped = YardexDash.normalizeRows(json).map(mapRow).filter(passesTriagemRules);
-        allRows = YardexDash.distinctById(mapped, "id");
-        YardexDash.showStatus(statusEl, `${allRows.length} única(s) · ${mapped.length} bruta(s).`, false);
+        allRows = mapped;
+        YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
