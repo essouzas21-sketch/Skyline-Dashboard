@@ -53,6 +53,38 @@ const ConsolidadoDash = {
     return { total: filtered.length };
   },
 
+  mapGestao(raw) {
+    const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
+    return {
+      id: raw.id ?? null,
+      data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || null,
+      status_sankhya: raw.STATUS_SANKHYA || null,
+      etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
+      produto_requisitado_id: produtoId != null ? String(produtoId).trim() : null
+    };
+  },
+
+  passesGestao(row) {
+    const status = String(row.status_sankhya || "").trim().toLowerCase();
+    const etapa = String(row.etapa_origem || "").trim().toLowerCase();
+    return (
+      status === "sucesso" &&
+      this.ETAPAS_TRIAGEM.has(etapa) &&
+      !!row.data_pedido_sankhya &&
+      !!row.produto_requisitado_id
+    );
+  },
+
+  loadGestaoRows(json) {
+    const mapped = YardexDash.normalizeRows(json).map((raw) => this.mapGestao(raw)).filter((r) => this.passesGestao(r));
+    return YardexDash.distinctById(mapped, "id");
+  },
+
+  kpiGestao(rows, start, end) {
+    const filtered = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
+    return { total: filtered.length };
+  },
+
   mapCqe(raw) {
     const v = String(raw.decisao || "").trim().toLowerCase();
     let decisao = null;
@@ -93,6 +125,7 @@ const ConsolidadoDash = {
   renderKpis(data) {
     this.setKpi("kpiRecTotal", data.recebimento.total);
     this.setKpi("kpiTriagemTotal", data.triagem.total);
+    this.setKpi("kpiGestaoTotal", data.gestao.total);
     this.setKpi("kpiDivFinalizado", data.producaoDiversas.finalizado);
     this.setKpi("kpiDivAndamento", data.producaoDiversas.andamento);
     this.setKpi("kpiDivPausado", data.producaoDiversas.pausado);
@@ -121,12 +154,14 @@ const ConsolidadoDash = {
 
       const recRows = this.loadRecebimentoRows(recJson);
       const triRows = this.loadTriagemRows(repJson);
+      const gestaoRows = this.loadGestaoRows(repJson);
       const prodRows = ProducaoDash.loadRows(repJson);
       const cqeRows = this.loadCqeRows(repJson);
 
       const data = {
         recebimento: this.kpiRecebimento(recRows, start, end),
         triagem: this.kpiTriagem(triRows, start, end),
+        gestao: this.kpiGestao(gestaoRows, start, end),
         producaoDiversas: ProducaoDash.computeTotals(
           ProducaoDash.filterRows(prodRows, start, end, "diversas")
         ),
@@ -149,6 +184,7 @@ const ConsolidadoDash = {
       this.renderKpis({
         recebimento: { total: 0 },
         triagem: { total: 0 },
+        gestao: { total: 0 },
         producaoDiversas: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         cqe: { aprovado: 0, reprovado: 0, total: 0 }

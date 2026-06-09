@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="yardex-dash.js?v=9"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -12,16 +13,150 @@
       <a class="back" href="menu.html">← Menu</a>
       <div class="dash-title">
         <h1>Gestão de Produto</h1>
-        <p class="subtitle">Módulo em construção</p>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
       </div>
     </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">Peças pedidas</div>
+        <div class="value" id="kpiTotal">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Produtos distintos</div>
+        <div class="value" id="kpiProdutos">0</div>
+      </div>
+    </div>
+
     <div class="dash-main dash-main--table-only">
-      <main class="panel" style="justify-content:center;align-items:center;">
-        <p style="margin:0;font-size:1rem;color:var(--muted);text-align:center;">
-          Esta página está pronta para receber as funcionalidades de Gestão de Produto.
-        </p>
-      </main>
+      <div class="panel">
+        <h2>Peças por produto_requisitado_id</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>produto_requisitado_id</th>
+                <th>Descrição</th>
+                <th>Qtd</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="tableEmpty" class="empty" hidden>Nenhuma peça pedida no período.</div>
+      </div>
     </div>
   </div>
+
+  <script>
+    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const DATE_FIELD = "data_pedido_sankhya";
+    const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
+    const statusEl = document.getElementById("statusMsg");
+
+    let allRows = [];
+
+    function mapRow(raw) {
+      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
+      return {
+        id: raw.id ?? null,
+        data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
+        status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
+        etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
+        produto_requisitado_id: produtoId != null ? String(produtoId).trim() : null,
+        descricao: raw.descricao || "—"
+      };
+    }
+
+    function passesRules(row) {
+      const status = String(row.status_sankhya || "").trim().toLowerCase();
+      const etapa = String(row.etapa_origem || "").trim().toLowerCase();
+      return (
+        status === "sucesso" &&
+        ETAPAS_PERMITIDAS.has(etapa) &&
+        !!row.data_pedido_sankhya &&
+        !!row.produto_requisitado_id
+      );
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById("tableBody");
+      const empty = document.getElementById("tableEmpty");
+      const byProduto = YardexDash.aggregateCount(rows, (r) => r.produto_requisitado_id);
+      const descMap = new Map();
+      rows.forEach((r) => {
+        if (!descMap.has(r.produto_requisitado_id)) descMap.set(r.produto_requisitado_id, r.descricao);
+      });
+
+      if (!byProduto.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+
+      tbody.innerHTML = byProduto
+        .map(([produtoId, qtd]) => `
+          <tr>
+            <td>${produtoId}</td>
+            <td>${descMap.get(produtoId) || "—"}</td>
+            <td style="font-weight:700;color:var(--bg)">${qtd}</td>
+          </tr>
+        `)
+        .join("");
+    }
+
+    function renderDashboard() {
+      const { start, end } = YardexDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      const produtosDistintos = new Set(filtered.map((r) => r.produto_requisitado_id)).size;
+
+      document.getElementById("kpiTotal").textContent = filtered.length;
+      document.getElementById("kpiProdutos").textContent = produtosDistintos;
+      document.getElementById("periodLabel").textContent =
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
+
+      renderTable(filtered);
+      YardexDash.showStatus(
+        statusEl,
+        `${filtered.length} peça(s) no período · ${produtosDistintos} produto(s) distinto(s).`,
+        false
+      );
+    }
+
+    async function loadData() {
+      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        const mapped = YardexDash.normalizeRows(json).map(mapRow).filter(passesRules);
+        allRows = YardexDash.distinctById(mapped, "id");
+        YardexDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
+        renderDashboard();
+      } catch (err) {
+        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        document.getElementById("kpiTotal").textContent = "0";
+        document.getElementById("kpiProdutos").textContent = "0";
+        renderTable([]);
+      }
+    }
+
+    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    reload();
+  </script>
 </body>
 </html>
