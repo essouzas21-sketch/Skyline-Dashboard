@@ -260,6 +260,27 @@ th {
   overflow: hidden;
 }
 
+.gestao-pecas-page .dash-main--table-only {
+  grid-template-rows: 1fr;
+}
+
+.gestao-pecas-page .dash-main .panel {
+  height: 100%;
+  min-height: 0;
+}
+
+.gestao-pecas-page .table-wrap {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gestao-pecas-page .table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
+}
+
 .dash-main {
   flex: 1;
   min-height: 0;
