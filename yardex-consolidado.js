@@ -45,13 +45,14 @@ const ConsolidadoDash = {
   },
 
   loadTriagemRows(json) {
-    const mapped = YardexDash.normalizeRows(json).map((raw) => this.mapTriagem(raw)).filter((r) => this.passesTriagem(r));
-    return YardexDash.distinctById(mapped, "id");
+    return YardexDash.normalizeRows(json)
+      .map((raw) => this.mapTriagem(raw))
+      .filter((r) => this.passesTriagem(r));
   },
 
   kpiTriagem(rows, start, end) {
     const filtered = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
-    return { total: filtered.length };
+    return { total: YardexDash.distinctById(filtered, "id").length };
   },
 
   mapGestao(raw) {
@@ -129,6 +130,7 @@ const ConsolidadoDash = {
     this.setKpi("kpiRecTotal", data.recebimento.total);
     this.setKpi("kpiTriagemTotal", data.triagem.total);
     this.setKpi("kpiGestaoTotal", data.gestao.total);
+    this.setKpi("kpiGestaoAparelhos", data.gestao.distintos);
     this.setKpi("kpiDivFinalizado", data.producaoDiversas.finalizado);
     this.setKpi("kpiDivAndamento", data.producaoDiversas.andamento);
     this.setKpi("kpiDivPausado", data.producaoDiversas.pausado);
