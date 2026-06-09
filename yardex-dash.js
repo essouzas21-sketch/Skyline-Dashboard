@@ -143,6 +143,8 @@ const YardexDash = {
   _autoRefreshTimer: null,
   _autoRefreshBusy: false,
   _autoRefreshFn: null,
+  _dayRolloverState: null,
+  _dayWatchTimer: null,
 
   _ensureRefreshClock() {
     if (document.getElementById("lastRefresh")) return;
@@ -168,6 +170,30 @@ const YardexDash = {
     }
   },
 
+  checkDayRollover() {
+    const state = this._dayRolloverState;
+    if (!state) return false;
+
+    const hoje = this.todayISO();
+    if (hoje === state.lastDay) return false;
+
+    state.lastDay = hoje;
+    if (state.startEl) state.startEl.value = hoje;
+    if (state.endEl) state.endEl.value = hoje;
+    return true;
+  },
+
+  startDayWatch() {
+    if (this._dayWatchTimer) clearInterval(this._dayWatchTimer);
+
+    this._dayWatchTimer = setInterval(() => {
+      if (!this.checkDayRollover()) return;
+      const { reload, onChange } = this._dayRolloverState || {};
+      if (reload) reload();
+      else onChange?.();
+    }, 60000);
+  },
+
   startAutoRefresh(fn, intervalMs = 60000) {
     this.stopAutoRefresh();
     if (!fn || intervalMs <= 0) return;
@@ -178,6 +204,7 @@ const YardexDash = {
       if (this._autoRefreshBusy) return;
       this._autoRefreshBusy = true;
       try {
+        this.checkDayRollover();
         await Promise.resolve(fn());
       } catch (err) {
         console.error("[YardexDash] auto-refresh:", err);
@@ -200,7 +227,12 @@ const YardexDash = {
     if (!this._visibilityBound) {
       this._visibilityBound = true;
       document.addEventListener("visibilitychange", () => {
-        if (!document.hidden && this._autoRefreshFn) this._autoRefreshFn();
+        if (document.hidden) return;
+        const dayChanged = this.checkDayRollover();
+        const { reload, onChange } = this._dayRolloverState || {};
+        if (dayChanged && reload) reload();
+        else if (dayChanged && onChange) onChange();
+        else if (this._autoRefreshFn) this._autoRefreshFn();
       });
     }
   },
@@ -219,11 +251,15 @@ const YardexDash = {
         }
       : null;
 
+    this._dayRolloverState = { lastDay: today, startEl, endEl, onChange, reload };
+    this.startDayWatch();
+
     document.getElementById("btnApply")?.addEventListener("click", onChange);
     document.getElementById("btnToday")?.addEventListener("click", () => {
       const hoje = this.todayISO();
       if (startEl) startEl.value = hoje;
       if (endEl) endEl.value = hoje;
+      if (this._dayRolloverState) this._dayRolloverState.lastDay = hoje;
       onToday?.() ?? onChange();
     });
     document.getElementById("btnReload")?.addEventListener("click", () => reload?.());
