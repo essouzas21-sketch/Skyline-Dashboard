@@ -60,56 +60,90 @@ const ProducaoDash = {
     return { status: "andamento", user: raw["Usuario inicio"] || "—" };
   },
 
-  calcWorkMs(raw, nowMs = Date.now()) {
+  pushWorkInterval(intervals, start, end) {
+    if (!start || !end) return;
+    const a = start.getTime();
+    const b = end.getTime();
+    if (b > a) intervals.push({ start: a, end: b });
+  },
+
+  getWorkIntervals(raw, nowMs = Date.now()) {
     const inicio = this.parseDt(raw["Iniciado_Reparo"]);
-    if (!inicio) return 0;
+    if (!inicio) return [];
 
     const fim = this.parseDt(raw["Fim do Reparo"]);
     const mp = this.maxFilledPause(raw);
+    const intervals = [];
 
     if (fim && mp === 0) {
-      return Math.max(0, fim.getTime() - inicio.getTime());
+      this.pushWorkInterval(intervals, inicio, fim);
+      return intervals;
     }
 
     if (fim && mp > 0) {
-      let total = 0;
       for (let i = 1; i <= mp; i++) {
         const pause = this.parseDt(raw[`${i} Pausa`]);
         const start = i === 1 ? inicio : this.parseDt(raw[`${i - 1} Retorno`]);
-        if (pause && start) total += Math.max(0, pause.getTime() - start.getTime());
+        this.pushWorkInterval(intervals, start, pause);
       }
-      const lastRet = this.parseDt(raw[`${mp} Retorno`]);
-      if (lastRet) total += Math.max(0, fim.getTime() - lastRet.getTime());
-      return total;
+      this.pushWorkInterval(intervals, this.parseDt(raw[`${mp} Retorno`]), fim);
+      return intervals;
     }
 
     if (mp > 0 && !this.isFilled(raw[`${mp} Retorno`])) {
-      let total = 0;
       for (let i = 1; i <= mp; i++) {
         const pause = this.parseDt(raw[`${i} Pausa`]);
         const start = i === 1 ? inicio : this.parseDt(raw[`${i - 1} Retorno`]);
-        if (pause && start) total += Math.max(0, pause.getTime() - start.getTime());
+        this.pushWorkInterval(intervals, start, pause);
       }
-      return total;
+      return intervals;
     }
 
     const mr = this.maxFilledRetorno(raw);
     if (mr > 0) {
-      let total = 0;
       for (let i = 1; i <= mr; i++) {
         const pause = this.parseDt(raw[`${i} Pausa`]);
         const start = i === 1 ? inicio : this.parseDt(raw[`${i - 1} Retorno`]);
-        if (pause && start) total += Math.max(0, pause.getTime() - start.getTime());
+        this.pushWorkInterval(intervals, start, pause);
 
         const ret = this.parseDt(raw[`${i} Retorno`]);
         const nextPause = this.parseDt(raw[`${i + 1} Pausa`]);
         const end = nextPause || new Date(nowMs);
-        if (ret) total += Math.max(0, end.getTime() - ret.getTime());
+        this.pushWorkInterval(intervals, ret, end);
       }
-      return total;
+      return intervals;
     }
 
-    return Math.max(0, nowMs - inicio.getTime());
+    this.pushWorkInterval(intervals, inicio, new Date(nowMs));
+    return intervals;
+  },
+
+  periodBoundsMs(start, end) {
+    return {
+      start: new Date(`${start}T00:00:00`).getTime(),
+      end: new Date(`${end}T23:59:59.999`).getTime()
+    };
+  },
+
+  sumWorkIntervalsMs(intervals, periodStart = null, periodEnd = null) {
+    let bounds = null;
+    if (periodStart && periodEnd) {
+      bounds = this.periodBoundsMs(periodStart, periodEnd);
+    }
+    return intervals.reduce((total, { start, end }) => {
+      let a = start;
+      let b = end;
+      if (bounds) {
+        a = Math.max(a, bounds.start);
+        b = Math.min(b, bounds.end);
+      }
+      return total + Math.max(0, b - a);
+    }, 0);
+  },
+
+  calcWorkMs(raw, nowMs = Date.now(), periodStart = null, periodEnd = null) {
+    const intervals = this.getWorkIntervals(raw, nowMs);
+    return this.sumWorkIntervalsMs(intervals, periodStart, periodEnd);
   },
 
   mapRow(raw) {
@@ -124,7 +158,7 @@ const ProducaoDash = {
       serial: raw.serial || "—",
       status,
       user: YardexDash.normalizeUserName(user || "—"),
-      workMs: this.calcWorkMs(raw)
+      _workRaw: raw
     };
   },
 
@@ -184,7 +218,7 @@ const ProducaoDash = {
         const u = byUser.get(key);
         u[row.status]++;
         u.total++;
-        u.workMs += row.workMs;
+        u.workMs += this.calcWorkMs(row._workRaw, Date.now(), start, end);
       });
 
       document.getElementById("kpiFinalizado").textContent = totals.finalizado;
@@ -192,7 +226,7 @@ const ProducaoDash = {
       document.getElementById("kpiPausado").textContent = totals.pausado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · Iniciado_Reparo ou Retorno 1/2/3`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · aparelhos no período · tempo só no período filtrado`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
