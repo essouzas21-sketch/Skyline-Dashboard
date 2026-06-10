@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consolidado — Skyline</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=13" />
+  <link rel="stylesheet" href="yardex-dash.css?v=12" />
 </head>
 <body class="dash-page consolidado-page">
   <div id="app" class="page consolidado-app">
@@ -20,7 +20,6 @@
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
         <button type="button" id="btnReload">Recarregar</button>
-        <a class="back" href="lancar-consolidado.html">Lançar</a>
       </div>
     </div>
 
@@ -40,19 +39,11 @@
 
       <section class="consolidado-section">
         <h2>Triagem</h2>
-        <p class="section-hint">API: DATA_PEDIDO_SANKHYA · manual: saldo e desmontados</p>
-        <div class="kpi-row kpi-row--compact">
+        <p class="section-hint">DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas · distinct id</p>
+        <div class="kpi-row">
           <div class="kpi-card">
             <div class="label">Triagens no período</div>
             <div class="value" id="kpiTriagemTotal">0</div>
-          </div>
-          <div class="kpi-card kpi-card--manual">
-            <div class="label">Saldo atual</div>
-            <div class="value" id="kpiTriagemSaldo">0</div>
-          </div>
-          <div class="kpi-card kpi-card--manual">
-            <div class="label">Produtos desmontados</div>
-            <div class="value" id="kpiTriagemDesmontados">0</div>
           </div>
         </div>
       </section>
@@ -97,8 +88,8 @@
 
       <section class="consolidado-section">
         <h2>Produção iPhone</h2>
-        <p class="section-hint">API: Iniciado_Reparo ou Retorno 1/2/3 · PLL manual (fora do total)</p>
-        <div class="kpi-row kpi-row--compact">
+        <p class="section-hint">Iniciado_Reparo ou Retorno 1/2/3 · distinct id · filtro usuários</p>
+        <div class="kpi-row">
           <div class="kpi-card finalizado">
             <div class="label">Finalizados</div>
             <div class="value" id="kpiIphFinalizado">0</div>
@@ -114,10 +105,6 @@
           <div class="kpi-card">
             <div class="label">Total</div>
             <div class="value" id="kpiIphTotal">0</div>
-          </div>
-          <div class="kpi-card kpi-card--pll">
-            <div class="label">PLL</div>
-            <div class="value" id="kpiIphPll">0</div>
           </div>
         </div>
       </section>
@@ -146,8 +133,7 @@
   <script src="yardex-version.js"></script>
   <script src="yardex-dash.js?v=21"></script>
   <script src="yardex-producao.js?v=8"></script>
-  <script src="yardex-consolidado-manual.js?v=1"></script>
-  <script src="yardex-consolidado.js?v=16"></script>
+  <script src="yardex-consolidado.js?v=15"></script>
   <script>
     ConsolidadoDash.init();
   </script>

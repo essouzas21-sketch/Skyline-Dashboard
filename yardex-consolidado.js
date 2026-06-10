@@ -134,14 +134,9 @@ const ConsolidadoDash = {
     if (el) el.textContent = value;
   },
 
-  renderKpis(data, manual = null) {
+  renderKpis(data) {
     this.setKpi("kpiRecTotal", data.recebimento.total);
     this.setKpi("kpiTriagemTotal", data.triagem.total);
-    if (manual) {
-      this.setKpi("kpiTriagemSaldo", manual.saldoAtual);
-      this.setKpi("kpiTriagemDesmontados", manual.produtosDesmontados);
-      this.setKpi("kpiIphPll", manual.pll);
-    }
     this.setKpi("kpiGestaoTotal", data.gestao.total);
     this.setKpi("kpiGestaoAparelhos", data.gestao.distintos);
     this.setKpi("kpiDivFinalizado", data.producaoDiversas.finalizado);
@@ -176,23 +171,20 @@ const ConsolidadoDash = {
       const prodRows = ProducaoDash.loadRows(repJson);
       const cqeRows = this.loadCqeRows(repJson);
 
-      const [manual, data] = await Promise.all([
-        ConsolidadoManual.getValues(),
-        Promise.resolve({
-          recebimento: this.kpiRecebimento(recRows, start, end),
-          triagem: this.kpiTriagem(triRows, start, end),
-          gestao: this.kpiGestao(gestaoRows, start, end),
-          producaoDiversas: ProducaoDash.computeTotals(
-            ProducaoDash.filterRows(prodRows, start, end, "diversas")
-          ),
-          producaoIphone: ProducaoDash.computeTotals(
-            ProducaoDash.filterRows(prodRows, start, end, "iphone")
-          ),
-          cqe: this.kpiCqe(cqeRows, start, end)
-        })
-      ]);
+      const data = {
+        recebimento: this.kpiRecebimento(recRows, start, end),
+        triagem: this.kpiTriagem(triRows, start, end),
+        gestao: this.kpiGestao(gestaoRows, start, end),
+        producaoDiversas: ProducaoDash.computeTotals(
+          ProducaoDash.filterRows(prodRows, start, end, "diversas")
+        ),
+        producaoIphone: ProducaoDash.computeTotals(
+          ProducaoDash.filterRows(prodRows, start, end, "iphone")
+        ),
+        cqe: this.kpiCqe(cqeRows, start, end)
+      };
 
-      this.renderKpis(data, manual);
+      this.renderKpis(data);
       const periodLabel = document.getElementById("periodLabel");
       if (periodLabel) {
         periodLabel.textContent = `Período: ${YardexDash.formatPeriodBR(start, end)} · visão consolidada`;
@@ -202,22 +194,14 @@ const ConsolidadoDash = {
       YardexDash.markRefresh();
     } catch (err) {
       YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
-      const manual = await ConsolidadoManual.getValues().catch(() => ({
-        saldoAtual: 0,
-        produtosDesmontados: 0,
-        pll: 0
-      }));
-      this.renderKpis(
-        {
-          recebimento: { total: 0 },
-          triagem: { total: 0 },
-          gestao: { total: 0, distintos: 0 },
-          producaoDiversas: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
-          producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
-          cqe: { aprovado: 0, reprovado: 0, total: 0 }
-        },
-        manual
-      );
+      this.renderKpis({
+        recebimento: { total: 0 },
+        triagem: { total: 0 },
+        gestao: { total: 0, distintos: 0 },
+        producaoDiversas: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
+        producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
+        cqe: { aprovado: 0, reprovado: 0, total: 0 }
+      });
     }
   },
 

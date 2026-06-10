@@ -483,24 +483,6 @@ th {
   font-size: 0.72rem;
 }
 
-.consolidado-section .kpi-row--compact .kpi-card .value {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-}
-
-.consolidado-section .kpi-card--manual {
-  background: #f5f0fa;
-  border: 1px dashed rgba(105, 73, 146, 0.35);
-}
-
-.consolidado-section .kpi-card--pll {
-  background: #f8fafc;
-  border: 1px dashed rgba(100, 116, 139, 0.45);
-}
-
-.consolidado-section .kpi-card--pll .value {
-  color: #475569;
-}
-
 .consolidado-section.consolidado-pending {
   border: 2px dashed rgba(105, 73, 146, 0.35);
 }
