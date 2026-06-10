@@ -74,7 +74,7 @@
         status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
         etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
         produto_requisitado_id: produtoId != null ? String(produtoId).trim() : null,
-        descricao: raw.descricao || "—"
+        descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
       };
     }
 
