@@ -9,7 +9,8 @@ const ProducaoDash = {
       "Francisco Chagas",
       "Karoline Alexandre",
       "keytman janaína",
-      "Michelle Alves"
+      "Michelle Alves",
+      "Viviane Ferreira"
     ],
     iphone: [
       "thaís mazoline",
