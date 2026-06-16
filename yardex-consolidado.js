@@ -134,15 +134,20 @@ const ConsolidadoDash = {
     if (el) el.textContent = value;
   },
 
+  kpiProducaoAndroid(rows, start, end) {
+    const filtered = ProducaoDash.filterRows(rows, start, end, "android");
+    return ProducaoDash.computeTotals(filtered);
+  },
+
   renderKpis(data) {
     this.setKpi("kpiRecTotal", data.recebimento.total);
     this.setKpi("kpiTriagemTotal", data.triagem.total);
     this.setKpi("kpiGestaoTotal", data.gestao.total);
     this.setKpi("kpiGestaoAparelhos", data.gestao.distintos);
-    this.setKpi("kpiDivFinalizado", data.producaoDiversas.finalizado);
-    this.setKpi("kpiDivAndamento", data.producaoDiversas.andamento);
-    this.setKpi("kpiDivPausado", data.producaoDiversas.pausado);
-    this.setKpi("kpiDivTotal", data.producaoDiversas.total);
+    this.setKpi("kpiAndroidFinalizado", data.producaoAndroid.finalizado);
+    this.setKpi("kpiAndroidAndamento", data.producaoAndroid.andamento);
+    this.setKpi("kpiAndroidPausado", data.producaoAndroid.pausado);
+    this.setKpi("kpiAndroidTotal", data.producaoAndroid.total);
     this.setKpi("kpiIphFinalizado", data.producaoIphone.finalizado);
     this.setKpi("kpiIphAndamento", data.producaoIphone.andamento);
     this.setKpi("kpiIphPausado", data.producaoIphone.pausado);
@@ -175,9 +180,7 @@ const ConsolidadoDash = {
         recebimento: this.kpiRecebimento(recRows, start, end),
         triagem: this.kpiTriagem(triRows, start, end),
         gestao: this.kpiGestao(gestaoRows, start, end),
-        producaoDiversas: ProducaoDash.computeTotals(
-          ProducaoDash.filterRows(prodRows, start, end, "diversas")
-        ),
+        producaoAndroid: this.kpiProducaoAndroid(prodRows, start, end),
         producaoIphone: ProducaoDash.computeTotals(
           ProducaoDash.filterRows(prodRows, start, end, "iphone")
         ),
@@ -198,7 +201,7 @@ const ConsolidadoDash = {
         recebimento: { total: 0 },
         triagem: { total: 0 },
         gestao: { total: 0, distintos: 0 },
-        producaoDiversas: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
+        producaoAndroid: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         cqe: { aprovado: 0, reprovado: 0, total: 0 }
       });

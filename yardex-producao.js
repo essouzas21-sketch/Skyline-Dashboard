@@ -1,9 +1,9 @@
 /**
- * Dashboard de produção (Diversas Marcas / iPhone).
+ * Dashboard de produção (Android / iPhone).
  */
 const ProducaoDash = {
   USER_FILTERS: {
-    diversas: [
+    android: [
       "claudia paz",
       "fernanda maria",
       "Francisco Chagas",
@@ -19,8 +19,8 @@ const ProducaoDash = {
     ]
   },
 
-  /** Quadros da TV Diversas Marcas — consolidado usa USER_FILTERS.diversas (união). */
-  DIVERSAS_PANELS: [
+  /** TVs Produção Android — consolidado soma os 7 colaboradores (USER_FILTERS.android). */
+  ANDROID_PANELS: [
     {
       id: "q1",
       title: "Quadro 1",
@@ -269,8 +269,8 @@ const ProducaoDash = {
     return rows;
   },
 
-  initDiversasPage(panelIndex) {
-    const panel = this.DIVERSAS_PANELS[panelIndex];
+  initAndroidPage(panelIndex) {
+    const panel = this.ANDROID_PANELS[panelIndex];
     if (!panel) return;
 
     const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
@@ -316,7 +316,7 @@ const ProducaoDash = {
         return;
       }
 
-      const filtered = this.filterRows(allRows, start, end, "diversas", userFilter);
+      const filtered = this.filterRows(allRows, start, end, "android", userFilter);
       const totals = this.computeTotals(filtered);
 
       document.getElementById("kpiFinalizado").textContent = totals.finalizado;
