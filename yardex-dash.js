@@ -35,6 +35,12 @@ const YardexDash = {
     return String(motivo || "").trim().toLowerCase() === "teste";
   },
 
+  /** CQE: DATA_PEDIDO_SANKHYA; se ausente, usa Fim do Reparo (comum em reprovações). */
+  resolveCqeDate(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || raw["Fim do Reparo"] || null;
+  },
+
   /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão. */
   processCqeRows(rows, dateField = "data_pedido_sankhya") {
     const seen = new Set();

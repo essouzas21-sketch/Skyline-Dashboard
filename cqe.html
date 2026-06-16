@@ -6,7 +6,7 @@
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="yardex-version.js"></script>
-  <script src="yardex-dash.js?v=21"></script>
+  <script src="yardex-dash.js?v=22"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -106,7 +106,7 @@
       if (!decisao) return null;
       return {
         id: raw.id ?? null,
-        data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
+        data_pedido_sankhya: YardexDash.resolveCqeDate(raw),
         usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
         decisao,
         motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
@@ -162,7 +162,7 @@
       document.getElementById("kpiReprovado").textContent = totals.reprovado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · 1x id/dia por decisão · sem motivo teste`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA ou Fim do Reparo · 1x id/dia por decisão · sem motivo teste`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
