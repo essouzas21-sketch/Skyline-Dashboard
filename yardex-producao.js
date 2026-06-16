@@ -19,6 +19,44 @@ const ProducaoDash = {
     ]
   },
 
+  /** Quadros da TV Diversas Marcas — consolidado usa USER_FILTERS.diversas (união). */
+  DIVERSAS_PANELS: [
+    {
+      id: "q1",
+      title: "Quadro 1",
+      subtitle: "Claudia · Karoline · Francisco",
+      users: [
+        { match: "claudia paz", label: "Claudia" },
+        { match: "Karoline Alexandre", label: "Karoline" },
+        { match: "Francisco Chagas", label: "Francisco" }
+      ]
+    },
+    {
+      id: "q2",
+      title: "Quadro 2",
+      subtitle: "Viviane · Michele",
+      users: [
+        { match: "Viviane Ferreira", label: "Viviane" },
+        { match: "Michelle Alves", label: "Michele" }
+      ]
+    },
+    {
+      id: "q3",
+      title: "Quadro 3",
+      subtitle: "Keithman · Fernanda",
+      users: [
+        { match: "keytman janaína", label: "Keithman" },
+        { match: "fernanda maria", label: "Fernanda" }
+      ]
+    },
+    {
+      id: "q4",
+      title: "Quadro 4",
+      subtitle: "Reservado",
+      users: []
+    }
+  ],
+
   DATE_FIELDS: ["iniciado_reparo", "retorno_1", "retorno_2", "retorno_3"],
 
   isFilled(v) {
@@ -175,13 +213,150 @@ const ProducaoDash = {
     return userFilter.some((u) => norm.includes(String(u).trim().toLowerCase()));
   },
 
-  filterRows(allRows, start, end, moduleKey) {
-    const userFilter = this.USER_FILTERS[moduleKey] || null;
+  filterRows(allRows, start, end, moduleKey, userFilterOverride = undefined) {
+    const userFilter =
+      userFilterOverride !== undefined
+        ? userFilterOverride
+        : this.USER_FILTERS[moduleKey] || null;
     let filtered = YardexDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
     if (userFilter?.length) {
       filtered = filtered.filter((row) => this.matchesUserFilter(row.user, userFilter));
     }
     return filtered;
+  },
+
+  aggregatePanelUsers(filtered, panelUsers, start, end) {
+    const rows = panelUsers.map((u) => ({
+      user: u.label,
+      finalizado: 0,
+      andamento: 0,
+      pausado: 0,
+      total: 0,
+      workMs: 0
+    }));
+
+    filtered.forEach((row) => {
+      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      if (idx < 0) return;
+      const target = rows[idx];
+      target[row.status]++;
+      target.total++;
+      target.workMs += this.calcWorkMs(row._workRaw, Date.now(), start, end);
+    });
+
+    return rows;
+  },
+
+  aggregatePanelUsers(filtered, panelUsers, start, end) {
+    const rows = panelUsers.map((u) => ({
+      user: u.label,
+      finalizado: 0,
+      andamento: 0,
+      pausado: 0,
+      total: 0,
+      workMs: 0
+    }));
+
+    filtered.forEach((row) => {
+      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      if (idx < 0) return;
+      const target = rows[idx];
+      target[row.status]++;
+      target.total++;
+      target.workMs += this.calcWorkMs(row._workRaw, Date.now(), start, end);
+    });
+
+    return rows;
+  },
+
+  initDiversasPage(panelIndex) {
+    const panel = this.DIVERSAS_PANELS[panelIndex];
+    if (!panel) return;
+
+    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const statusEl = document.getElementById("statusMsg");
+    const userFilter = panel.users.map((u) => u.match);
+    let allRows = [];
+
+    const renderTable = (filtered, start, end) => {
+      const tbody = document.getElementById("tableBody");
+      const empty = document.getElementById("tableEmpty");
+      if (!tbody || !empty) return;
+
+      if (!panel.users.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        empty.textContent = "Sem colaboradores definidos.";
+        return;
+      }
+
+      const list = this.aggregatePanelUsers(filtered, panel.users, start, end);
+      empty.hidden = true;
+      tbody.innerHTML = list
+        .map(
+          (u) => `
+        <tr>
+          <td>${u.user}</td>
+          <td>${u.finalizado}</td>
+          <td>${u.andamento}</td>
+          <td>${u.pausado}</td>
+          <td style="font-weight:700">${u.total}</td>
+          <td style="font-weight:700;color:var(--bg)">${YardexDash.formatDuration(u.workMs)}</td>
+        </tr>
+      `
+        )
+        .join("");
+    };
+
+    const renderDashboard = () => {
+      const { start, end } = YardexDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const filtered = this.filterRows(allRows, start, end, "diversas", userFilter);
+      const totals = this.computeTotals(filtered);
+
+      document.getElementById("kpiFinalizado").textContent = totals.finalizado;
+      document.getElementById("kpiAndamento").textContent = totals.andamento;
+      document.getElementById("kpiPausado").textContent = totals.pausado;
+      document.getElementById("kpiTotal").textContent = totals.total;
+      document.getElementById("periodLabel").textContent =
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · ${panel.subtitle} · tempo só no período filtrado`;
+
+      renderTable(filtered, start, end);
+
+      YardexDash.showStatus(
+        statusEl,
+        `Exibindo ${filtered.length} aparelho(s) no período · ${allRows.length} carregado(s).`,
+        false
+      );
+    };
+
+    const loadData = async () => {
+      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        allRows = this.loadRows(json);
+        YardexDash.showStatus(statusEl, `${allRows.length} único(s) carregado(s).`, false);
+        renderDashboard();
+      } catch (err) {
+        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        ["kpiFinalizado", "kpiAndamento", "kpiPausado", "kpiTotal"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = "0";
+        });
+        const tbody = document.getElementById("tableBody");
+        const empty = document.getElementById("tableEmpty");
+        if (tbody) tbody.innerHTML = "";
+        if (empty) empty.hidden = false;
+      }
+    };
+
+    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    reload();
   },
 
   computeTotals(filtered) {

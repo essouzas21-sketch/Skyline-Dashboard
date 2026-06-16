@@ -21,7 +21,7 @@
 
     html, body {
       height: 100vh;
-      overflow: hidden;
+      overflow: auto;
       margin: 0;
     }
 
@@ -69,11 +69,20 @@
     .menu-grid {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 14px;
-      height: 100%;
-      max-height: 440px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      align-content: start;
+    }
+
+    .menu-btn.diversas {
+      min-height: 72px;
+      padding: 12px 10px;
+      font-size: 0.88rem;
+    }
+
+    .menu-btn.diversas .badge {
+      font-size: 0.62rem;
+      line-height: 1.25;
     }
 
     .menu-btn.consolidado {
@@ -146,9 +155,21 @@
         Gestão de Produto
         <span class="badge">Dashboard ativo</span>
       </a>
-      <a class="menu-btn ready" href="producao-diversas-marcas.html">
-        Produção Diversas Marcas
-        <span class="badge">Dashboard ativo</span>
+      <a class="menu-btn ready diversas" href="producao-diversas-1.html">
+        Diversas 1
+        <span class="badge">Claudia · Karoline · Francisco</span>
+      </a>
+      <a class="menu-btn ready diversas" href="producao-diversas-2.html">
+        Diversas 2
+        <span class="badge">Viviane · Michele</span>
+      </a>
+      <a class="menu-btn ready diversas" href="producao-diversas-3.html">
+        Diversas 3
+        <span class="badge">Keithman · Fernanda</span>
+      </a>
+      <a class="menu-btn ready diversas" href="producao-diversas-4.html">
+        Diversas 4
+        <span class="badge">Reservado</span>
       </a>
       <a class="menu-btn ready" href="producao-iphone.html">
         Produção iPhone

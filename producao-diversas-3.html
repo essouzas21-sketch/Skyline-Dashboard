@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produção Diversas 3 — Keithman · Fernanda</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="yardex-version.js"></script>
+  <script src="yardex-dash.js?v=22"></script>
+  <script src="yardex-producao.js?v=12"></script>
+  <style>
+    .kpi-card.finalizado .value { color: #15803d; }
+    .kpi-card.andamento .value { color: #1d4ed8; }
+    .kpi-card.pausado .value { color: #b45309; }
+    .kpi-card.total .value { color: var(--bg); }
+  </style>
+</head>
+<body class="dash-page">
+  <div class="page">
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Produção Diversas 3</h1>
+        <p class="subtitle" id="periodLabel">Keithman · Fernanda</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
+    </div>
+    <div id="statusMsg" class="status" hidden></div>
+    <div class="kpi-row">
+      <div class="kpi-card finalizado"><div class="label">Finalizados</div><div class="value" id="kpiFinalizado">0</div></div>
+      <div class="kpi-card andamento"><div class="label">Em andamento</div><div class="value" id="kpiAndamento">0</div></div>
+      <div class="kpi-card pausado"><div class="label">Pausados</div><div class="value" id="kpiPausado">0</div></div>
+      <div class="kpi-card total"><div class="label">Total</div><div class="value" id="kpiTotal">0</div></div>
+    </div>
+    <div class="dash-main dash-main--table-only">
+      <div class="panel">
+        <h2>Produção por colaborador</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Finalizados</th>
+                <th>Em andamento</th>
+                <th>Pausados</th>
+                <th>Total</th>
+                <th>Tempo trabalhado</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="tableEmpty" class="empty" hidden>Nenhum aparelho no período.</div>
+      </div>
+    </div>
+  </div>
+  <script>ProducaoDash.initDiversasPage(2);</script>
+</body>
+</html>
