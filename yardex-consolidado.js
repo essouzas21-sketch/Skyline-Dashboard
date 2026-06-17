@@ -10,7 +10,6 @@
  *   consolidado.html     → labels/hints das seções
  */
 const ConsolidadoDash = {
-  API_RECEBIMENTO: YardexDash.API_RECEBIMENTO,
   GRUPO_FILTRO: "6151",
   ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas"]),
   ETAPAS_GESTAO: new Set(["reparo", "gestao_pecas"]),
@@ -165,7 +164,7 @@ const ConsolidadoDash = {
 
     try {
       const [recJson, repJson] = await Promise.all([
-        YardexDash.fetchWebhook(this.API_RECEBIMENTO),
+        YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
         YardexDash.fetchWebhook(YardexDash.API_REPARO)
       ]);
 

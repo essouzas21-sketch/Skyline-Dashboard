@@ -33,5 +33,7 @@ const YardexVersion = {
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) this.check();
     });
+    // Força checagem após deploy (payload grande pode demorar no primeiro load)
+    setTimeout(() => this.check(), 5000);
   }
 };
