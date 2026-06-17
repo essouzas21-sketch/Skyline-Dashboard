@@ -105,7 +105,7 @@ const ConsolidadoDash = {
     if (!decisao) return null;
     return {
       id: raw.id ?? null,
-      data_pedido_sankhya: YardexDash.resolveCqeDate(raw),
+      data_pedido_sankhya: YardexDash.resolveCqeDate(raw, decisao),
       decisao,
       motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
     };

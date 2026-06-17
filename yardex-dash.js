@@ -35,10 +35,19 @@ const YardexDash = {
     return String(motivo || "").trim().toLowerCase() === "teste";
   },
 
-  /** CQE: DATA_PEDIDO_SANKHYA; se ausente, usa Fim do Reparo (comum em reprovações). */
-  resolveCqeDate(raw) {
+  /** CQE: aprovado → DATA_PEDIDO_SANKHYA; reprovado → Fim do Reparo (data da inspeção). */
+  resolveCqeDate(raw, decisao = null) {
     if (!raw || typeof raw !== "object") return null;
-    return raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || raw["Fim do Reparo"] || null;
+    const fim = raw["Fim do Reparo"] || null;
+    const sankhya = raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null;
+    let dec = String(decisao || "").trim().toLowerCase();
+    if (!dec && raw.decisao) {
+      const v = String(raw.decisao).trim().toLowerCase();
+      if (v.includes("reprov")) dec = "reprovado";
+      else if (v.includes("aprov")) dec = "aprovado";
+    }
+    if (dec === "reprovado") return fim || sankhya || null;
+    return sankhya || fim || null;
   },
 
   /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão. */
