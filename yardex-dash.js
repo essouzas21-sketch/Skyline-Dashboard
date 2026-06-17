@@ -2,7 +2,7 @@
  * Utilitários compartilhados dos dashboards Yardex (menu principal).
  */
 const YardexDash = {
-  API_REPARO: "https://automation.gruposkytech.com.br/webhook/8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf",
+  API_REPARO: "https://automation.gruposkytech.com.br/webhook/661802e8-eef7-4ca5-981b-645706f5afda",
 
   todayISO() {
     const d = new Date();
