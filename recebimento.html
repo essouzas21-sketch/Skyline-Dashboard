@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js"></script>
-  <script src="yardex-dash.js?v=25"></script>
+  <script src="yardex-dash.js?v=26"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -65,7 +65,7 @@
   <script>
     Chart.register(ChartDataLabels);
 
-    const API_URL = "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474";
+    const API_URL = YardexDash.API_RECEBIMENTO;
     const DATE_FIELD = "data_add";
     const GRUPO_FILTRO = "6151";
     const MAX_TABLE_ROWS = 14;

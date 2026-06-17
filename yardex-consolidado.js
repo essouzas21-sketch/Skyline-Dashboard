@@ -10,7 +10,7 @@
  *   consolidado.html     → labels/hints das seções
  */
 const ConsolidadoDash = {
-  API_RECEBIMENTO: "https://datalake.yardex.pro:10000/webhook/78441d8b-4c63-4299-be48-6017e086e474",
+  API_RECEBIMENTO: YardexDash.API_RECEBIMENTO,
   GRUPO_FILTRO: "6151",
   ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas"]),
   ETAPAS_GESTAO: new Set(["reparo", "gestao_pecas"]),
