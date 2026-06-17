@@ -6,7 +6,7 @@
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-version.js"></script>
-  <script src="yardex-dash.js?v=20"></script>
+  <script src="yardex-dash.js?v=24"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
@@ -59,7 +59,7 @@
   </div>
 
   <script>
-    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const API_URL = YardexDash.API_REPARO;
     const DATE_FIELD = "data_pedido_sankhya";
     const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
     const statusEl = document.getElementById("statusMsg");

@@ -2,6 +2,8 @@
  * Utilitários compartilhados dos dashboards Yardex (menu principal).
  */
 const YardexDash = {
+  API_REPARO: "https://automation.gruposkytech.com.br/webhook/8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf",
+
   todayISO() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

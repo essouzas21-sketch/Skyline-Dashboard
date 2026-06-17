@@ -273,7 +273,7 @@ const ProducaoDash = {
     const panel = this.ANDROID_PANELS[panelIndex];
     if (!panel) return;
 
-    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const API_URL = YardexDash.API_REPARO;
     const statusEl = document.getElementById("statusMsg");
     const userFilter = panel.users.map((u) => u.match);
     let allRows = [];
@@ -369,7 +369,7 @@ const ProducaoDash = {
   },
 
   init(moduleKey) {
-    const API_URL = "https://datalake.yardex.pro:10000/webhook/30e00080-9b5d-4db8-9d2a-e40d71b8cd5d";
+    const API_URL = YardexDash.API_REPARO;
     const statusEl = document.getElementById("statusMsg");
     let allRows = [];
 
