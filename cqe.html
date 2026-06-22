@@ -11,6 +11,29 @@
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
     .kpi-card.total .value { color: var(--bg); }
+    .kpi-rows-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .kpi-row-heading {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      font-weight: 700;
+      margin: 0 0 2px 2px;
+    }
+    .kpi-card .pct {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .kpi-card.aprovado .pct { color: #15803d; opacity: 0.85; }
+    .kpi-card.reprovado .pct { color: #dc2626; opacity: 0.85; }
   </style>
 </head>
 <body class="dash-page">
@@ -32,18 +55,42 @@
 
     <div id="statusMsg" class="status" hidden></div>
 
-    <div class="kpi-row">
-      <div class="kpi-card aprovado">
-        <div class="label">Aprovados</div>
-        <div class="value" id="kpiAprovado">0</div>
+    <div class="kpi-rows-wrap">
+      <div class="kpi-row">
+        <div class="kpi-card aprovado">
+          <div class="label">Aprovados</div>
+          <div class="value" id="kpiAprovado">0</div>
+          <div class="pct" id="pctAprovadoPeriod">—</div>
+        </div>
+        <div class="kpi-card reprovado">
+          <div class="label">Reprovados</div>
+          <div class="value" id="kpiReprovado">0</div>
+          <div class="pct" id="pctReprovadoPeriod">—</div>
+        </div>
+        <div class="kpi-card total">
+          <div class="label">Total</div>
+          <div class="value" id="kpiTotal">0</div>
+        </div>
       </div>
-      <div class="kpi-card reprovado">
-        <div class="label">Reprovados</div>
-        <div class="value" id="kpiReprovado">0</div>
-      </div>
-      <div class="kpi-card total">
-        <div class="label">Total</div>
-        <div class="value" id="kpiTotal">0</div>
+
+      <div>
+        <div class="kpi-row-heading" id="monthRowLabel">Acumulado do mês</div>
+        <div class="kpi-row">
+          <div class="kpi-card aprovado">
+            <div class="label">Aprovados</div>
+            <div class="value" id="kpiAprovadoMes">0</div>
+            <div class="pct" id="pctAprovadoMes">—</div>
+          </div>
+          <div class="kpi-card reprovado">
+            <div class="label">Reprovados</div>
+            <div class="value" id="kpiReprovadoMes">0</div>
+            <div class="pct" id="pctReprovadoMes">—</div>
+          </div>
+          <div class="kpi-card total">
+            <div class="label">Total</div>
+            <div class="value" id="kpiTotalMes">0</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -68,7 +115,7 @@
             <div id="tableEmpty" class="empty" hidden>Nenhuma inspeção no período.</div>
           </div>
           <div>
-            <h3>Top 3 motivos de reprovação</h3>
+            <h3>Motivos de reprovação</h3>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -113,16 +160,56 @@
       };
     }
 
-    function renderMotivosTable(topMotivos) {
+    function formatPct(part, total) {
+      if (!total) return "0%";
+      return `${((part / total) * 100).toFixed(1).replace(".", ",")}%`;
+    }
+
+    function getMonthRange(refISO) {
+      const [y, m] = refISO.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return {
+        start: `${y}-${m}-01`,
+        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
+      };
+    }
+
+    function monthLabel(refISO) {
+      const [y, m] = refISO.split("-");
+      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      return `${names[Number(m) - 1]}/${y}`;
+    }
+
+    function computeTotals(rows) {
+      const filtered = YardexDash.processCqeRows(rows);
+      const totals = { aprovado: 0, reprovado: 0, total: 0 };
+      filtered.forEach((row) => {
+        totals[row.decisao]++;
+        totals.total++;
+      });
+      return { totals, filtered };
+    }
+
+    function setKpiBlock(totals, isMonth) {
+      const suffix = isMonth ? "Mes" : "";
+      const pctSuffix = isMonth ? "Mes" : "Period";
+      document.getElementById(`kpiAprovado${suffix}`).textContent = totals.aprovado;
+      document.getElementById(`kpiReprovado${suffix}`).textContent = totals.reprovado;
+      document.getElementById(`kpiTotal${suffix}`).textContent = totals.total;
+      document.getElementById(`pctAprovado${pctSuffix}`).textContent = formatPct(totals.aprovado, totals.total);
+      document.getElementById(`pctReprovado${pctSuffix}`).textContent = formatPct(totals.reprovado, totals.total);
+    }
+
+    function renderMotivosTable(motivos) {
       const tbody = document.getElementById("motivosBody");
       const empty = document.getElementById("motivosEmpty");
-      if (!topMotivos.length) {
+      if (!motivos.length) {
         tbody.innerHTML = "";
         empty.hidden = false;
         return;
       }
       empty.hidden = true;
-      tbody.innerHTML = topMotivos.map(([motivo, qtd]) => `
+      tbody.innerHTML = motivos.map(([motivo, qtd]) => `
         <tr>
           <td>${motivo}</td>
           <td style="font-weight:700;color:var(--bg)">${qtd}</td>
@@ -139,14 +226,15 @@
       }
 
       const inPeriod = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const filtered = YardexDash.processCqeRows(inPeriod);
-      const totals = { aprovado: 0, reprovado: 0, total: 0 };
+      const { totals, filtered } = computeTotals(inPeriod);
+
+      const month = getMonthRange(end);
+      const inMonth = YardexDash.filterByDateField(allRows, month.start, month.end, DATE_FIELD);
+      const { totals: totalsMes } = computeTotals(inMonth);
+
       const byUser = new Map();
 
       filtered.forEach((row) => {
-        totals[row.decisao]++;
-        totals.total++;
-
         if (!byUser.has(row.usuario)) {
           byUser.set(row.usuario, { usuario: row.usuario, aprovado: 0, reprovado: 0, total: 0 });
         }
@@ -156,11 +244,11 @@
       });
 
       const reprovados = filtered.filter((r) => r.decisao === "reprovado");
-      const topMotivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo).slice(0, 3);
+      const allMotivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo);
 
-      document.getElementById("kpiAprovado").textContent = totals.aprovado;
-      document.getElementById("kpiReprovado").textContent = totals.reprovado;
-      document.getElementById("kpiTotal").textContent = totals.total;
+      setKpiBlock(totals, false);
+      setKpiBlock(totalsMes, true);
+      document.getElementById("monthRowLabel").textContent = `Acumulado do mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
         `Período: ${YardexDash.formatPeriodBR(start, end)} · aprovado: Sankhya · reprovado: Fim do Reparo · 1x id/dia · sem motivo teste`;
 
@@ -183,7 +271,7 @@
         `).join("");
       }
 
-      renderMotivosTable(topMotivos);
+      renderMotivosTable(allMotivos);
 
       YardexDash.showStatus(
         statusEl,
@@ -205,9 +293,8 @@
         renderDashboard();
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
-        ["kpiAprovado", "kpiReprovado", "kpiTotal"].forEach((id) => {
-          document.getElementById(id).textContent = "0";
-        });
+        setKpiBlock({ aprovado: 0, reprovado: 0, total: 0 }, false);
+        setKpiBlock({ aprovado: 0, reprovado: 0, total: 0 }, true);
         document.getElementById("tableBody").innerHTML = "";
         document.getElementById("tableEmpty").hidden = false;
         renderMotivosTable([]);

@@ -1,3 +1,5 @@
+data/homolog/*.json
+
 .DS_Store
 Thumbs.db
 .env

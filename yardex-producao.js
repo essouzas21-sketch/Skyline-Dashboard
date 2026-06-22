@@ -43,9 +43,9 @@ const ProducaoDash = {
     {
       id: "q3",
       title: "Quadro 3",
-      subtitle: "Keithman · Fernanda",
+      subtitle: "Keytman · Fernanda",
       users: [
-        { match: "keytman janaína", label: "Keithman" },
+        { match: "keytman janaína", label: "Keytman" },
         { match: "fernanda maria", label: "Fernanda" }
       ]
     },

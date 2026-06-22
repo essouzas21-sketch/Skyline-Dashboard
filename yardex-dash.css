@@ -1,3 +1,28 @@
+.homolog-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #fde68a;
+  border-bottom: 2px solid #f59e0b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.homolog-banner a {
+  color: #7c2d12;
+  margin-left: 8px;
+}
+
+body:has(.homolog-banner) {
+  padding-top: 34px;
+}
+
 :root {
   --bg: #694992;
   --card: #ffffff;

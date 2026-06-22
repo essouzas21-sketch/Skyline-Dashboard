@@ -7,6 +7,63 @@ const YardexDash = {
   /** Recebimento (campos hunit, data_add, grupo, descricao…) */
   API_RECEBIMENTO: "https://automation.gruposkytech.com.br/webhook/661802e8-eef7-4ca5-981b-645706f5afda",
 
+  HOMOLOG_FIXTURES: {
+    "8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf": "data/homolog/reparo.json",
+    "661802e8-eef7-4ca5-981b-645706f5afda": "data/homolog/recebimento.json",
+    "30e00080-9b5d-4db8-9d2a-e40d71b8cd5d": "data/homolog/reparo.json",
+    "78441d8b-4c63-4299-be48-6017e086e474": "data/homolog/recebimento.json"
+  },
+
+  isProductionHost() {
+    const host = location.hostname.toLowerCase();
+    return host.endsWith(".github.io");
+  },
+
+  useHomologData() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("prod") === "1") return false;
+    if (params.get("homolog") === "1") return true;
+    return !this.isProductionHost();
+  },
+
+  homologFixtureFor(url) {
+    for (const [id, path] of Object.entries(this.HOMOLOG_FIXTURES)) {
+      if (url.includes(id)) return path;
+    }
+    return null;
+  },
+
+  initHomologBanner() {
+    if (!this.useHomologData()) return;
+    if (document.getElementById("homologBanner")) return;
+
+    const banner = document.createElement("div");
+    banner.id = "homologBanner";
+    banner.className = "homolog-banner";
+    banner.innerHTML =
+      "<strong>Homologação</strong> — dados locais (sem API de produção). " +
+      '<a href="?prod=1">Usar API real</a>';
+    document.body.prepend(banner);
+  },
+
+  withHomologQuery(href) {
+    if (!this.useHomologData() || !href || href.startsWith("http") || href.startsWith("#")) return href;
+    const [path, query = ""] = href.split("?");
+    const params = new URLSearchParams(query);
+    if (!params.has("homolog") && !params.has("prod")) params.set("homolog", "1");
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  },
+
+  bindHomologLinks(root = document) {
+    if (!this.useHomologData()) return;
+    root.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("http") || href.startsWith("#") || href.includes("prod=1")) return;
+      link.setAttribute("href", this.withHomologQuery(href));
+    });
+  },
+
   todayISO() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -357,6 +414,19 @@ const YardexDash = {
   },
 
   async fetchWebhook(url, timeoutMs = 120000) {
+    if (this.useHomologData()) {
+      const fixture = this.homologFixtureFor(url);
+      if (!fixture) throw new Error("Sem fixture local para este endpoint.");
+      const res = await fetch(`${fixture}?_t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(`Fixture inválido (não é JSON): ${fixture}`);
+      }
+    }
+
     const sep = url.includes("?") ? "&" : "?";
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -536,5 +606,7 @@ const YardexDash = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  YardexDash.initHomologBanner();
+  YardexDash.bindHomologLinks();
   if (typeof YardexVersion !== "undefined") YardexVersion.start(60000);
 });
