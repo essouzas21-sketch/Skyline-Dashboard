@@ -94,7 +94,14 @@ const YardexDash = {
   },
 
   isCqeMotivoTeste(motivo) {
-    return String(motivo || "").trim().toLowerCase() === "teste";
+    const norm = String(motivo || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[.,;:!?\s]+$/g, "")
+      .trim();
+    return norm === "teste";
   },
 
   /** CQE: aprovado → DATA_PEDIDO_SANKHYA; reprovado → Fim do Reparo (data da inspeção). */
