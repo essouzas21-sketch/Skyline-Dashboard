@@ -9,22 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
   <script src="yardex-dash.js?v=27"></script>
-  <style>
-    .kpi-rows-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    .kpi-row-heading {
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--accent);
-      font-weight: 700;
-      margin: 0 0 2px 2px;
-    }
-  </style>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -45,22 +29,14 @@
 
     <div id="statusMsg" class="status" hidden></div>
 
-    <div class="kpi-rows-wrap">
-      <div class="kpi-row">
-        <div class="kpi-card">
-          <div class="label">Aparelhos triados no período</div>
-          <div class="value" id="kpiTotal">0</div>
-        </div>
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">Aparelhos triados no período</div>
+        <div class="value" id="kpiTotal">0</div>
       </div>
-
-      <div>
-        <div class="kpi-row-heading" id="monthRowLabel">Acumulado do mês</div>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Aparelhos triados no mês</div>
-            <div class="value" id="kpiTotalMes">0</div>
-          </div>
-        </div>
+      <div class="kpi-card">
+        <div class="label" id="monthRowLabel">Aparelhos triados no mês</div>
+        <div class="value" id="kpiTotalMes">0</div>
       </div>
     </div>
 
@@ -191,7 +167,7 @@
 
       document.getElementById("kpiTotal").textContent = dashRows.length;
       document.getElementById("kpiTotalMes").textContent = dashRowsMes.length;
-      document.getElementById("monthRowLabel").textContent = `Acumulado do mês — ${monthLabel(end)}`;
+      document.getElementById("monthRowLabel").textContent = `Aparelhos triados no mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
         `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem · SUCESSO · reparo/gestao_pecas`;
 
