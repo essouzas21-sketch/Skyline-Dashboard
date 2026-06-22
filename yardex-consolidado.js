@@ -38,7 +38,7 @@ const ConsolidadoDash = {
   mapTriagem(raw) {
     return {
       id: raw.id ?? null,
-      data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || null,
+      data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
       status_sankhya: raw.STATUS_SANKHYA || null,
       etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null
     };
@@ -47,7 +47,7 @@ const ConsolidadoDash = {
   passesTriagem(row) {
     const status = String(row.status_sankhya || "").trim().toLowerCase();
     const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-    return status === "sucesso" && this.ETAPAS_TRIAGEM.has(etapa) && !!row.data_pedido_sankhya;
+    return status === "sucesso" && this.ETAPAS_TRIAGEM.has(etapa) && !!row.data_triagem;
   },
 
   loadTriagemRows(json) {
@@ -57,7 +57,7 @@ const ConsolidadoDash = {
   },
 
   kpiTriagem(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
+    const filtered = YardexDash.filterByDateField(rows, start, end, "data_triagem");
     return { total: YardexDash.distinctById(filtered, "id").length };
   },
 

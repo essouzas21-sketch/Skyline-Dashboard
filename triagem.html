@@ -9,6 +9,22 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
   <script src="yardex-dash.js?v=27"></script>
+  <style>
+    .kpi-rows-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .kpi-row-heading {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      font-weight: 700;
+      margin: 0 0 2px 2px;
+    }
+  </style>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -29,10 +45,22 @@
 
     <div id="statusMsg" class="status" hidden></div>
 
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="label">Triagens no período</div>
-        <div class="value" id="kpiTotal">0</div>
+    <div class="kpi-rows-wrap">
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Aparelhos triados no período</div>
+          <div class="value" id="kpiTotal">0</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="kpi-row-heading" id="monthRowLabel">Acumulado do mês</div>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Aparelhos triados no mês</div>
+            <div class="value" id="kpiTotalMes">0</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -59,7 +87,7 @@
       </div>
 
       <div class="panel panel--hour">
-        <h2>Triagens por hora — DATA_PEDIDO_SANKHYA (08h–17h)</h2>
+        <h2>Triagens por hora — Data Triagem (08h–17h)</h2>
         <div class="chart-box chart-box--hour"><canvas id="chartHora"></canvas></div>
       </div>
     </div>
@@ -69,7 +97,7 @@
     Chart.register(ChartDataLabels);
 
     const API_URL = YardexDash.API_REPARO;
-    const DATE_FIELD = "data_pedido_sankhya";
+    const DATE_FIELD = "data_triagem";
     const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
     const TOP_MARCAS = 12;
     const statusEl = document.getElementById("statusMsg");
@@ -83,7 +111,7 @@
     function mapRow(raw) {
       return {
         id: raw.id ?? null,
-        data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
+        data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
         status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
         etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
         usuario: YardexDash.normalizeUserName(
@@ -102,7 +130,22 @@
     function passesTriagemRules(row) {
       const status = String(row.status_sankhya || "").trim().toLowerCase();
       const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-      return status === "sucesso" && ETAPAS_PERMITIDAS.has(etapa) && !!row.data_pedido_sankhya;
+      return status === "sucesso" && ETAPAS_PERMITIDAS.has(etapa) && !!row.data_triagem;
+    }
+
+    function getMonthRange(refISO) {
+      const [y, m] = refISO.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return {
+        start: `${y}-${m}-01`,
+        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
+      };
+    }
+
+    function monthLabel(refISO) {
+      const [y, m] = refISO.split("-");
+      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      return `${names[Number(m) - 1]}/${y}`;
     }
 
     function renderUserTable(rows) {
@@ -137,13 +180,20 @@
 
       const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
       const dashRows = YardexDash.distinctById(filtered, "id");
+
+      const month = getMonthRange(end);
+      const inMonth = YardexDash.filterByDateField(allRows, month.start, month.end, DATE_FIELD);
+      const dashRowsMes = YardexDash.distinctById(inMonth, "id");
+
       const byBrand = YardexDash.aggregateCount(dashRows, (r) => YardexDash.extractFirstWord(r.descricao))
         .slice(0, TOP_MARCAS);
       const byHour = YardexDash.aggregateHourBuckets(dashRows, DATE_FIELD, HOUR_FROM, HOUR_TO);
 
       document.getElementById("kpiTotal").textContent = dashRows.length;
+      document.getElementById("kpiTotalMes").textContent = dashRowsMes.length;
+      document.getElementById("monthRowLabel").textContent = `Acumulado do mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem · SUCESSO · reparo/gestao_pecas`;
 
       chartMarca = YardexDash.createBarChart(
         "chartMarca",
@@ -164,7 +214,7 @@
       renderUserTable(dashRows);
       YardexDash.showStatus(
         statusEl,
-        `${dashRows.length} aparelho(s) no período · ${filtered.length} linha(s) · distinct por id.`,
+        `${dashRows.length} aparelho(s) no período · ${dashRowsMes.length} no mês · distinct por id.`,
         false
       );
     }
@@ -180,6 +230,7 @@
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
+        document.getElementById("kpiTotalMes").textContent = "0";
         chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
         chartHora = YardexDash.createLineChart("chartHora", chartHora, [], []);
         renderUserTable([]);
