@@ -14,6 +14,23 @@ const YardexDash = {
     "78441d8b-4c63-4299-be48-6017e086e474": "data/homolog/recebimento.json"
   },
 
+  /** Intervalo entre slots do ciclo global de refresh (1 dashboard por slot). */
+  REFRESH_SLOT_MS: 30000,
+
+  /** Ordem do ciclo — alinhada ao menu; cada página recarrega a cada N × 30s. */
+  REFRESH_CYCLE_PAGES: [
+    "recebimento.html",
+    "triagem.html",
+    "gestao-produto.html",
+    "producao-diversas-1.html",
+    "producao-diversas-2.html",
+    "producao-diversas-3.html",
+    "producao-diversas-4.html",
+    "producao-iphone.html",
+    "cqe.html",
+    "consolidado.html"
+  ],
+
   isProductionHost() {
     const host = location.hostname.toLowerCase();
     return host.endsWith(".github.io");
@@ -284,8 +301,36 @@ const YardexDash = {
   _autoRefreshTimer: null,
   _autoRefreshBusy: false,
   _autoRefreshFn: null,
+  _refreshCycleMeta: null,
   _dayRolloverState: null,
   _dayWatchTimer: null,
+
+  getRefreshCycleIndex() {
+    const page = (location.pathname.split("/").pop() || "").split("?")[0];
+    const idx = this.REFRESH_CYCLE_PAGES.indexOf(page);
+    return idx >= 0 ? idx : -1;
+  },
+
+  getRefreshCycleMeta() {
+    const index = this.getRefreshCycleIndex();
+    if (index < 0) return null;
+    const total = this.REFRESH_CYCLE_PAGES.length;
+    return {
+      index,
+      total,
+      slotMs: this.REFRESH_SLOT_MS,
+      cycleMs: total * this.REFRESH_SLOT_MS
+    };
+  },
+
+  msUntilNextRefreshSlot(index) {
+    const slotMs = this.REFRESH_SLOT_MS;
+    const cycleMs = this.REFRESH_CYCLE_PAGES.length * slotMs;
+    const posInCycle = Date.now() % cycleMs;
+    const slotStart = index * slotMs;
+    if (posInCycle < slotStart) return slotStart - posInCycle;
+    return cycleMs - posInCycle + slotStart;
+  },
 
   _ensureRefreshClock() {
     if (document.getElementById("lastRefresh")) return;
@@ -301,7 +346,14 @@ const YardexDash = {
     const el = document.getElementById("lastRefresh");
     if (!el) return;
     const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    el.textContent = `Atualizado às ${now} · auto 1 min`;
+    const meta = this._refreshCycleMeta || this.getRefreshCycleMeta();
+    if (meta) {
+      const everyMin = meta.cycleMs / 60000;
+      el.textContent =
+        `Atualizado às ${now} · ciclo 30s (${meta.index + 1}/${meta.total}) · recarga a cada ${everyMin} min`;
+    } else {
+      el.textContent = `Atualizado às ${now} · auto 30s`;
+    }
   },
 
   stopAutoRefresh() {
@@ -335,11 +387,13 @@ const YardexDash = {
     }, 60000);
   },
 
-  startAutoRefresh(fn, intervalMs = 60000) {
+  startAutoRefresh(fn, intervalMs = 30000) {
     this.stopAutoRefresh();
     if (!fn || intervalMs <= 0) return;
 
     this._ensureRefreshClock();
+    const cycleMeta = this.getRefreshCycleMeta();
+    this._refreshCycleMeta = cycleMeta;
 
     const run = async () => {
       if (this._autoRefreshBusy) return;
@@ -357,14 +411,14 @@ const YardexDash = {
 
     this._autoRefreshFn = run;
 
-    const schedule = () => {
+    const schedule = (delayMs) => {
       this._autoRefreshTimer = setTimeout(async () => {
         await run();
-        schedule();
-      }, intervalMs);
+        schedule(cycleMeta ? cycleMeta.cycleMs : intervalMs);
+      }, delayMs);
     };
 
-    schedule();
+    schedule(cycleMeta ? this.msUntilNextRefreshSlot(cycleMeta.index) : intervalMs);
 
     if (!this._visibilityBound) {
       this._visibilityBound = true;
@@ -380,7 +434,7 @@ const YardexDash = {
     }
   },
 
-  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 60000 }) {
+  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 30000 }) {
     const startEl = document.getElementById("dateStart");
     const endEl = document.getElementById("dateEnd");
     const today = this.todayISO();
@@ -615,5 +669,5 @@ const YardexDash = {
 document.addEventListener("DOMContentLoaded", () => {
   YardexDash.initHomologBanner();
   YardexDash.bindHomologLinks();
-  if (typeof YardexVersion !== "undefined") YardexVersion.start(60000);
+  if (typeof YardexVersion !== "undefined") YardexVersion.start(YardexDash.REFRESH_SLOT_MS);
 });
