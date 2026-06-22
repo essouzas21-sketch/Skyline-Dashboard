@@ -31,6 +31,12 @@ const YardexDash = {
     "consolidado.html"
   ],
 
+  /** Reutiliza resposta recente (evita baixar ~14 MB de reparo em sequência). */
+  FETCH_CACHE_TTL_MS: 25000,
+
+  /** Reparo pode levar >2 min em rede lenta ou com API sob carga. */
+  DEFAULT_FETCH_TIMEOUT_MS: 300000,
+
   isProductionHost() {
     const host = location.hostname.toLowerCase();
     return host.endsWith(".github.io");
@@ -302,6 +308,11 @@ const YardexDash = {
   _autoRefreshBusy: false,
   _autoRefreshFn: null,
   _refreshCycleMeta: null,
+  _fetchCache: {},
+  _fetchInflight: {},
+  _lastFetchAt: 0,
+  _initialLoadTimer: null,
+  _slotCountdownTimer: null,
   _dayRolloverState: null,
   _dayWatchTimer: null,
 
@@ -330,6 +341,57 @@ const YardexDash = {
     const slotStart = index * slotMs;
     if (posInCycle < slotStart) return slotStart - posInCycle;
     return cycleMs - posInCycle + slotStart;
+  },
+
+  clearSlotCountdown() {
+    if (this._slotCountdownTimer) {
+      clearTimeout(this._slotCountdownTimer);
+      this._slotCountdownTimer = null;
+    }
+  },
+
+  showSlotCountdown(delayMs, meta) {
+    this._ensureRefreshClock();
+    const el = document.getElementById("lastRefresh");
+    if (!el) return;
+    const endAt = Date.now() + delayMs;
+    const update = () => {
+      const left = Math.max(0, endAt - Date.now());
+      const sec = Math.ceil(left / 1000);
+      el.textContent = `Aguardando slot ${meta.index + 1}/${meta.total} · ${sec}s`;
+      if (left > 0) this._slotCountdownTimer = setTimeout(update, 1000);
+    };
+    this.clearSlotCountdown();
+    update();
+  },
+
+  scheduleInitialLoad(reloadFn) {
+    if (!reloadFn) return;
+    const cycleMeta = this.getRefreshCycleMeta();
+    if (!cycleMeta) {
+      reloadFn();
+      return;
+    }
+    this._refreshCycleMeta = cycleMeta;
+    const delay = this.msUntilNextRefreshSlot(cycleMeta.index);
+    if (delay <= 500) {
+      reloadFn();
+      return;
+    }
+    this.showSlotCountdown(delay, cycleMeta);
+    if (this._initialLoadTimer) clearTimeout(this._initialLoadTimer);
+    this._initialLoadTimer = setTimeout(() => {
+      this.clearSlotCountdown();
+      reloadFn();
+    }, delay);
+  },
+
+  _fetchCacheKey(url) {
+    return String(url).split("?")[0];
+  },
+
+  clearFetchCache() {
+    this._fetchCache = {};
   },
 
   _ensureRefreshClock() {
@@ -429,7 +491,10 @@ const YardexDash = {
         const { reload, onChange } = this._dayRolloverState || {};
         if (dayChanged && reload) reload();
         else if (dayChanged && onChange) onChange();
-        else if (this._autoRefreshFn) this._autoRefreshFn();
+        else if (this._autoRefreshFn) {
+          if (Date.now() - this._lastFetchAt < this.FETCH_CACHE_TTL_MS) return;
+          this._autoRefreshFn();
+        }
       });
     }
   },
@@ -459,11 +524,17 @@ const YardexDash = {
       if (this._dayRolloverState) this._dayRolloverState.lastDay = hoje;
       onToday?.() ?? onChange();
     });
-    document.getElementById("btnReload")?.addEventListener("click", () => reload?.());
+    document.getElementById("btnReload")?.addEventListener("click", () => {
+      this.clearFetchCache();
+      reload?.();
+    });
     startEl?.addEventListener("change", onChange);
     endEl?.addEventListener("change", onChange);
 
-    if (reload) this.startAutoRefresh(reload, autoRefreshMs);
+    if (reload) {
+      this.startAutoRefresh(reload, autoRefreshMs);
+      this.scheduleInitialLoad(reload);
+    }
 
     return { startEl, endEl, reload };
   },
@@ -474,8 +545,36 @@ const YardexDash = {
     return { start, end };
   },
 
-  async fetchWebhook(url, timeoutMs = 120000) {
+  async fetchWebhook(url, timeoutMs = this.DEFAULT_FETCH_TIMEOUT_MS) {
     if (this.useHomologData()) {
+      return this._fetchWebhookRaw(url, timeoutMs, true);
+    }
+
+    const key = this._fetchCacheKey(url);
+    const cached = this._fetchCache[key];
+    if (cached && Date.now() - cached.at < this.FETCH_CACHE_TTL_MS) {
+      return cached.data;
+    }
+    if (this._fetchInflight[key]) {
+      return this._fetchInflight[key];
+    }
+
+    const promise = this._fetchWebhookRaw(url, timeoutMs, false)
+      .then((data) => {
+        this._fetchCache[key] = { data, at: Date.now() };
+        this._lastFetchAt = Date.now();
+        return data;
+      })
+      .finally(() => {
+        delete this._fetchInflight[key];
+      });
+
+    this._fetchInflight[key] = promise;
+    return promise;
+  },
+
+  async _fetchWebhookRaw(url, timeoutMs, homologOnly) {
+    if (homologOnly || this.useHomologData()) {
       const fixture = this.homologFixtureFor(url);
       if (!fixture) throw new Error("Sem fixture local para este endpoint.");
       const res = await fetch(`${fixture}?_t=${Date.now()}`, { cache: "no-store" });

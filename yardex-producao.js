@@ -356,7 +356,6 @@ const ProducaoDash = {
     };
 
     const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
-    reload();
   },
 
   computeTotals(filtered) {
@@ -449,6 +448,5 @@ const ProducaoDash = {
     };
 
     const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
-    reload();
   }
 };

@@ -53,12 +53,23 @@
         <p class="section-hint">DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas</p>
         <div class="kpi-row">
           <div class="kpi-card">
-            <div class="label">Peças pedidas</div>
+            <div class="label">Peças pedidas no período</div>
             <div class="value" id="kpiGestaoTotal">0</div>
           </div>
           <div class="kpi-card">
-            <div class="label">Quantidade de aparelhos</div>
+            <div class="label">Aparelhos no período</div>
             <div class="value" id="kpiGestaoAparelhos">0</div>
+          </div>
+        </div>
+        <p class="section-hint section-hint--month" id="kpiGestaoMonthLabel">Acumulado do mês</p>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Peças pedidas no mês</div>
+            <div class="value" id="kpiGestaoTotalMes">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Aparelhos no mês</div>
+            <div class="value" id="kpiGestaoAparelhosMes">0</div>
           </div>
         </div>
       </section>
@@ -131,9 +142,9 @@
   </div>
 
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=28"></script>
+  <script src="yardex-dash.js?v=29"></script>
   <script src="yardex-producao.js?v=13"></script>
-  <script src="yardex-consolidado.js?v=21"></script>
+  <script src="yardex-consolidado.js?v=22"></script>
   <script>
     ConsolidadoDash.init();
   </script>

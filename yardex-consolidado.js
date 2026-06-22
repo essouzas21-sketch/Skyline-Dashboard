@@ -95,6 +95,21 @@ const ConsolidadoDash = {
     };
   },
 
+  getMonthRange(refISO) {
+    const [y, m] = refISO.split("-");
+    const lastDay = new Date(Number(y), Number(m), 0).getDate();
+    return {
+      start: `${y}-${m}-01`,
+      end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
+    };
+  },
+
+  monthLabel(refISO) {
+    const [y, m] = refISO.split("-");
+    const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    return `${names[Number(m) - 1]}/${y}`;
+  },
+
   mapCqe(raw) {
     const v = String(raw.decisao || "").trim().toLowerCase();
     let decisao = null;
@@ -142,6 +157,12 @@ const ConsolidadoDash = {
     this.setKpi("kpiTriagemTotal", data.triagem.total);
     this.setKpi("kpiGestaoTotal", data.gestao.total);
     this.setKpi("kpiGestaoAparelhos", data.gestao.distintos);
+    this.setKpi("kpiGestaoTotalMes", data.gestaoMes.total);
+    this.setKpi("kpiGestaoAparelhosMes", data.gestaoMes.distintos);
+    const gestaoMonthLabel = document.getElementById("kpiGestaoMonthLabel");
+    if (gestaoMonthLabel && data.gestaoMonthLabel) {
+      gestaoMonthLabel.textContent = data.gestaoMonthLabel;
+    }
     this.setKpi("kpiAndroidFinalizado", data.producaoAndroid.finalizado);
     this.setKpi("kpiAndroidAndamento", data.producaoAndroid.andamento);
     this.setKpi("kpiAndroidPausado", data.producaoAndroid.pausado);
@@ -174,10 +195,14 @@ const ConsolidadoDash = {
       const prodRows = ProducaoDash.loadRows(repJson);
       const cqeRows = this.loadCqeRows(repJson);
 
+      const month = this.getMonthRange(end);
+
       const data = {
         recebimento: this.kpiRecebimento(recRows, start, end),
         triagem: this.kpiTriagem(triRows, start, end),
         gestao: this.kpiGestao(gestaoRows, start, end),
+        gestaoMes: this.kpiGestao(gestaoRows, month.start, month.end),
+        gestaoMonthLabel: `Acumulado do mês — ${this.monthLabel(end)}`,
         producaoAndroid: this.kpiProducaoAndroid(prodRows, start, end),
         producaoIphone: ProducaoDash.computeTotals(
           ProducaoDash.filterRows(prodRows, start, end, "iphone")
@@ -199,6 +224,8 @@ const ConsolidadoDash = {
         recebimento: { total: 0 },
         triagem: { total: 0 },
         gestao: { total: 0, distintos: 0 },
+        gestaoMes: { total: 0, distintos: 0 },
+        gestaoMonthLabel: "Acumulado do mês",
         producaoAndroid: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         producaoIphone: { finalizado: 0, andamento: 0, pausado: 0, total: 0 },
         cqe: { aprovado: 0, reprovado: 0, total: 0 }
@@ -211,6 +238,5 @@ const ConsolidadoDash = {
       onChange: () => this.loadAndRender(),
       onReload: () => this.loadAndRender()
     });
-    reload();
   }
 };

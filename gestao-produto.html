@@ -6,7 +6,7 @@
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=28"></script>
+  <script src="yardex-dash.js?v=29"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
@@ -29,12 +29,23 @@
 
     <div class="kpi-row">
       <div class="kpi-card">
-        <div class="label">Peças pedidas</div>
+        <div class="label">Peças pedidas no período</div>
         <div class="value" id="kpiTotal">0</div>
       </div>
       <div class="kpi-card">
-        <div class="label">Quantidade de aparelhos</div>
+        <div class="label">Aparelhos no período</div>
         <div class="value" id="kpiProdutos">0</div>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label" id="monthPecasLabel">Peças pedidas no mês</div>
+        <div class="value" id="kpiTotalMes">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label" id="monthAparelhosLabel">Aparelhos no mês</div>
+        <div class="value" id="kpiProdutosMes">0</div>
       </div>
     </div>
 
@@ -89,6 +100,28 @@
       );
     }
 
+    function getMonthRange(refISO) {
+      const [y, m] = refISO.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return {
+        start: `${y}-${m}-01`,
+        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
+      };
+    }
+
+    function monthLabel(refISO) {
+      const [y, m] = refISO.split("-");
+      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      return `${names[Number(m) - 1]}/${y}`;
+    }
+
+    function computeGestaoKpis(rows) {
+      return {
+        pecas: rows.length,
+        aparelhos: YardexDash.distinctById(rows, "id").length
+      };
+    }
+
     function renderTable(rows) {
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -125,17 +158,26 @@
       }
 
       const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const produtosDistintos = YardexDash.distinctById(filtered, "id").length;
+      const period = computeGestaoKpis(filtered);
 
-      document.getElementById("kpiTotal").textContent = filtered.length;
-      document.getElementById("kpiProdutos").textContent = produtosDistintos;
+      const month = getMonthRange(end);
+      const inMonth = YardexDash.filterByDateField(allRows, month.start, month.end, DATE_FIELD);
+      const mes = computeGestaoKpis(inMonth);
+
+      document.getElementById("kpiTotal").textContent = period.pecas;
+      document.getElementById("kpiProdutos").textContent = period.aparelhos;
+      document.getElementById("kpiTotalMes").textContent = mes.pecas;
+      document.getElementById("kpiProdutosMes").textContent = mes.aparelhos;
+      const monthText = monthLabel(end);
+      document.getElementById("monthPecasLabel").textContent = `Peças pedidas no mês — ${monthText}`;
+      document.getElementById("monthAparelhosLabel").textContent = `Aparelhos no mês — ${monthText}`;
       document.getElementById("periodLabel").textContent =
         `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
 
       renderTable(filtered);
       YardexDash.showStatus(
         statusEl,
-        `${filtered.length} peça(s) no período · ${produtosDistintos} aparelho(s).`,
+        `${period.pecas} peça(s) · ${period.aparelhos} aparelho(s) no período · ${mes.pecas} peça(s) · ${mes.aparelhos} aparelho(s) no mês.`,
         false
       );
     }
@@ -151,12 +193,13 @@
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         document.getElementById("kpiProdutos").textContent = "0";
+        document.getElementById("kpiTotalMes").textContent = "0";
+        document.getElementById("kpiProdutosMes").textContent = "0";
         renderTable([]);
       }
     }
 
     const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
-    reload();
   </script>
 </body>
 </html>
