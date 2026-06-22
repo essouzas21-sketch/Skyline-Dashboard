@@ -31,8 +31,11 @@ const YardexDash = {
     "consolidado.html"
   ],
 
-  /** Reutiliza resposta recente (evita baixar ~14 MB de reparo em sequência). */
-  FETCH_CACHE_TTL_MS: 25000,
+  /** TTL padrão para APIs leves (recebimento). Reparo usa o ciclo completo de refresh. */
+  FETCH_CACHE_TTL_MS: 60000,
+
+  /** Cache persistente (IndexedDB) — sobrevive reload; alinhado ao ciclo de refresh. */
+  FETCH_IDB_TTL_MS: 300000,
 
   /** Reparo pode levar >2 min em rede lenta ou com API sob carga. */
   DEFAULT_FETCH_TIMEOUT_MS: 300000,
@@ -310,6 +313,7 @@ const YardexDash = {
   _refreshCycleMeta: null,
   _fetchCache: {},
   _fetchInflight: {},
+  _idbPromise: null,
   _lastFetchAt: 0,
   _initialLoadTimer: null,
   _slotCountdownTimer: null,
@@ -390,8 +394,91 @@ const YardexDash = {
     return String(url).split("?")[0];
   },
 
+  isReparoWebhook(url) {
+    const u = String(url);
+    return u.includes("8407c7c4") || u.includes("30e00080");
+  },
+
+  getFetchCacheTtl(url) {
+    return this.isReparoWebhook(url)
+      ? this.REFRESH_CYCLE_PAGES.length * this.REFRESH_SLOT_MS
+      : this.FETCH_CACHE_TTL_MS;
+  },
+
   clearFetchCache() {
     this._fetchCache = {};
+    this._clearIdbFetchCache();
+  },
+
+  _initIdb() {
+    if (this._idbPromise) return this._idbPromise;
+    if (typeof indexedDB === "undefined") {
+      this._idbPromise = Promise.resolve(null);
+      return this._idbPromise;
+    }
+    this._idbPromise = new Promise((resolve) => {
+      const req = indexedDB.open("yardex-dash-cache", 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore("fetch", { keyPath: "key" });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    return this._idbPromise;
+  },
+
+  async _idbGetFetch(key) {
+    try {
+      const db = await this._initIdb();
+      if (!db) return null;
+      return await new Promise((resolve) => {
+        const tx = db.transaction("fetch", "readonly");
+        const req = tx.objectStore("fetch").get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  async _idbSetFetch(key, data, at) {
+    try {
+      const db = await this._initIdb();
+      if (!db) return;
+      await new Promise((resolve) => {
+        const tx = db.transaction("fetch", "readwrite");
+        tx.objectStore("fetch").put({ key, data, at });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {
+      /* quota / TV sem IDB */
+    }
+  },
+
+  _clearIdbFetchCache() {
+    this._initIdb().then((db) => {
+      if (!db) return;
+      try {
+        db.transaction("fetch", "readwrite").objectStore("fetch").clear();
+      } catch {
+        /* ignore */
+      }
+    });
+  },
+
+  async _readFetchCache(key, ttlMs) {
+    const now = Date.now();
+    const mem = this._fetchCache[key];
+    if (mem && now - mem.at < ttlMs) return mem;
+
+    const idb = await this._idbGetFetch(key);
+    if (idb && now - idb.at < this.FETCH_IDB_TTL_MS) {
+      this._fetchCache[key] = { data: idb.data, at: idb.at };
+      if (now - idb.at < ttlMs) return this._fetchCache[key];
+    }
+    return idb && now - idb.at < this.FETCH_IDB_TTL_MS ? idb : null;
   },
 
   _ensureRefreshClock() {
@@ -492,7 +579,8 @@ const YardexDash = {
         if (dayChanged && reload) reload();
         else if (dayChanged && onChange) onChange();
         else if (this._autoRefreshFn) {
-          if (Date.now() - this._lastFetchAt < this.FETCH_CACHE_TTL_MS) return;
+          const ttl = Math.max(this.FETCH_CACHE_TTL_MS, this.FETCH_IDB_TTL_MS);
+          if (Date.now() - this._lastFetchAt < ttl) return;
           this._autoRefreshFn();
         }
       });
@@ -545,25 +633,39 @@ const YardexDash = {
     return { start, end };
   },
 
-  async fetchWebhook(url, timeoutMs = this.DEFAULT_FETCH_TIMEOUT_MS) {
+  async fetchWebhook(url, timeoutMs = this.DEFAULT_FETCH_TIMEOUT_MS, options = {}) {
+    const force = !!options.force;
     if (this.useHomologData()) {
       return this._fetchWebhookRaw(url, timeoutMs, true);
     }
 
     const key = this._fetchCacheKey(url);
-    const cached = this._fetchCache[key];
-    if (cached && Date.now() - cached.at < this.FETCH_CACHE_TTL_MS) {
-      return cached.data;
+    const ttlMs = this.getFetchCacheTtl(url);
+
+    if (!force) {
+      const cached = await this._readFetchCache(key, ttlMs);
+      if (cached) return cached.data;
     }
+
     if (this._fetchInflight[key]) {
       return this._fetchInflight[key];
     }
 
     const promise = this._fetchWebhookRaw(url, timeoutMs, false)
-      .then((data) => {
-        this._fetchCache[key] = { data, at: Date.now() };
-        this._lastFetchAt = Date.now();
+      .then(async (data) => {
+        const at = Date.now();
+        this._fetchCache[key] = { data, at };
+        this._lastFetchAt = at;
+        await this._idbSetFetch(key, data, at);
         return data;
+      })
+      .catch(async (err) => {
+        const stale = await this._readFetchCache(key, this.FETCH_IDB_TTL_MS);
+        if (stale) {
+          console.warn("[YardexDash] usando cache após falha:", err.message);
+          return stale.data;
+        }
+        throw err;
       })
       .finally(() => {
         delete this._fetchInflight[key];

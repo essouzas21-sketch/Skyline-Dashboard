@@ -6,7 +6,7 @@
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=29"></script>
+  <script src="yardex-dash.js?v=30"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
@@ -71,33 +71,64 @@
 
   <script>
     const API_URL = YardexDash.API_REPARO;
-    const DATE_FIELD = "data_pedido_sankhya";
     const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
     const statusEl = document.getElementById("statusMsg");
 
-    let allRows = [];
+    const SESSION_KEY = "yardex_gestao_rows_v1";
+    const SESSION_TTL_MS = 3600000;
 
-    function mapRow(raw) {
-      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
-      return {
-        id: raw.id ?? null,
-        data_pedido_sankhya: raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya || null,
-        status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
-        etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
-        produto_requisitado_id: produtoId != null ? String(produtoId).trim() : null,
-        descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
-      };
+    let allRows = [];
+    let loadSeq = 0;
+
+    function ingestGestaoRows(payload) {
+      const rawList = YardexDash.normalizeRows(payload);
+      const out = [];
+      for (let i = 0; i < rawList.length; i++) {
+        const raw = rawList[i];
+        if (!raw || typeof raw !== "object") continue;
+
+        const status = String(raw.STATUS_SANKHYA || raw.status_sankhya || "").trim().toLowerCase();
+        if (status !== "sucesso") continue;
+
+        const etapa = String(raw.etapa_origem || raw.ETAPA_ORIGEM || "").trim().toLowerCase();
+        if (!ETAPAS_PERMITIDAS.has(etapa)) continue;
+
+        const dataPedido = raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya;
+        if (!dataPedido) continue;
+
+        const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado;
+        if (produtoId == null || String(produtoId).trim() === "") continue;
+
+        out.push({
+          id: raw.id ?? null,
+          data_pedido_sankhya: dataPedido,
+          produto_requisitado_id: String(produtoId).trim(),
+          descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
+        });
+      }
+      return out;
     }
 
-    function passesRules(row) {
-      const status = String(row.status_sankhya || "").trim().toLowerCase();
-      const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-      return (
-        status === "sucesso" &&
-        ETAPAS_PERMITIDAS.has(etapa) &&
-        !!row.data_pedido_sankhya &&
-        !!row.produto_requisitado_id
-      );
+    function saveSessionRows(rows) {
+      try {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows }));
+      } catch {
+        /* payload grande demais — ignora */
+      }
+    }
+
+    function restoreSessionRows() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.rows?.length || Date.now() - parsed.at > SESSION_TTL_MS) return false;
+        allRows = parsed.rows;
+        renderDashboard();
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     function getMonthRange(refISO) {
@@ -115,21 +146,43 @@
       return `${names[Number(m) - 1]}/${y}`;
     }
 
-    function computeGestaoKpis(rows) {
-      return {
-        pecas: rows.length,
-        aparelhos: YardexDash.distinctById(rows, "id").length
-      };
+    function computeGestaoKpis(rows, start, end) {
+      let pecas = 0;
+      const ids = new Set();
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const local = YardexDash.toLocalDateStr(row.data_pedido_sankhya);
+        if (local < start || local > end) continue;
+        pecas++;
+        if (row.id != null && String(row.id).trim() !== "") ids.add(String(row.id).trim());
+      }
+      return { pecas, aparelhos: ids.size };
+    }
+
+    function rowsForPeriod(rows, start, end) {
+      const out = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const local = YardexDash.toLocalDateStr(row.data_pedido_sankhya);
+        if (local >= start && local <= end) out.push(row);
+      }
+      return out;
     }
 
     function renderTable(rows) {
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
-      const byProduto = YardexDash.aggregateCount(rows, (r) => r.produto_requisitado_id);
+      const counts = new Map();
       const descMap = new Map();
-      rows.forEach((r) => {
-        if (!descMap.has(r.produto_requisitado_id)) descMap.set(r.produto_requisitado_id, r.descricao);
-      });
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const id = row.produto_requisitado_id;
+        counts.set(id, (counts.get(id) || 0) + 1);
+        if (!descMap.has(id)) descMap.set(id, row.descricao);
+      }
+
+      const byProduto = [...counts.entries()].sort((a, b) => b[1] - a[1]);
 
       if (!byProduto.length) {
         tbody.innerHTML = "";
@@ -157,12 +210,9 @@
         return;
       }
 
-      const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const period = computeGestaoKpis(filtered);
-
+      const period = computeGestaoKpis(allRows, start, end);
       const month = getMonthRange(end);
-      const inMonth = YardexDash.filterByDateField(allRows, month.start, month.end, DATE_FIELD);
-      const mes = computeGestaoKpis(inMonth);
+      const mes = computeGestaoKpis(allRows, month.start, month.end);
 
       document.getElementById("kpiTotal").textContent = period.pecas;
       document.getElementById("kpiProdutos").textContent = period.aparelhos;
@@ -174,7 +224,13 @@
       document.getElementById("periodLabel").textContent =
         `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
 
-      renderTable(filtered);
+      const tableRows = rowsForPeriod(allRows, start, end);
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(() => renderTable(tableRows), { timeout: 500 });
+      } else {
+        setTimeout(() => renderTable(tableRows), 0);
+      }
+
       YardexDash.showStatus(
         statusEl,
         `${period.pecas} peça(s) · ${period.aparelhos} aparelho(s) no período · ${mes.pecas} peça(s) · ${mes.aparelhos} aparelho(s) no mês.`,
@@ -182,23 +238,49 @@
       );
     }
 
+    function clearKpis() {
+      document.getElementById("kpiTotal").textContent = "0";
+      document.getElementById("kpiProdutos").textContent = "0";
+      document.getElementById("kpiTotalMes").textContent = "0";
+      document.getElementById("kpiProdutosMes").textContent = "0";
+      renderTable([]);
+    }
+
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      const seq = ++loadSeq;
+      const hadData = allRows.length > 0;
+
+      if (!hadData && !restoreSessionRows()) {
+        YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      } else {
+        YardexDash.showStatus(statusEl, hadData ? "Atualizando dados…" : "Dados locais — atualizando…", false);
+      }
+
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        allRows = YardexDash.normalizeRows(json).map(mapRow).filter(passesRules);
-        YardexDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
+        if (seq !== loadSeq) return;
+
+        allRows = ingestGestaoRows(json);
+        saveSessionRows(allRows);
         renderDashboard();
+        YardexDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
       } catch (err) {
+        if (seq !== loadSeq) return;
+
+        if (allRows.length) {
+          YardexDash.showStatus(statusEl, `Atualização falhou — exibindo últimos dados (${err.message})`, true);
+          return;
+        }
+        if (restoreSessionRows()) {
+          YardexDash.showStatus(statusEl, `API indisponível — exibindo cache local (${err.message})`, true);
+          return;
+        }
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
-        document.getElementById("kpiTotal").textContent = "0";
-        document.getElementById("kpiProdutos").textContent = "0";
-        document.getElementById("kpiTotalMes").textContent = "0";
-        document.getElementById("kpiProdutosMes").textContent = "0";
-        renderTable([]);
+        clearKpis();
       }
     }
 
+    restoreSessionRows();
     const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   </script>
 </body>
