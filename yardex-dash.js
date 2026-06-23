@@ -268,6 +268,14 @@ const YardexDash = {
     return first || "Outros";
   },
 
+  normalizeBrandName(text) {
+    const first = this.extractFirstWord(text);
+    if (!first || first === "Outros") return first;
+    const key = String(first).toUpperCase();
+    const aliases = { XIAMO: "XIAOMI" };
+    return aliases[key] || key;
+  },
+
   titleCaseWords(name) {
     if (!name || name === "—") return name ?? "—";
     return String(name)
@@ -347,6 +355,8 @@ const YardexDash = {
     const cycleMs = this.REFRESH_CYCLE_PAGES.length * slotMs;
     const posInCycle = Date.now() % cycleMs;
     const slotStart = index * slotMs;
+    const slotEnd = slotStart + slotMs;
+    if (posInCycle >= slotStart && posInCycle < slotEnd) return 0;
     if (posInCycle < slotStart) return slotStart - posInCycle;
     return cycleMs - posInCycle + slotStart;
   },
@@ -376,22 +386,8 @@ const YardexDash = {
   scheduleInitialLoad(reloadFn) {
     if (!reloadFn) return;
     const cycleMeta = this.getRefreshCycleMeta();
-    if (!cycleMeta) {
-      reloadFn();
-      return;
-    }
-    this._refreshCycleMeta = cycleMeta;
-    const delay = this.msUntilNextRefreshSlot(cycleMeta.index);
-    if (delay <= 500) {
-      reloadFn();
-      return;
-    }
-    this.showSlotCountdown(delay, cycleMeta);
-    if (this._initialLoadTimer) clearTimeout(this._initialLoadTimer);
-    this._initialLoadTimer = setTimeout(() => {
-      this.clearSlotCountdown();
-      reloadFn();
-    }, delay);
+    if (cycleMeta) this._refreshCycleMeta = cycleMeta;
+    reloadFn();
   },
 
   _fetchCacheKey(url) {
@@ -403,8 +399,13 @@ const YardexDash = {
     return u.includes("8407c7c4") || u.includes("30e00080");
   },
 
+  isRecebimentoWebhook(url) {
+    return String(url).includes("661802e8") || String(url).includes("78441d8b");
+  },
+
   getFetchCacheTtl(url) {
     if (this.isReparoWebhook(url)) return this.FETCH_IDB_TTL_MS;
+    if (this.isRecebimentoWebhook(url)) return this.FETCH_IDB_TTL_MS;
     return this.FETCH_CACHE_TTL_MS;
   },
 
@@ -735,7 +736,7 @@ const YardexDash = {
     if (homologOnly || this.useHomologData()) {
       const fixture = this.homologFixtureFor(url);
       if (!fixture) throw new Error("Sem fixture local para este endpoint.");
-      const res = await fetch(`${fixture}?_t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(fixture, { cache: "default" });
       if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
       const text = await res.text();
       try {
