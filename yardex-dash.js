@@ -31,11 +31,14 @@ const YardexDash = {
     "consolidado.html"
   ],
 
-  /** TTL padrão para APIs leves (recebimento). Reparo usa o ciclo completo de refresh. */
+  /** TTL padrão para APIs leves (recebimento). Reparo usa cache estendido. */
   FETCH_CACHE_TTL_MS: 60000,
 
-  /** Cache persistente (IndexedDB) — sobrevive reload; alinhado ao ciclo de refresh. */
-  FETCH_IDB_TTL_MS: 300000,
+  /** Cache persistente (IndexedDB) — evita baixar ~14 MB de reparo a cada refresh. */
+  FETCH_IDB_TTL_MS: 600000,
+
+  /** Payload acima disso: JSON.parse roda em Web Worker. */
+  JSON_WORKER_MIN_CHARS: 400000,
 
   /** Reparo pode levar >2 min em rede lenta ou com API sob carga. */
   DEFAULT_FETCH_TIMEOUT_MS: 300000,
@@ -314,6 +317,7 @@ const YardexDash = {
   _fetchCache: {},
   _fetchInflight: {},
   _idbPromise: null,
+  _jsonWorker: null,
   _lastFetchAt: 0,
   _initialLoadTimer: null,
   _slotCountdownTimer: null,
@@ -400,9 +404,61 @@ const YardexDash = {
   },
 
   getFetchCacheTtl(url) {
-    return this.isReparoWebhook(url)
-      ? this.REFRESH_CYCLE_PAGES.length * this.REFRESH_SLOT_MS
-      : this.FETCH_CACHE_TTL_MS;
+    if (this.isReparoWebhook(url)) return this.FETCH_IDB_TTL_MS;
+    return this.FETCH_CACHE_TTL_MS;
+  },
+
+  _getJsonWorker() {
+    if (this._jsonWorker) return this._jsonWorker;
+    try {
+      this._jsonWorker = new Worker("yardex-json-worker.js");
+    } catch {
+      this._jsonWorker = null;
+    }
+    return this._jsonWorker;
+  },
+
+  parseJsonAsync(text) {
+    const payload = String(text ?? "");
+    if (payload.length < this.JSON_WORKER_MIN_CHARS) {
+      return Promise.resolve(JSON.parse(payload));
+    }
+    const worker = this._getJsonWorker();
+    if (!worker) {
+      return Promise.resolve(JSON.parse(payload));
+    }
+    return new Promise((resolve, reject) => {
+      const onMsg = (event) => {
+        worker.removeEventListener("message", onMsg);
+        worker.removeEventListener("error", onErr);
+        if (event.data?.ok) resolve(event.data.data);
+        else reject(new Error(event.data?.error || "Resposta inválida (não é JSON)"));
+      };
+      const onErr = () => {
+        worker.removeEventListener("message", onMsg);
+        worker.removeEventListener("error", onErr);
+        try {
+          resolve(JSON.parse(payload));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      worker.addEventListener("message", onMsg);
+      worker.addEventListener("error", onErr);
+      worker.postMessage(payload);
+    });
+  },
+
+  /** Pré-carrega APIs em background (ex.: menu antes de abrir um dashboard). */
+  warmCaches() {
+    if (this.useHomologData()) return;
+    [this.API_REPARO, this.API_RECEBIMENTO].forEach((url) => {
+      const key = this._fetchCacheKey(url);
+      this._readFetchCache(key, this.getFetchCacheTtl(url)).then((cached) => {
+        if (cached || this._fetchInflight[key]) return;
+        this.fetchWebhook(url).catch(() => {});
+      });
+    });
   },
 
   clearFetchCache() {
@@ -683,7 +739,7 @@ const YardexDash = {
       if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
       const text = await res.text();
       try {
-        return JSON.parse(text);
+        return await this.parseJsonAsync(text);
       } catch {
         throw new Error(`Fixture inválido (não é JSON): ${fixture}`);
       }
@@ -702,7 +758,7 @@ const YardexDash = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       try {
-        return JSON.parse(text);
+        return await this.parseJsonAsync(text);
       } catch {
         throw new Error("Resposta inválida (não é JSON)");
       }
@@ -871,4 +927,8 @@ document.addEventListener("DOMContentLoaded", () => {
   YardexDash.initHomologBanner();
   YardexDash.bindHomologLinks();
   if (typeof YardexVersion !== "undefined") YardexVersion.start(YardexDash.REFRESH_SLOT_MS);
+  const page = (location.pathname.split("/").pop() || "").split("?")[0];
+  if (page === "menu.html" || page === "" || page === "index.html") {
+    YardexDash.warmCaches();
+  }
 });
