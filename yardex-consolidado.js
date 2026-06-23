@@ -118,7 +118,7 @@ const ConsolidadoDash = {
     if (!decisao) return null;
     return {
       id: raw.id ?? null,
-      data_pedido_sankhya: YardexDash.resolveCqeDate(raw, decisao),
+      data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
       decisao,
       motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
     };
@@ -128,11 +128,11 @@ const ConsolidadoDash = {
     return YardexDash.normalizeRows(json)
       .map((raw) => this.mapCqe(raw))
       .filter(Boolean)
-      .filter((r) => r.data_pedido_sankhya);
+      .filter((r) => r.data_qualidade);
   },
 
   kpiCqe(rows, start, end) {
-    const inPeriod = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
+    const inPeriod = YardexDash.filterByDateField(rows, start, end, "data_qualidade");
     const filtered = YardexDash.processCqeRows(inPeriod);
     const totals = { aprovado: 0, reprovado: 0, total: 0 };
     filtered.forEach((r) => {

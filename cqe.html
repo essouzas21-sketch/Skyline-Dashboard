@@ -6,7 +6,7 @@
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=32"></script>
+  <script src="yardex-dash.js?v=33"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -136,7 +136,7 @@
 
   <script>
     const API_URL = YardexDash.API_REPARO;
-    const DATE_FIELD = "data_pedido_sankhya";
+    const DATE_FIELD = "data_qualidade";
     const statusEl = document.getElementById("statusMsg");
 
     let allRows = [];
@@ -153,7 +153,7 @@
       if (!decisao) return null;
       return {
         id: raw.id ?? null,
-        data_pedido_sankhya: YardexDash.resolveCqeDate(raw, decisao),
+        data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
         usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
         decisao,
         motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
@@ -250,7 +250,7 @@
       setKpiBlock(totalsMes, true);
       document.getElementById("monthRowLabel").textContent = `Acumulado do mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · aprovado: Sankhya · reprovado: Fim do Reparo · 1x id/dia · sem motivo teste`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data qualidade · reprovado+aprovado no mesmo dia contam nos dois lados · sem motivo teste`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -287,7 +287,7 @@
         const mapped = YardexDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)
-          .filter((r) => r.data_pedido_sankhya);
+          .filter((r) => r.data_qualidade);
         allRows = mapped;
         YardexDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
         renderDashboard();

@@ -62,6 +62,19 @@ const YardexDash = {
     return null;
   },
 
+  async loadHomologManifest() {
+    try {
+      const res = await fetch(`data/homolog/manifest.json?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
   initHomologBanner() {
     if (!this.useHomologData()) return;
     if (document.getElementById("homologBanner")) return;
@@ -73,6 +86,14 @@ const YardexDash = {
       "<strong>Homologação</strong> — dados locais (sem API de produção). " +
       '<a href="?prod=1">Usar API real</a>';
     document.body.prepend(banner);
+
+    this.loadHomologManifest().then((meta) => {
+      if (!meta?.synced_at || !document.getElementById("homologBanner")) return;
+      const when = new Date(meta.synced_at).toLocaleString("pt-BR");
+      banner.innerHTML =
+        `<strong>Homologação</strong> — fixture de ${when}. ` +
+        '<a href="?prod=1">Usar API real</a>';
+    });
   },
 
   withHomologQuery(href) {
@@ -133,6 +154,18 @@ const YardexDash = {
     return norm === "teste";
   },
 
+  /** CQE: data da inspeção (campo Data_qualidade). Fallback para datas legadas. */
+  resolveCqeQualidadeDate(raw, decisao = null) {
+    if (!raw || typeof raw !== "object") return null;
+    const qualidade =
+      raw.Data_qualidade ??
+      raw.data_qualidade ??
+      raw.DATA_QUALIDADE ??
+      null;
+    if (qualidade) return qualidade;
+    return this.resolveCqeDate(raw, decisao);
+  },
+
   /** CQE: aprovado → DATA_PEDIDO_SANKHYA; reprovado → Fim do Reparo (data da inspeção). */
   resolveCqeDate(raw, decisao = null) {
     if (!raw || typeof raw !== "object") return null;
@@ -148,8 +181,8 @@ const YardexDash = {
     return sankhya || fim || null;
   },
 
-  /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão. */
-  processCqeRows(rows, dateField = "data_pedido_sankhya") {
+  /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão (aprovado e reprovado separados). */
+  processCqeRows(rows, dateField = "data_qualidade") {
     const seen = new Set();
     const result = [];
 
@@ -736,7 +769,10 @@ const YardexDash = {
     if (homologOnly || this.useHomologData()) {
       const fixture = this.homologFixtureFor(url);
       if (!fixture) throw new Error("Sem fixture local para este endpoint.");
-      const res = await fetch(fixture, { cache: "default" });
+      const res = await fetch(`${fixture}?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+      });
       if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
       const text = await res.text();
       try {

@@ -4,6 +4,7 @@
 import json
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,7 @@ def main() -> int:
 
     meta = {
         "generated_by": "sync-homolog-data.py",
+        "synced_at": datetime.now(timezone.utc).isoformat(),
         "files": list(SOURCES.keys()),
     }
     (OUT / "manifest.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
