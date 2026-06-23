@@ -143,6 +143,67 @@ const YardexDash = {
     return [];
   },
 
+  /** Etapas/operações consideradas na triagem e gestão de peças. */
+  ETAPAS_OPERACAO: new Set(["reparo", "gestao_pecas"]),
+
+  resolveOperacao(raw) {
+    if (!raw || typeof raw !== "object") return "";
+    return String(
+      raw.operação ?? raw.operacao ?? raw.etapa_origem ?? raw.ETAPA_ORIGEM ?? ""
+    )
+      .trim()
+      .toLowerCase();
+  },
+
+  /** Gestão: DATA_PEDIDO_SANKHYA (legado) ou Iniciado_Reparo quando Sankhya saiu da API. */
+  resolveGestaoDate(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return (
+      raw.DATA_PEDIDO_SANKHYA ??
+      raw.data_pedido_sankhya ??
+      raw["Iniciado_Reparo"] ??
+      raw.iniciado_reparo ??
+      null
+    );
+  },
+
+  /** Triagem: Data Triagem + operação reparo/gestao_pecas; STATUS_SANKHYA=sucesso só se existir. */
+  passesTriagemRaw(raw, etapas = this.ETAPAS_OPERACAO) {
+    if (!raw || typeof raw !== "object") return false;
+    const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
+    if (!dataTriagem) return false;
+    if (!etapas.has(this.resolveOperacao(raw))) return false;
+    const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+    if (
+      sankhya != null &&
+      String(sankhya).trim() !== "" &&
+      String(sankhya).trim().toLowerCase() !== "sucesso"
+    ) {
+      return false;
+    }
+    return true;
+  },
+
+  /** Gestão: produto requisitado + data; nova API exige Usuario Solicitação Peça. */
+  passesGestaoRaw(raw, etapas = this.ETAPAS_OPERACAO) {
+    if (!raw || typeof raw !== "object") return false;
+    const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
+    if (produtoId == null || String(produtoId).trim() === "") return false;
+    if (!this.resolveGestaoDate(raw)) return false;
+    if (!etapas.has(this.resolveOperacao(raw))) return false;
+    const hasLegacyPedido = !!(raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya);
+    if (!hasLegacyPedido && !raw["Usuario Solicitação Peça"]) return false;
+    const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+    if (
+      sankhya != null &&
+      String(sankhya).trim() !== "" &&
+      String(sankhya).trim().toLowerCase() !== "sucesso"
+    ) {
+      return false;
+    }
+    return true;
+  },
+
   isCqeMotivoTeste(motivo) {
     const norm = String(motivo || "")
       .trim()

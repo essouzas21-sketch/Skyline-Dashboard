@@ -6,7 +6,7 @@
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=32"></script>
+  <script src="yardex-dash.js?v=34"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
@@ -71,10 +71,10 @@
 
   <script>
     const API_URL = YardexDash.API_REPARO;
-    const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
+    const ETAPAS_PERMITIDAS = YardexDash.ETAPAS_OPERACAO;
     const statusEl = document.getElementById("statusMsg");
 
-    const SESSION_KEY = "yardex_gestao_rows_v1";
+    const SESSION_KEY = "yardex_gestao_rows_v2";
     const SESSION_TTL_MS = 3600000;
 
     let allRows = [];
@@ -86,22 +86,13 @@
       for (let i = 0; i < rawList.length; i++) {
         const raw = rawList[i];
         if (!raw || typeof raw !== "object") continue;
-
-        const status = String(raw.STATUS_SANKHYA || raw.status_sankhya || "").trim().toLowerCase();
-        if (status !== "sucesso") continue;
-
-        const etapa = String(raw.etapa_origem || raw.ETAPA_ORIGEM || "").trim().toLowerCase();
-        if (!ETAPAS_PERMITIDAS.has(etapa)) continue;
-
-        const dataPedido = raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya;
-        if (!dataPedido) continue;
+        if (!YardexDash.passesGestaoRaw(raw, ETAPAS_PERMITIDAS)) continue;
 
         const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado;
-        if (produtoId == null || String(produtoId).trim() === "") continue;
 
         out.push({
           id: raw.id ?? null,
-          data_pedido_sankhya: dataPedido,
+          data_pedido_sankhya: YardexDash.resolveGestaoDate(raw),
           produto_requisitado_id: String(produtoId).trim(),
           descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
         });
@@ -222,7 +213,7 @@
       document.getElementById("monthPecasLabel").textContent = `Peças pedidas no mês — ${monthText}`;
       document.getElementById("monthAparelhosLabel").textContent = `Aparelhos no mês — ${monthText}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · DATA_PEDIDO_SANKHYA · SUCESSO · reparo/gestao_pecas`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · pedido Sankhya ou Iniciado_Reparo · operação reparo/gestao_pecas`;
 
       const tableRows = rowsForPeriod(allRows, start, end);
       if (typeof requestIdleCallback === "function") {

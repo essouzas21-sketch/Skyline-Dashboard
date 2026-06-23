@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=32"></script>
+  <script src="yardex-dash.js?v=34"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -74,7 +74,7 @@
 
     const API_URL = YardexDash.API_REPARO;
     const DATE_FIELD = "data_triagem";
-    const ETAPAS_PERMITIDAS = new Set(["reparo", "gestao_pecas"]);
+    const ETAPAS_PERMITIDAS = YardexDash.ETAPAS_OPERACAO;
     const TOP_MARCAS = 12;
     const statusEl = document.getElementById("statusMsg");
 
@@ -88,8 +88,7 @@
       return {
         id: raw.id ?? null,
         data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
-        status_sankhya: raw.STATUS_SANKHYA || raw.status_sankhya || null,
-        etapa_origem: raw.etapa_origem || raw.ETAPA_ORIGEM || null,
+        operacao: YardexDash.resolveOperacao(raw),
         usuario: YardexDash.normalizeUserName(
           raw["Usuário triagem"] ||
           raw["Usuário reparo"] ||
@@ -104,9 +103,7 @@
     }
 
     function passesTriagemRules(row) {
-      const status = String(row.status_sankhya || "").trim().toLowerCase();
-      const etapa = String(row.etapa_origem || "").trim().toLowerCase();
-      return status === "sucesso" && ETAPAS_PERMITIDAS.has(etapa) && !!row.data_triagem;
+      return !!row.data_triagem && ETAPAS_PERMITIDAS.has(row.operacao);
     }
 
     function getMonthRange(refISO) {
@@ -169,7 +166,7 @@
       document.getElementById("kpiTotalMes").textContent = dashRowsMes.length;
       document.getElementById("monthRowLabel").textContent = `Aparelhos triados no mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem · SUCESSO · reparo/gestao_pecas`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem · operação reparo/gestao_pecas`;
 
       chartMarca = YardexDash.createBarChart(
         "chartMarca",
@@ -199,7 +196,9 @@
       YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        const mapped = YardexDash.normalizeRows(json).map(mapRow).filter(passesTriagemRules);
+        const mapped = YardexDash.normalizeRows(json)
+          .filter((raw) => YardexDash.passesTriagemRaw(raw))
+          .map(mapRow);
         allRows = mapped;
         YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
         renderDashboard();
