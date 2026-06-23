@@ -10,35 +10,28 @@
   <script src="yardex-version.js?v=2"></script>
   <script src="yardex-dash.js?v=32"></script>
   <style>
-    body.dash-page.recebimento-bi-page {
-      height: auto;
-      min-height: 100vh;
-      overflow: auto;
+    .recebimento-page .dash-title h1 {
+      font-size: 1.1rem;
     }
 
-    .recebimento-bi-page .page {
-      max-width: none;
-      padding-bottom: 24px;
+    .recebimento-page .dash-title .subtitle {
+      font-size: 0.68rem;
     }
 
-    .rec-bi-header {
-      margin-bottom: 12px;
+    .recebimento-page .kpi-row {
+      flex-shrink: 0;
     }
 
-    .rec-bi-header h1 {
-      margin: 0 0 4px;
-      font-size: clamp(1.1rem, 2vw, 1.45rem);
-      letter-spacing: 0.03em;
+    .recebimento-page .kpi-card .label {
+      font-size: 0.58rem;
     }
 
-    .rec-bi-header .subtitle {
-      margin: 0;
-      color: var(--accent);
-      font-size: 0.82rem;
+    .recebimento-page .kpi-card .value {
+      font-size: 1.75rem;
     }
 
-    .rec-kpi-row .kpi-card .hint {
-      font-size: 0.65rem;
+    .recebimento-page .rec-kpi-row .kpi-card .hint {
+      font-size: 0.62rem;
       color: var(--accent-strong);
       font-weight: 600;
       margin-top: 2px;
@@ -47,98 +40,105 @@
       text-overflow: ellipsis;
     }
 
-    .rec-kpi-row .kpi-card .value {
-      font-size: clamp(1.1rem, 2vw, 1.55rem);
-    }
-
-    .rec-charts-grid {
+    .recebimento-page .dash-main--recebimento {
+      flex: 1;
+      min-height: 0;
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-auto-rows: minmax(clamp(220px, 30vh, 300px), auto);
-      gap: 10px;
-      align-items: stretch;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      overflow: hidden;
     }
 
-    .rec-charts-grid .panel {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: clamp(220px, 30vh, 300px);
-      min-width: 0;
+    .recebimento-page .dash-main--recebimento .panel {
+      min-height: 0;
+      overflow: hidden;
+      padding: 8px 10px;
     }
 
-    .rec-charts-grid .panel-head {
+    .recebimento-page .dash-main--recebimento .panel-head {
       flex-shrink: 0;
-      min-height: 2.6rem;
+      margin-bottom: 4px;
     }
 
-    .rec-charts-grid .panel-head h2 {
+    .recebimento-page .dash-main--recebimento .panel-head h2 {
       margin: 0;
-      font-size: 0.78rem;
-      line-height: 1.25;
+      font-size: 0.82rem;
+      line-height: 1.2;
     }
 
-    .rec-charts-grid .section-note {
-      margin: 2px 0 0;
-      font-size: 0.65rem;
+    .recebimento-page .dash-main--recebimento .section-note {
+      margin: 1px 0 0;
+      font-size: 0.62rem;
       color: var(--muted);
     }
 
-    .rec-charts-grid .chart-box,
-    .rec-charts-grid .rec-heatmap-wrap {
+    .recebimento-page .dash-main--recebimento .chart-box,
+    .recebimento-page .dash-main--recebimento .rec-heatmap-wrap {
       flex: 1;
       min-height: 0;
-      height: auto;
     }
 
-    .rec-heatmap-wrap {
-      overflow-x: auto;
+    .recebimento-page .rec-heatmap-wrap {
+      overflow: hidden;
+      display: flex;
+      align-items: center;
     }
 
-    .rec-heatmap {
+    .recebimento-page .rec-heatmap {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.72rem;
+      font-size: clamp(0.58rem, 1.1vh, 0.72rem);
     }
 
-    .rec-heatmap th,
-    .rec-heatmap td {
-      padding: 6px 8px;
+    .recebimento-page .rec-heatmap th,
+    .recebimento-page .rec-heatmap td {
+      padding: clamp(3px, 0.6vh, 7px) clamp(4px, 0.5vw, 8px);
       text-align: center;
       border: 1px solid #ece6f4;
     }
 
-    .rec-heatmap th {
+    .recebimento-page .rec-heatmap th {
       background: #f0eaf8;
       color: var(--text-on-card);
       font-weight: 700;
+      font-size: 0.58rem;
     }
 
-    .rec-heatmap td.row-label {
+    .recebimento-page .rec-heatmap td.row-label {
       text-align: left;
       font-weight: 600;
       background: #faf7ff;
       white-space: nowrap;
+      max-width: 5.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .rec-heatmap td.cell {
+    .recebimento-page .rec-heatmap td.cell {
       font-weight: 700;
       color: var(--text-on-card);
     }
 
-    .rec-footer {
-      margin-top: 12px;
-      font-size: 0.68rem;
-      color: var(--accent);
-      text-align: center;
+    .recebimento-page .rec-footer {
+      display: none;
+    }
+
+    .recebimento-page .back {
+      display: none;
+    }
+
+    .recebimento-page .filter-row #btnApply,
+    .recebimento-page .filter-row #btnReload {
+      display: none;
     }
   </style>
 </head>
-<body class="dash-page recebimento-bi-page">
+<body class="dash-page recebimento-page">
   <div class="page">
     <div class="dash-toolbar">
       <a class="back" href="menu.html">← Menu</a>
-      <div class="dash-title rec-bi-header">
+      <div class="dash-title">
         <h1>Recebimento — Controle de Volume</h1>
         <p class="subtitle" id="periodLabel">Carregando período…</p>
       </div>
@@ -176,7 +176,7 @@
       </div>
     </div>
 
-    <div class="rec-charts-grid">
+    <div class="dash-main dash-main--recebimento">
       <div class="panel">
         <div class="panel-head">
           <h2>Volume por marca — evolução diária</h2>
