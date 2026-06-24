@@ -393,13 +393,28 @@ const YardexDash = {
     });
   },
 
-  /** Primeira palavra útil da descrição; se for APARELHOS, usa a segunda. */
+  normalizeBrandToken(word) {
+    return String(word || "")
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
+  },
+
+  isGenericBrandPrefix(word) {
+    const key = this.normalizeBrandToken(word);
+    return key === "APARELHOS" || key === "APARELHO";
+  },
+
+  /** Primeira palavra útil da descrição; pula prefixos genéricos (APARELHOS). */
   resolveBrandWord(text) {
     if (!text || text === "—") return null;
     const words = String(text).trim().split(/\s+/).filter(Boolean);
     if (!words.length) return null;
-    if (words.length > 1 && words[0].toUpperCase() === "APARELHOS") return words[1];
-    return words[0];
+    let idx = 0;
+    while (idx < words.length - 1 && this.isGenericBrandPrefix(words[idx])) idx++;
+    return words[idx] || null;
   },
 
   extractFirstWord(text) {

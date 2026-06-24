@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=37"></script>
+  <script src="yardex-dash.js?v=38"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -256,10 +256,25 @@
       return String(getGrupo(raw)).trim() === GRUPO_FILTRO;
     }
 
+    function resolveMarca(descricao) {
+      if (!descricao) return "Outros";
+      const words = String(descricao).trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return "Outros";
+      const strip = (w) =>
+        w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      let pick = words[0];
+      if (words.length > 1 && (strip(pick) === "APARELHOS" || strip(pick) === "APARELHO")) {
+        pick = words[1];
+      }
+      const key = strip(pick);
+      const aliases = { XIAMO: "XIAOMI" };
+      return aliases[key] || key;
+    }
+
     function mapRow(raw) {
       const dataAlt = YardexDash.resolveRecebimentoDate(raw);
       const dt = dataAlt ? new Date(dataAlt) : null;
-      const marca = YardexDash.normalizeBrandName(raw.descricao || "");
+      const marca = resolveMarca(raw.descricao || "");
       return {
         id: YardexDash.resolveRecebimentoId(raw),
         hunit: raw.hu_id ?? raw.hunit ?? null,
