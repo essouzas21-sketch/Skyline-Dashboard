@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=35"></script>
+  <script src="yardex-dash.js?v=36"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -267,9 +267,7 @@
         day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataAlt) : null,
         hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
         prod_cprod: raw.prod_cprod || "—",
-        name: YardexDash.normalizeUserName(
-          raw.usuario_recebimento || raw.usuario_alocacao || raw.name || raw.u?.name || "—"
-        ),
+        name: YardexDash.normalizeUserName(raw.usuario_recebimento || "—"),
         descricao: raw.descricao || "—",
         marca: marca || "—",
         grupo: String(getGrupo(raw)).trim()
@@ -479,7 +477,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · ni.data_alt · grupo ${GRUPO_FILTRO} · WMS Log Smart`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · ni.data_alt · com usuario_recebimento · grupo ${GRUPO_FILTRO}`;
 
       const { dayLabels, series } = buildBrandDaySeries(inMonth, month.start, month.end);
       updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
@@ -531,7 +529,9 @@
         totalFromApi = rawRows.length;
         const mapped = [];
         for (let i = 0; i < rawRows.length; i++) {
-          if (passesGrupoFilter(rawRows[i])) mapped.push(mapRow(rawRows[i]));
+          if (YardexDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)) {
+            mapped.push(mapRow(rawRows[i]));
+          }
         }
         allRows = YardexDash.distinctById(mapped, "id");
         renderDashboardNow();

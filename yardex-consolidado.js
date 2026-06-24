@@ -25,8 +25,8 @@ const ConsolidadoDash = {
 
   loadRecebimentoRows(json) {
     const mapped = YardexDash.normalizeRows(json)
-      .map((raw) => this.mapRecebimento(raw))
-      .filter((r) => r.grupo === this.GRUPO_FILTRO && r.data_alt);
+      .filter((raw) => YardexDash.passesRecebimentoRaw(raw, this.GRUPO_FILTRO))
+      .map((raw) => this.mapRecebimento(raw));
     return YardexDash.distinctById(mapped, "id");
   },
 

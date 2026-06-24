@@ -178,6 +178,20 @@ const YardexDash = {
     );
   },
 
+  hasRecebimentoUsuario(raw) {
+    if (!raw || typeof raw !== "object") return false;
+    const user = raw.usuario_recebimento ?? raw.usuarioRecebimento ?? null;
+    return user != null && String(user).trim() !== "";
+  },
+
+  passesRecebimentoRaw(raw, grupoFiltro = "6151") {
+    if (!raw || typeof raw !== "object") return false;
+    const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
+    if (grupo !== String(grupoFiltro)) return false;
+    if (!this.hasRecebimentoUsuario(raw)) return false;
+    return !!this.resolveRecebimentoDate(raw);
+  },
+
   /** Gestão: DATA_PEDIDO_SANKHYA (legado) ou Iniciado_Reparo quando Sankhya saiu da API. */
   resolveGestaoDate(raw) {
     if (!raw || typeof raw !== "object") return null;
