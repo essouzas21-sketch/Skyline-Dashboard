@@ -178,11 +178,17 @@ const YardexDash = {
     );
   },
 
+  /** Recebimento: dia ignorado nos KPIs e gráficos (YYYY-MM-DD). */
+  RECEBIMENTO_DIA_EXCLUIDO: "2026-06-16",
+
   passesRecebimentoRaw(raw, grupoFiltro = "6151") {
     if (!raw || typeof raw !== "object") return false;
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     if (grupo !== String(grupoFiltro)) return false;
-    return !!this.resolveRecebimentoDate(raw);
+    const dataAlt = this.resolveRecebimentoDate(raw);
+    if (!dataAlt) return false;
+    if (this.toLocalDateStr(dataAlt) === this.RECEBIMENTO_DIA_EXCLUIDO) return false;
+    return true;
   },
 
   /** Gestão: DATA_PEDIDO_SANKHYA (legado) ou Iniciado_Reparo quando Sankhya saiu da API. */
