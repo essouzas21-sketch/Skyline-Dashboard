@@ -17,8 +17,8 @@ const ConsolidadoDash = {
   mapRecebimento(raw) {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     return {
-      id: raw.id ?? raw.hunit ?? null,
-      data_add: raw.data_add,
+      id: YardexDash.resolveRecebimentoId(raw),
+      data_alt: YardexDash.resolveRecebimentoDate(raw),
       grupo
     };
   },
@@ -26,12 +26,12 @@ const ConsolidadoDash = {
   loadRecebimentoRows(json) {
     const mapped = YardexDash.normalizeRows(json)
       .map((raw) => this.mapRecebimento(raw))
-      .filter((r) => r.grupo === this.GRUPO_FILTRO && r.data_add);
+      .filter((r) => r.grupo === this.GRUPO_FILTRO && r.data_alt);
     return YardexDash.distinctById(mapped, "id");
   },
 
   kpiRecebimento(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_add");
+    const filtered = YardexDash.filterByDateField(rows, start, end, "data_alt");
     return { total: filtered.length };
   },
 

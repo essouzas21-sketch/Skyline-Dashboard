@@ -155,6 +155,29 @@ const YardexDash = {
       .toLowerCase();
   },
 
+  /** Recebimento: data da alocação/recebimento (ni.data_alt ou data_alt). */
+  resolveRecebimentoDate(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const ni = raw.ni;
+    if (ni && typeof ni === "object") {
+      const nested = ni.data_alt ?? ni.dataAlt ?? null;
+      if (nested) return nested;
+    }
+    return raw.data_alt ?? raw.dataAlt ?? raw.data_add ?? null;
+  },
+
+  resolveRecebimentoId(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return (
+      raw.hu_id ??
+      raw.nr_item_id ??
+      raw.numero ??
+      raw.id ??
+      raw.hunit ??
+      null
+    );
+  },
+
   /** Gestão: DATA_PEDIDO_SANKHYA (legado) ou Iniciado_Reparo quando Sankhya saiu da API. */
   resolveGestaoDate(raw) {
     if (!raw || typeof raw !== "object") return null;

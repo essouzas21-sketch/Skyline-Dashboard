@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=34"></script>
+  <script src="yardex-dash.js?v=35"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -220,7 +220,7 @@
     Chart.register(ChartDataLabels);
 
     const API_URL = YardexDash.API_RECEBIMENTO;
-    const DATE_FIELD = "data_add";
+    const DATE_FIELD = "data_alt";
     const GRUPO_FILTRO = "6151";
     const TOP_MARCAS_LINE = 5;
     const TOP_MARCAS_BAR = 10;
@@ -257,16 +257,19 @@
     }
 
     function mapRow(raw) {
-      const dt = raw.data_add ? new Date(raw.data_add) : null;
+      const dataAlt = YardexDash.resolveRecebimentoDate(raw);
+      const dt = dataAlt ? new Date(dataAlt) : null;
       const marca = YardexDash.normalizeBrandName(raw.descricao || "");
       return {
-        id: raw.id ?? raw.hunit ?? null,
-        hunit: raw.hunit,
-        data_add: raw.data_add,
-        day: dt ? YardexDash.toLocalDateStr(raw.data_add) : null,
+        id: YardexDash.resolveRecebimentoId(raw),
+        hunit: raw.hu_id ?? raw.hunit ?? null,
+        data_alt: dataAlt,
+        day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataAlt) : null,
         hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
         prod_cprod: raw.prod_cprod || "—",
-        name: YardexDash.normalizeUserName(raw.name || raw.u?.name || "—"),
+        name: YardexDash.normalizeUserName(
+          raw.usuario_recebimento || raw.usuario_alocacao || raw.name || raw.u?.name || "—"
+        ),
         descricao: raw.descricao || "—",
         marca: marca || "—",
         grupo: String(getGrupo(raw)).trim()
@@ -476,7 +479,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · grupo ${GRUPO_FILTRO} · WMS Log Smart`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · ni.data_alt · grupo ${GRUPO_FILTRO} · WMS Log Smart`;
 
       const { dayLabels, series } = buildBrandDaySeries(inMonth, month.start, month.end);
       updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
