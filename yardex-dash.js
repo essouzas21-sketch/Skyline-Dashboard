@@ -178,6 +178,9 @@ const YardexDash = {
     );
   },
 
+  /** Dia em que só entram recebimentos com usuario_recebimento (YYYY-MM-DD). */
+  RECEBIMENTO_RECEBEDOR_OBRIGATORIO_DIA: "2026-06-16",
+
   hasRecebimentoUsuario(raw) {
     if (!raw || typeof raw !== "object") return false;
     const user = raw.usuario_recebimento ?? raw.usuarioRecebimento ?? null;
@@ -188,8 +191,16 @@ const YardexDash = {
     if (!raw || typeof raw !== "object") return false;
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     if (grupo !== String(grupoFiltro)) return false;
-    if (!this.hasRecebimentoUsuario(raw)) return false;
-    return !!this.resolveRecebimentoDate(raw);
+    const dataAlt = this.resolveRecebimentoDate(raw);
+    if (!dataAlt) return false;
+    const day = this.toLocalDateStr(dataAlt);
+    if (
+      day === this.RECEBIMENTO_RECEBEDOR_OBRIGATORIO_DIA &&
+      !this.hasRecebimentoUsuario(raw)
+    ) {
+      return false;
+    }
+    return true;
   },
 
   /** Gestão: DATA_PEDIDO_SANKHYA (legado) ou Iniciado_Reparo quando Sankhya saiu da API. */
