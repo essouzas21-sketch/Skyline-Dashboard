@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=41"></script>
+  <script src="yardex-dash.js?v=42"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -282,9 +282,9 @@
         day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataAlt) : null,
         hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
         prod_cprod: raw.prod_cprod || "—",
-        name: YardexDash.normalizeUserName(
-          raw.usuario_recebimento || raw.usuario_alocacao || "—"
-        ),
+        name: raw.usuario_recebimento && String(raw.usuario_recebimento).trim()
+          ? YardexDash.normalizeUserName(raw.usuario_recebimento)
+          : "Em recebimento",
         descricao: raw.descricao || "—",
         marca: marca || "—",
         grupo: String(getGrupo(raw)).trim()
