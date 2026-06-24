@@ -393,15 +393,22 @@ const YardexDash = {
     });
   },
 
+  /** Primeira palavra útil da descrição; se for APARELHOS, usa a segunda. */
+  resolveBrandWord(text) {
+    if (!text || text === "—") return null;
+    const words = String(text).trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return null;
+    if (words.length > 1 && words[0].toUpperCase() === "APARELHOS") return words[1];
+    return words[0];
+  },
+
   extractFirstWord(text) {
-    if (!text || text === "—") return "Outros";
-    const first = String(text).trim().split(/\s+/)[0];
-    return first || "Outros";
+    return this.resolveBrandWord(text) || "Outros";
   },
 
   normalizeBrandName(text) {
-    const first = this.extractFirstWord(text);
-    if (!first || first === "Outros") return first;
+    const first = this.resolveBrandWord(text);
+    if (!first) return "Outros";
     const key = String(first).toUpperCase();
     const aliases = { XIAMO: "XIAOMI" };
     return aliases[key] || key;
