@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=49"></script>
+  <script src="yardex-dash.js?v=50"></script>
 </head>
 <body class="dash-page">
   <div class="page">
@@ -63,7 +63,7 @@
       </div>
 
       <div class="panel panel--hour">
-        <h2>Triagens por hora — Data Triagem (08h–17h)</h2>
+        <h2>Triagens por hora — Data Triagem (08h–17h · horário local)</h2>
         <div class="chart-box chart-box--hour"><canvas id="chartHora"></canvas></div>
       </div>
     </div>
@@ -160,7 +160,9 @@
 
       const byBrand = YardexDash.aggregateCount(dashRows, (r) => YardexDash.extractFirstWord(r.descricao))
         .slice(0, TOP_MARCAS);
-      const byHour = YardexDash.aggregateHourBuckets(dashRows, DATE_FIELD, HOUR_FROM, HOUR_TO);
+      const byHour = YardexDash.aggregateHourBuckets(dashRows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
 
       document.getElementById("kpiTotal").textContent = dashRows.length;
       document.getElementById("kpiTotalMes").textContent = dashRowsMes.length;
@@ -180,7 +182,7 @@
         "chartHora",
         chartHora,
         byHour.map((x) => x[0]),
-        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO),
+        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
         "#694992"
       );
 
