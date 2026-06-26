@@ -183,10 +183,17 @@ const YardexDash = {
   /** Recebimento: dia ignorado nos KPIs e gráficos (YYYY-MM-DD). */
   RECEBIMENTO_DIA_EXCLUIDO: "2026-06-16",
 
+  isRecebimentoConfirmado(raw) {
+    if (!raw || typeof raw !== "object") return false;
+    const rec = String(raw.recebido ?? "").trim().toUpperCase();
+    return rec === "S";
+  },
+
   passesRecebimentoRaw(raw, grupoFiltro = "6151") {
     if (!raw || typeof raw !== "object") return false;
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     if (grupo !== String(grupoFiltro)) return false;
+    if (!this.isRecebimentoConfirmado(raw)) return false;
     const dataAlt = this.resolveRecebimentoDate(raw);
     if (!dataAlt) return false;
     if (this.toLocalDateStr(dataAlt) === this.RECEBIMENTO_DIA_EXCLUIDO) return false;
