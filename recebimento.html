@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=46"></script>
+  <script src="yardex-dash.js?v=47"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -220,7 +220,7 @@
     Chart.register(ChartDataLabels);
 
     const API_URL = YardexDash.API_RECEBIMENTO;
-    const DATE_FIELD = "data_alt";
+    const DATE_FIELD = "data_add";
     const GRUPO_FILTRO = "6151";
     const TOP_MARCAS_LINE = 5;
     const TOP_MARCAS_BAR = 10;
@@ -272,14 +272,14 @@
     }
 
     function mapRow(raw) {
-      const dataAlt = YardexDash.resolveRecebimentoDate(raw);
-      const dt = dataAlt ? new Date(dataAlt) : null;
+      const dataHu = YardexDash.resolveRecebimentoDate(raw);
+      const dt = dataHu ? new Date(dataHu) : null;
       const marca = resolveMarca(raw.descricao || "");
       return {
         id: YardexDash.resolveRecebimentoId(raw),
         hunit: raw.hu_id ?? raw.hunit ?? null,
-        data_alt: dataAlt,
-        day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataAlt) : null,
+        data_add: dataHu,
+        day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataHu) : null,
         hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
         prod_cprod: raw.prod_cprod || "—",
         name: raw.usuario_recebimento && String(raw.usuario_recebimento).trim()
@@ -494,7 +494,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · ni.data_alt · recebido=S · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · data_add (HU) · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
 
       const { dayLabels, series } = buildBrandDaySeries(inMonth, month.start, month.end);
       updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
