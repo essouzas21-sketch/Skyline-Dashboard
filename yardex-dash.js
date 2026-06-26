@@ -346,15 +346,17 @@ const YardexDash = {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   },
 
-  /** Hora do timestamp em UTC (DATA_PEDIDO_SANKHYA vem como …Z). 08:15Z → rótulo 09h. */
-  hourBucketFromIso(iso) {
+  /** Hora do timestamp. Padrão UTC (+1 p/ rótulo); useLocal=true para fuso do navegador (recebimento). */
+  hourBucketFromIso(iso, useLocal = false) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    return d.getUTCHours() + 1;
+    const h = useLocal ? d.getHours() : d.getUTCHours();
+    return h + 1;
   },
 
-  /** Faixas 07h–17h UTC: 07:00–07:59Z conta em 08h, 08:00–08:59Z em 09h, etc. */
-  aggregateHourBuckets(rows, dateField, fromHour = 7, toHour = 17) {
+  /** Faixas 08h–17h: 07:00–07:59 → 08h, 08:00–08:59 → 09h, etc. */
+  aggregateHourBuckets(rows, dateField, fromHour = 7, toHour = 17, options = {}) {
+    const useLocal = !!options.useLocal;
     const firstBucket = fromHour + 1;
     const counts = new Map();
     for (let b = firstBucket; b <= toHour; b++) counts.set(b, 0);
@@ -362,7 +364,7 @@ const YardexDash = {
     rows.forEach((row) => {
       const raw = row[dateField];
       if (!raw) return;
-      const bucket = this.hourBucketFromIso(raw);
+      const bucket = this.hourBucketFromIso(raw, useLocal);
       if (bucket == null) return;
       if (bucket >= firstBucket && bucket <= toHour) {
         counts.set(bucket, counts.get(bucket) + 1);
@@ -374,8 +376,8 @@ const YardexDash = {
       .map(([hour, count]) => [`${String(hour).padStart(2, "0")}h`, count]);
   },
 
-  getCurrentHourBucket(fromHour = 7, toHour = 17) {
-    const bucket = new Date().getUTCHours() + 1;
+  getCurrentHourBucket(fromHour = 7, toHour = 17, useLocal = false) {
+    const bucket = (useLocal ? new Date().getHours() : new Date().getUTCHours()) + 1;
     const firstBucket = fromHour + 1;
     if (bucket < firstBucket) return firstBucket - 1;
     if (bucket > toHour) return toHour;
@@ -383,11 +385,11 @@ const YardexDash = {
   },
 
   /** Oculta linha/rótulo das horas futuras quando o período inclui hoje. */
-  maskFutureHourLineValues(byHour, endDate, fromHour = 7, toHour = 17) {
+  maskFutureHourLineValues(byHour, endDate, fromHour = 7, toHour = 17, options = {}) {
     if (endDate !== this.todayISO()) {
       return byHour.map(([, count]) => count);
     }
-    const currentBucket = this.getCurrentHourBucket(fromHour, toHour);
+    const currentBucket = this.getCurrentHourBucket(fromHour, toHour, !!options.useLocal);
     return byHour.map(([label, count]) => {
       const hour = parseInt(label, 10);
       return hour > currentBucket ? null : count;

@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=48"></script>
+  <script src="yardex-dash.js?v=49"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -188,7 +188,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Recebimentos por hora</h2>
-          <p class="section-note">08h–17h</p>
+          <p class="section-note">08h–17h · horário local</p>
         </div>
         <div class="chart-box"><canvas id="chartHora"></canvas></div>
       </div>
@@ -499,12 +499,14 @@
       const { dayLabels, series } = buildBrandDaySeries(inMonth, month.start, month.end);
       updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
 
-      const byHour = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO);
+      const byHour = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
       charts.hora = YardexDash.createLineChart(
         "chartHora",
         charts.hora,
         byHour.map((x) => x[0]),
-        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO),
+        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
         "#694992"
       );
 
