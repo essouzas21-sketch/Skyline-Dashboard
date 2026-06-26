@@ -18,7 +18,7 @@ const ConsolidadoDash = {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     return {
       id: YardexDash.resolveRecebimentoId(raw),
-      data_alt: YardexDash.resolveRecebimentoDate(raw),
+      data_recebimento: YardexDash.resolveRecebimentoDate(raw),
       grupo
     };
   },
@@ -31,7 +31,7 @@ const ConsolidadoDash = {
   },
 
   kpiRecebimento(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_alt");
+    const filtered = YardexDash.filterByDateField(rows, start, end, "data_recebimento");
     return { total: filtered.length };
   },
 

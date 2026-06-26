@@ -4,7 +4,7 @@
 const YardexDash = {
   /** Reparo / triagem / gestão / CQE / produção (campos id, Iniciado_Reparo, decisao…) */
   API_REPARO: "https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf",
-  /** Recebimento (campos hunit, data_add, grupo, descricao…) */
+  /** Recebimento (campos hu_id, data_recebimento, grupo, descricao…) */
   API_RECEBIMENTO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
 
   HOMOLOG_FIXTURES: {
@@ -157,15 +157,15 @@ const YardexDash = {
       .toLowerCase();
   },
 
-  /** Recebimento: data individual da HU (data_add). data_alt é lote — não usar. */
+  /** Recebimento: data individual da HU (data_recebimento). */
   resolveRecebimentoDate(raw) {
     if (!raw || typeof raw !== "object") return null;
     const ni = raw.ni;
     if (ni && typeof ni === "object") {
-      const nested = ni.data_add ?? ni.dataAdd ?? null;
+      const nested = ni.data_recebimento ?? ni.dataRecebimento ?? null;
       if (nested) return nested;
     }
-    return raw.data_add ?? raw.dataAdd ?? null;
+    return raw.data_recebimento ?? raw.dataRecebimento ?? null;
   },
 
   resolveRecebimentoId(raw) {
