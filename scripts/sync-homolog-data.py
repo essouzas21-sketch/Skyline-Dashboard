@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "homolog"
 
 SOURCES = {
-    "reparo.json": "https://automation.gruposkytech.com.br/webhook/8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf",
+    "reparo.json": "https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf",
     "recebimento.json": "https://automation.gruposkytech.com.br/webhook/661802e8-eef7-4ca5-981b-645706f5afda",
 }
 
