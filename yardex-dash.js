@@ -554,6 +554,7 @@ const YardexDash = {
   },
 
   isRecebimentoWebhook(url) {
+    const u = String(url);
     return u.includes("f16be280") || u.includes("661802e8") || u.includes("78441d8b");
   },
 
