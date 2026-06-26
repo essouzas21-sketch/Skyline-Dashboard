@@ -12,7 +12,7 @@ OUT = ROOT / "data" / "homolog"
 
 SOURCES = {
     "reparo.json": "https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf",
-    "recebimento.json": "https://automation.gruposkytech.com.br/webhook/661802e8-eef7-4ca5-981b-645706f5afda",
+    "recebimento.json": "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
 }
 
 
