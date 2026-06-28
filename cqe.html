@@ -35,9 +35,6 @@
     .kpi-card.aprovado .pct { color: #15803d; opacity: 0.85; }
     .kpi-card.reprovado .pct { color: #dc2626; opacity: 0.85; }
     .dash-main--cqe {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
       min-height: 0;
       overflow: hidden;
     }
@@ -45,15 +42,44 @@
       flex: 1;
       min-height: 0;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
-    .dash-main--cqe .panel--final {
-      flex: 0 0 auto;
-      max-height: 38%;
+    .cqe-triple-panel {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
     }
-    .dash-main--cqe h3 {
+    .cqe-triple-panel > .cqe-col {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .cqe-triple-panel h2 {
       margin: 0 0 8px;
       font-size: 0.82rem;
       color: var(--accent);
+      flex-shrink: 0;
+    }
+    .cqe-triple-panel .section-note {
+      margin: 0 0 8px;
+      font-size: 0.68rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .cqe-triple-panel .table-wrap {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 1100px) {
+      .cqe-triple-panel {
+        grid-template-columns: 1fr;
+        overflow: auto;
+      }
     }
   </style>
 </head>
@@ -117,9 +143,9 @@
 
     <div class="dash-main dash-main--table-only dash-main--cqe">
       <div class="panel">
-        <h2>Qualidade por colaborador</h2>
-        <div class="split-panel">
-          <div>
+        <div class="cqe-triple-panel">
+          <div class="cqe-col">
+            <h2>Qualidade por colaborador</h2>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -135,8 +161,9 @@
             </div>
             <div id="tableEmpty" class="empty" hidden>Nenhuma inspeção no período.</div>
           </div>
-          <div>
-            <h3>Motivos de reprovação</h3>
+
+          <div class="cqe-col">
+            <h2>Motivos de reprovação</h2>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -150,26 +177,24 @@
             </div>
             <div id="motivosEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
           </div>
-        </div>
-      </div>
 
-      <div class="panel panel--final">
-        <h2>Reprovados — quem finalizou o reparo</h2>
-        <p class="section-note" style="margin:0 0 8px;font-size:0.68rem;color:var(--muted)">
-          Campo Usuario final · período selecionado · sem motivo teste
-        </p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Usuário final</th>
-                <th>Reprovados</th>
-              </tr>
-            </thead>
-            <tbody id="finalBody"></tbody>
-          </table>
+          <div class="cqe-col">
+            <h2>Reprovados — quem finalizou o reparo</h2>
+            <p class="section-note">Usuario final · sem motivo teste</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Usuário final</th>
+                    <th>Reprovados</th>
+                  </tr>
+                </thead>
+                <tbody id="finalBody"></tbody>
+              </table>
+            </div>
+            <div id="finalEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
+          </div>
         </div>
-        <div id="finalEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
       </div>
     </div>
   </div>
