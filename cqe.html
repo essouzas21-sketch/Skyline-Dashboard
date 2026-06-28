@@ -6,7 +6,7 @@
   <title>CQE</title>
   <link rel="stylesheet" href="yardex-dash.css" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=49"></script>
+  <script src="yardex-dash.js?v=50"></script>
   <style>
     .kpi-card.aprovado .value { color: #15803d; }
     .kpi-card.reprovado .value { color: #dc2626; }
@@ -34,6 +34,27 @@
     }
     .kpi-card.aprovado .pct { color: #15803d; opacity: 0.85; }
     .kpi-card.reprovado .pct { color: #dc2626; opacity: 0.85; }
+    .dash-main--cqe {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .dash-main--cqe .panel {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .dash-main--cqe .panel--final {
+      flex: 0 0 auto;
+      max-height: 38%;
+    }
+    .dash-main--cqe h3 {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      color: var(--accent);
+    }
   </style>
 </head>
 <body class="dash-page">
@@ -94,7 +115,7 @@
       </div>
     </div>
 
-    <div class="dash-main dash-main--table-only">
+    <div class="dash-main dash-main--table-only dash-main--cqe">
       <div class="panel">
         <h2>Qualidade por colaborador</h2>
         <div class="split-panel">
@@ -131,6 +152,25 @@
           </div>
         </div>
       </div>
+
+      <div class="panel panel--final">
+        <h2>Reprovados — quem finalizou o reparo</h2>
+        <p class="section-note" style="margin:0 0 8px;font-size:0.68rem;color:var(--muted)">
+          Campo Usuario final · período selecionado · sem motivo teste
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário final</th>
+                <th>Reprovados</th>
+              </tr>
+            </thead>
+            <tbody id="finalBody"></tbody>
+          </table>
+        </div>
+        <div id="finalEmpty" class="empty" hidden>Nenhuma reprovação no período.</div>
+      </div>
     </div>
   </div>
 
@@ -155,6 +195,7 @@
         id: raw.id ?? null,
         data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
         usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
+        usuario_final: YardexDash.normalizeUserName(raw["Usuario final"] || "—"),
         decisao,
         motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
       };
@@ -198,6 +239,26 @@
       document.getElementById(`kpiTotal${suffix}`).textContent = totals.total;
       document.getElementById(`pctAprovado${pctSuffix}`).textContent = formatPct(totals.aprovado, totals.total);
       document.getElementById(`pctReprovado${pctSuffix}`).textContent = formatPct(totals.reprovado, totals.total);
+    }
+
+    function renderFinalTable(reprovados) {
+      const tbody = document.getElementById("finalBody");
+      const empty = document.getElementById("finalEmpty");
+      const semTeste = reprovados.filter((r) => !YardexDash.isCqeMotivoTeste(r.motivo));
+      const byFinal = YardexDash.aggregateCount(semTeste, (r) => r.usuario_final || "—");
+
+      if (!byFinal.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      tbody.innerHTML = byFinal.map(([usuario, qtd]) => `
+        <tr>
+          <td>${usuario}</td>
+          <td style="font-weight:700;color:#dc2626">${qtd}</td>
+        </tr>
+      `).join("");
     }
 
     function renderMotivosTable(motivos) {
@@ -272,6 +333,7 @@
       }
 
       renderMotivosTable(allMotivos);
+      renderFinalTable(reprovados);
 
       YardexDash.showStatus(
         statusEl,
@@ -298,6 +360,7 @@
         document.getElementById("tableBody").innerHTML = "";
         document.getElementById("tableEmpty").hidden = false;
         renderMotivosTable([]);
+        renderFinalTable([]);
       }
     }
 
