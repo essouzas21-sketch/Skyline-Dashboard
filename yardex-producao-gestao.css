@@ -162,7 +162,7 @@
 
     .rg-kpis {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       grid-template-rows: 1fr;
       gap: var(--rg-gap);
       flex: 0 0 auto;
@@ -211,6 +211,7 @@
     .rg-kpi.ok .kpi-value { color: var(--rg-green); }
     .rg-kpi.warn .kpi-value { color: var(--rg-amber); }
     .rg-kpi.crit .kpi-value { color: var(--rg-red); }
+    .rg-kpi.pausado .kpi-value { color: var(--rg-amber); }
 
     .rg-status-panel {
       background: var(--rg-card);

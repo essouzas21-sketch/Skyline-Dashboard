@@ -24,6 +24,7 @@ const ProducaoGestao = {
 
     const KPI_DEFS = [
       { id: "reparados", icon: "📱", label: "Aparelhos reparados", hint: "Com fim de reparo" },
+      { id: "pausados", icon: "⏸", label: "Total pausado", hint: "Em pausa no período" },
       { id: "tecnicos", icon: "👷", label: "Técnicos trabalhando", hint: "No período" },
       { id: "tempoMedio", icon: "⏱", label: "Tempo médio em reparo", hint: "Expediente 7h–16h48" },
       { id: "pecas", icon: "🔧", label: "Peças utilizadas", hint: "Linhas c/ peça" }
@@ -519,8 +520,11 @@ const ProducaoGestao = {
         ? finished.reduce((a, r) => a + ProducaoDash.calcShiftWorkMsInPeriod(r.raw, start, end), 0) / finished.length
         : 0;
       const pecasN = finished.filter((r) => r.peca && r.peca !== "—").length;
+      const statusRows = getStatusRows();
+      const totalPausado = statusRows.filter((r) => r.status === "pausado").length;
 
       setKpi("reparados", finished.length);
+      setKpi("pausados", totalPausado, totalPausado > 0 ? "pausado" : "");
       setKpi("tecnicos", new Set(finished.map((r) => r.tecnico)).size);
       setKpi("tempoMedio", fmtMin(avgWork), avgWork / 60000 > META_TEMPO_MIN ? "warn" : "ok");
       setKpi("pecas", pecasN);
