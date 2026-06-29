@@ -39,16 +39,26 @@
       color: var(--text-on-bg);
       padding: var(--gm-pad-y) var(--gm-pad-x) 4px;
       box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    body.cqe-gestao-page.dash-page > .page {
+      flex: 1 1 0;
+      height: auto;
+      max-height: 100%;
+      min-height: 0;
     }
 
     .cqe-gestao-page .page {
-      height: 100%;
       width: 100%;
       max-width: none;
       margin: 0;
       padding: 0;
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto 44px minmax(0, 1fr);
       gap: var(--gm-gap);
       overflow: hidden;
       min-height: 0;
@@ -175,8 +185,9 @@
       display: grid;
       grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: var(--gm-gap);
-      flex: 0 0 auto;
       min-width: 0;
+      max-height: 46px;
+      overflow: hidden;
     }
 
     .gm-kpi {
@@ -239,10 +250,11 @@
     }
 
     .gm-mid-row {
-      flex: 0 0 50px;
       min-height: 0;
-      max-height: 50px;
+      max-height: 44px;
+      height: 44px;
       width: 100%;
+      overflow: hidden;
     }
 
     .gm-funnel {
@@ -321,11 +333,11 @@
     .gm-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: var(--gm-gap);
-      flex: 1 1 0;
       min-height: 0;
       min-width: 0;
+      height: 100%;
       overflow: hidden;
     }
 
@@ -374,6 +386,11 @@
       position: relative;
       cursor: pointer;
       padding-top: 0;
+    }
+
+    .gm-panel .chart-box canvas {
+      width: 100% !important;
+      height: 100% !important;
     }
 
     .gm-panel--ranking .chart-box {
@@ -570,10 +587,19 @@
     .cqe-gestao-page #statusMsg {
       flex-shrink: 0;
       margin: 0;
-      padding: 0 6px;
+      padding: 0;
+      font-size: 0;
+      line-height: 0;
+      color: var(--text-on-bg);
+      overflow: hidden;
+      max-height: 0;
+    }
+
+    .cqe-gestao-page #statusMsg:not([hidden]) {
       font-size: 0.58rem;
       line-height: 1.2;
-      color: var(--text-on-bg);
+      padding: 0 6px;
+      max-height: 1rem;
     }
 
     .cqe-gestao-page #statusMsg[hidden] {
