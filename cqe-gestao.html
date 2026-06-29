@@ -1,0 +1,1631 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CQE — Gestão</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="yardex-version.js?v=2"></script>
+  <script src="yardex-dash.js?v=50"></script>
+  <style>
+    :root {
+      --gm-bg: var(--bg);
+      --gm-card: var(--card);
+      --gm-border: rgba(105, 73, 146, 0.16);
+      --gm-text: var(--text-on-card);
+      --gm-muted: var(--muted);
+      --gm-primary: var(--accent-strong);
+      --gm-accent: var(--accent);
+      --gm-green: #15803d;
+      --gm-red: #dc2626;
+      --gm-amber: #b45309;
+      --gm-shadow: var(--shadow);
+      --gm-surface: #faf8fc;
+      --gm-surface-2: #f3eef9;
+    }
+
+    body.cqe-gestao-page {
+      height: 100vh;
+      min-height: 100vh;
+      overflow: hidden;
+      background: var(--gm-bg);
+      color: var(--text-on-bg);
+    }
+
+    .cqe-gestao-page .page {
+      height: 100vh;
+      max-width: none;
+      margin: 0;
+      padding: 6px 0 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .gm-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-top: 3px solid var(--gm-primary);
+      border-radius: 8px;
+      padding: 6px 10px;
+      box-shadow: var(--gm-shadow);
+      flex-shrink: 0;
+      color: var(--gm-text);
+    }
+
+    .gm-topbar .title-block {
+      flex-shrink: 0;
+      min-width: 180px;
+    }
+
+    .gm-topbar .back {
+      color: var(--gm-primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .gm-topbar h1 {
+      margin: 2px 0 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      color: var(--gm-text);
+    }
+
+    .gm-topbar .subtitle {
+      margin: 0;
+      font-size: 0.62rem;
+      color: var(--gm-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+
+    .gm-filters {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 5px;
+      align-items: flex-end;
+      overflow-x: auto;
+      flex: 1;
+      min-width: 0;
+      padding-bottom: 1px;
+    }
+
+    .gm-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.55rem;
+      font-weight: 600;
+      color: var(--gm-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    .gm-filters input,
+    .gm-filters select {
+      min-width: 88px;
+      max-width: 110px;
+      padding: 3px 6px;
+      border: 1px solid var(--gm-border);
+      border-radius: 5px;
+      font-size: 0.68rem;
+      background: #fff;
+      color: var(--gm-text);
+    }
+
+    .gm-filters button {
+      padding: 4px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--gm-border);
+      background: #fff;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .gm-filters button.primary {
+      background: var(--gm-bg);
+      border-color: var(--gm-bg);
+      color: #fff;
+    }
+
+    .gm-hero {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .gm-kpi {
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-radius: 8px;
+      padding: 5px 8px;
+      box-shadow: var(--gm-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-height: 0;
+      color: var(--gm-text);
+    }
+
+    .gm-kpi .kpi-icon {
+      font-size: 0.75rem;
+      opacity: 0.85;
+    }
+
+    .gm-kpi .kpi-label {
+      font-size: 0.52rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gm-muted);
+    }
+
+    .gm-kpi .kpi-value {
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .gm-kpi .kpi-hint {
+      font-size: 0.55rem;
+      color: var(--gm-muted);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gm-kpi .kpi-delta {
+      font-size: 0.58rem;
+      font-weight: 700;
+    }
+
+    .gm-kpi.compact .kpi-value {
+      font-size: 0.88rem;
+    }
+
+    .gm-status {
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.58rem;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .gm-mid-row {
+      flex-shrink: 0;
+      min-height: 0;
+      max-height: 76px;
+      width: 100%;
+    }
+
+    .gm-funnel {
+      width: 100%;
+      height: 100%;
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-top: 3px solid var(--gm-accent);
+      border-radius: 8px;
+      padding: 5px 8px;
+      box-shadow: var(--gm-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .gm-funnel h2 {
+      margin: 0 0 4px;
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gm-muted);
+      flex-shrink: 0;
+    }
+
+    .gm-funnel-track {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow: hidden;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .gm-funnel-step {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      padding: 2px 4px;
+      background: linear-gradient(180deg, var(--gm-surface) 0%, #fff 100%);
+      border: 1px solid var(--gm-border);
+    }
+
+    .gm-funnel-step .step-val {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--gm-bg);
+      line-height: 1.1;
+    }
+
+    .gm-funnel-step .step-label {
+      font-size: 0.48rem;
+      color: var(--gm-muted);
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .gm-funnel-step .step-pct {
+      display: none;
+    }
+
+    .gm-funnel-arrow {
+      font-size: 0.72rem;
+      padding: 0 1px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      color: var(--gm-muted);
+    }
+
+    .gm-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: 1fr 1fr;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .gm-panel {
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-top: 3px solid var(--gm-primary);
+      border-radius: 8px;
+      padding: 5px 7px;
+      box-shadow: var(--gm-shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      color: var(--gm-text);
+    }
+
+    .gm-panel--motivos {
+      border-top-color: var(--gm-red);
+    }
+
+    .gm-panel--ranking {
+      border-top-color: var(--gm-amber);
+    }
+
+    .gm-panel.wide {
+      grid-column: span 2;
+    }
+
+    .gm-panel h2 {
+      margin: 0 0 5px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--gm-text);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gm-panel .panel-note {
+      display: none;
+    }
+
+    .gm-panel .chart-box {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      cursor: pointer;
+      padding-top: 7px;
+    }
+
+    .gm-panel--ranking .chart-box {
+      padding-top: 9px;
+    }
+
+    .gm-heatmap-wrap {
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+      padding-top: 7px;
+    }
+
+    .gm-heatmap {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.55rem;
+    }
+
+    .gm-heatmap th,
+    .gm-heatmap td {
+      padding: 2px 3px;
+      text-align: center;
+      border: 1px solid var(--gm-border);
+    }
+
+    .gm-heatmap th {
+      background: var(--gm-surface-2);
+      font-weight: 700;
+      color: var(--gm-muted);
+    }
+
+    .gm-heatmap td.row-label {
+      text-align: left;
+      font-weight: 600;
+      background: var(--gm-surface);
+      white-space: nowrap;
+    }
+
+    .gm-heatmap td.cell {
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .gm-tooltip {
+      position: fixed;
+      z-index: 300;
+      max-width: 320px;
+      background: #2d1f42;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      line-height: 1.45;
+      pointer-events: none;
+      box-shadow: var(--gm-shadow);
+      display: none;
+    }
+
+    .gm-tooltip strong { color: var(--gm-accent); }
+
+    .gm-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.55);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .gm-modal-backdrop.open { display: flex; }
+
+    .gm-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: min(960px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .gm-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gm-border);
+    }
+
+    .gm-modal-head h3 {
+      margin: 0;
+      font-size: 0.92rem;
+    }
+
+    .gm-modal-head button {
+      border: none;
+      background: var(--gm-surface-2);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--gm-text);
+    }
+
+    .gm-modal-body {
+      overflow: auto;
+      padding: 0;
+    }
+
+    .gm-modal-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    .gm-modal-body th,
+    .gm-modal-body td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--gm-border);
+      text-align: left;
+    }
+
+    .gm-modal-body th {
+      background: var(--gm-surface);
+      position: sticky;
+      top: 0;
+    }
+
+    .empty-gm {
+      text-align: center;
+      color: var(--gm-muted);
+      font-size: 0.78rem;
+      padding: 24px;
+    }
+
+    .gm-kpi .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .gm-kpi .kpi-delta.up { color: var(--gm-green); }
+    .gm-kpi .kpi-delta.down { color: var(--gm-red); }
+    .gm-kpi .kpi-delta.neutral { color: var(--gm-muted); }
+
+    .gm-kpi.aprov .kpi-value { color: var(--gm-green); }
+    .gm-kpi.reprov .kpi-value { color: var(--gm-red); }
+    .gm-kpi:not(.aprov):not(.reprov):not(.compact) .kpi-value { color: var(--gm-bg); }
+    .gm-kpi.compact .kpi-value { color: var(--gm-primary); }
+
+    .gm-status.ok { background: #dcfce7; color: #166534; }
+    .gm-status.warn { background: #fef3c7; color: #92400e; }
+    .gm-status.crit { background: #fee2e2; color: #991b1b; }
+
+    .gm-filters .actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .cqe-gestao-page #statusMsg {
+      flex-shrink: 0;
+      margin: 0;
+      padding: 2px 8px;
+      font-size: 0.62rem;
+      color: var(--text-on-bg);
+    }
+
+    .gm-panel--motivos h2 {
+      text-align: center;
+    }
+
+    .gm-panel--motivos .chart-box {
+      display: none;
+    }
+
+    .motivos-funnel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 3px;
+      padding: 7px 4px 4px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .motivos-funnel-step {
+      position: relative;
+      width: var(--funnel-w, 80%);
+      flex: 0 0 auto;
+      height: 21px;
+      min-height: 21px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 8px;
+      color: #fff;
+      font-size: 0.56rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 5px;
+      box-shadow: 0 1px 6px rgba(15, 23, 42, 0.1);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+      clip-path: polygon(2% 0%, 98% 0%, 94% 100%, 6% 100%);
+    }
+
+    .motivos-funnel--many .motivos-funnel-step {
+      height: 18px;
+      min-height: 18px;
+      font-size: 0.52rem;
+      padding: 0 6px;
+    }
+
+    .motivos-funnel-step:hover {
+      transform: scale(1.02);
+      filter: brightness(1.06);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+      z-index: 1;
+    }
+
+    .motivos-funnel-step .motivos-funnel-label {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .motivos-funnel-step .motivos-funnel-metrics {
+      flex-shrink: 0;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 999px;
+    }
+
+    .motivos-funnel-empty {
+      display: none;
+    }
+
+    @media (max-width: 1200px) {
+      body.cqe-gestao-page { overflow: auto; height: auto; }
+      .cqe-gestao-page .page { height: auto; overflow: visible; }
+      .gm-hero { grid-template-columns: repeat(4, 1fr); }
+      .gm-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; }
+      .gm-panel.wide { grid-column: span 2; }
+    }
+  </style>
+</head>
+<body class="dash-page cqe-gestao-page">
+  <div class="page">
+    <header class="gm-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>CQE — Painel Gerencial</h1>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
+      </div>
+      <div class="gm-filters">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
+        <label>Técnico <select id="fTecnico"><option value="">Todos</option></select></label>
+        <label>Marca <select id="fMarca"><option value="">Todas</option></select></label>
+        <label>Tipo reparo <select id="fTipo"><option value="">Todos</option></select></label>
+        <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
+        <label>Resp. qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
+        <label>OS / NR <select id="fCliente"><option value="">Todas</option></select></label>
+        <div class="actions">
+          <button type="button" class="primary" id="btnApply">Atualizar</button>
+          <button type="button" id="btnToday">Hoje</button>
+          <button type="button" id="btnReload">Recarregar</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <section class="gm-hero">
+      <div class="gm-kpi aprov">
+        <div class="kpi-head"><span class="kpi-label">Taxa aprovação</span><span class="kpi-icon">✓</span></div>
+        <div class="kpi-value" id="kpiTaxaAprov">—</div>
+        <div class="kpi-hint" id="kpiTaxaAprovHint">Período selecionado</div>
+      </div>
+      <div class="gm-kpi reprov">
+        <div class="kpi-head"><span class="kpi-label">Taxa reprovação</span><span class="kpi-icon">✕</span></div>
+        <div class="kpi-value" id="kpiTaxaReprov">—</div>
+        <div class="kpi-hint" id="kpiTaxaReprovHint">Sem motivo teste</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Total inspecionado</span><span class="kpi-icon">📋</span></div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-hint" id="kpiTotalHint">Distinct id/dia/decisão</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Meta aprovação</span><span class="kpi-icon">🎯</span></div>
+        <div class="kpi-value" id="kpiMeta">98%</div>
+        <div class="kpi-hint">Configurável</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Status</span><span class="kpi-icon">⚑</span></div>
+        <div id="kpiStatusWrap"></div>
+        <div class="kpi-hint" id="kpiStatusHint">—</div>
+      </div>
+      <div class="gm-kpi compact">
+        <div class="kpi-label">vs Ontem</div>
+        <div class="kpi-value" id="cmpOntem">—</div>
+        <div class="kpi-delta neutral" id="deltaOntem">—</div>
+      </div>
+      <div class="gm-kpi compact">
+        <div class="kpi-label">vs 7 dias</div>
+        <div class="kpi-value" id="cmp7d">—</div>
+        <div class="kpi-delta neutral" id="delta7d">—</div>
+      </div>
+      <div class="gm-kpi compact">
+        <div class="kpi-label">vs 30 dias</div>
+        <div class="kpi-value" id="cmp30d">—</div>
+        <div class="kpi-delta neutral" id="delta30d">—</div>
+      </div>
+    </section>
+
+    <div class="gm-mid-row">
+      <section class="gm-funnel">
+        <h2>Retrabalho</h2>
+        <div class="gm-funnel-track" id="funnelTrack"></div>
+      </section>
+    </div>
+
+    <section class="gm-grid">
+      <div class="gm-panel">
+        <h2>Evolução diária — aprovação</h2>
+        <div class="chart-box"><canvas id="chartEvolucao"></canvas></div>
+      </div>
+      <div class="gm-panel">
+        <h2>Usuario qualidade — aprovações</h2>
+        <div class="chart-box"><canvas id="chartQualAprov"></canvas></div>
+      </div>
+      <div class="gm-panel gm-panel--motivos">
+        <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
+        <div class="motivos-funnel" id="motivosFunnel"></div>
+      </div>
+      <div class="gm-panel gm-panel--ranking">
+        <h2>Ranking — Usuario final (reprovações)</h2>
+        <div class="chart-box"><canvas id="chartRanking"></canvas></div>
+      </div>
+      <div class="gm-panel">
+        <h2>Reprovações por marca</h2>
+        <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+      </div>
+      <div class="gm-panel wide">
+        <h2>Heatmap — reprovações (dia × hora)</h2>
+        <div class="gm-heatmap-wrap">
+          <table class="gm-heatmap" id="heatmapTable"></table>
+        </div>
+        <div id="heatmapEmpty" class="empty-gm" hidden>Sem reprovações no período.</div>
+      </div>
+      <div class="gm-panel gm-panel--ranking">
+        <h2>Usuario final — taxa de reprovação</h2>
+        <div class="chart-box"><canvas id="chartTaxaReprov"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="gm-tooltip" id="richTooltip"></div>
+
+  <div class="gm-modal-backdrop" id="drillModal">
+    <div class="gm-modal">
+      <div class="gm-modal-head">
+        <h3 id="drillTitle">Detalhes</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="gm-modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>IMEI</th>
+              <th>OS (NR)</th>
+              <th>Modelo</th>
+              <th>Técnico</th>
+              <th>Qualidade</th>
+              <th>Decisão</th>
+              <th>Motivo</th>
+              <th>T. reparo</th>
+              <th>T. até QC</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = YardexDash.API_REPARO;
+    const DATE_FIELD = "data_qualidade";
+    const META_APROVACAO = 98;
+    const SKY = {
+      bg: "#694992",
+      strong: "#8b6bb8",
+      accent: "#c4a8e8",
+      fill: "rgba(105, 73, 146, 0.15)",
+      green: "#15803d",
+      red: "#dc2626",
+      amber: "#b45309",
+      surface: "#faf8fc"
+    };
+    const USUARIOS_EXCLUIDOS_APROV = new Set([
+      "ewerton souza",
+      "ewerton souza implantacao log smart",
+      "helen",
+      "bruno marcos"
+    ]);
+    /** Inspetores de qualidade — entram na aprovação, saem do ranking de reprovação (Usuario final). */
+    const USUARIOS_QUALIDADE_FINAL = new Set(["fran romao", "renata emely"]);
+    const USUARIOS_EXCLUIDOS_FINAL = new Set(["josefa alves"]);
+    const statusEl = document.getElementById("statusMsg");
+    const tooltipEl = document.getElementById("richTooltip");
+
+    let allRows = [];
+    let rawById = new Map();
+    const charts = {};
+
+    const ETAPA_LABELS = {
+      qualidade_saldo: "Qualidade saldo",
+      qualidade_consumo_pecas: "Qualidade consumo",
+      reparo: "Reparo",
+      consulta_preco_sankhya: "Consulta Sankhya",
+      gestao_pecas: "Gestão peças",
+      triagem: "Triagem",
+      limpeza: "Limpeza"
+    };
+
+    function normNameKey(name) {
+      return String(name || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function isUsuarioExcluidoAprov(nome) {
+      const k = normNameKey(nome);
+      return k && k !== "—" && USUARIOS_EXCLUIDOS_APROV.has(k);
+    }
+
+    /** Usuario final de produção — exclui inspetores de qualidade e usuários fora da operação. */
+    function isUsuarioFinalProducao(nome) {
+      const k = normNameKey(nome);
+      if (!k || k === "—") return false;
+      if (USUARIOS_EXCLUIDOS_APROV.has(k)) return false;
+      if (USUARIOS_QUALIDADE_FINAL.has(k)) return false;
+      if (USUARIOS_EXCLUIDOS_FINAL.has(k)) return false;
+      return true;
+    }
+
+    function aggregateTaxaReprovTecnico(rows) {
+      const stats = new Map();
+      rows.forEach((r) => {
+        if (!isUsuarioFinalProducao(r.usuario_final)) return;
+        const nome = r.usuario_final;
+        if (!stats.has(nome)) stats.set(nome, { a: 0, r: 0 });
+        const t = stats.get(nome);
+        if (r.decisao === "aprovado") t.a++;
+        else if (r.decisao === "reprovado") t.r++;
+      });
+      return [...stats.entries()]
+        .map(([nome, t]) => {
+          const total = t.a + t.r;
+          const pct = total ? (t.r / total) * 100 : 0;
+          return { nome, pct, reprov: t.r, total };
+        })
+        .filter((x) => x.total > 0)
+        .sort((a, b) => b.pct - a.pct || b.reprov - a.reprov);
+    }
+
+    function fmtPctQty(part, total) {
+      return `${fmtPct(part, total)} (${part})`;
+    }
+
+    function normalizeDecisao(decisao) {
+      const v = String(decisao || "").trim().toLowerCase();
+      if (v.includes("reprov")) return "reprovado";
+      if (v.includes("aprov")) return "aprovado";
+      return null;
+    }
+
+    function resolveLinha(desc) {
+      const d = String(desc || "").toUpperCase();
+      if (d.includes("IPHONE") || d.includes("APPLE")) return "iPhone";
+      if (/SAMSUNG|MOTOROLA|XIAOMI|LG |NOKIA|REALME|POCO/.test(d)) return "Android";
+      return "Outros";
+    }
+
+    function resolveGravidade(motivo) {
+      const m = String(motivo || "").toLowerCase();
+      if (/tela|display|n[aã]o liga|curto|sucat|placa|oxid/.test(m)) return "Alta";
+      if (/bot[aã]o|conector|c[aâ]mera|[aá]udio|microfone|carreg/.test(m)) return "Média";
+      if (/arranh|est[eé]t|limpeza|capa|adesiv/.test(m)) return "Baixa";
+      return "Média";
+    }
+
+    function shortModel(desc) {
+      const s = String(desc || "—").trim();
+      if (s.length <= 28) return s;
+      return `${s.slice(0, 26)}…`;
+    }
+
+    function diffMs(a, b) {
+      if (!a || !b) return null;
+      const ta = new Date(a).getTime();
+      const tb = new Date(b).getTime();
+      if (Number.isNaN(ta) || Number.isNaN(tb)) return null;
+      return Math.max(0, tb - ta);
+    }
+
+    function mapRow(raw) {
+      const decisao = normalizeDecisao(raw.decisao);
+      if (!decisao) return null;
+      const motivo = String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado";
+      const descricao = String(raw.descricao || "—").trim() || "—";
+      const tempoReparo = diffMs(raw["Iniciado_Reparo"], raw["Fim do Reparo"]);
+      const tempoAteQc = diffMs(raw["Fim do Reparo"], raw.Data_qualidade ?? raw.data_qualidade);
+      return {
+        id: raw.id ?? null,
+        raw,
+        data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
+        usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
+        usuario_final: YardexDash.normalizeUserName(raw["Usuario final"] || "—"),
+        tecnico: YardexDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || "—"),
+        decisao,
+        motivo,
+        gravidade: resolveGravidade(motivo),
+        modelo: descricao,
+        modelo_curto: shortModel(descricao),
+        marca: YardexDash.normalizeBrandName(descricao),
+        linha: resolveLinha(descricao),
+        tipo_reparo: String(raw.operação || raw.operacao || "—").trim() || "—",
+        etapa: ETAPA_LABELS[String(raw.etapa_origem || "").trim()] || String(raw.etapa_origem || "—"),
+        nr: String(raw.NR || "—").trim() || "—",
+        serial: String(raw.serial || "—").trim() || "—",
+        hu: String(raw.hu || "—").trim() || "—",
+        peca: String(raw.peca_requisitada || "—").trim() || "—",
+        tempo_reparo_ms: tempoReparo,
+        tempo_ate_qc_ms: tempoAteQc,
+        reaberto_id: raw.triagem_servico_reaberto_id ?? null
+      };
+    }
+
+    function fmtPct(part, total, digits = 1) {
+      if (!total) return "0,0%";
+      return `${((part / total) * 100).toFixed(digits).replace(".", ",")}%`;
+    }
+
+    function fmtPctNum(part, total) {
+      if (!total) return 0;
+      return (part / total) * 100;
+    }
+
+    function fmtDelta(current, ref, suffix = " p.p.") {
+      if (ref == null || current == null) return { text: "—", cls: "neutral" };
+      const d = current - ref;
+      const sign = d > 0 ? "+" : "";
+      const cls = d > 0.05 ? "up" : d < -0.05 ? "down" : "neutral";
+      return { text: `${sign}${d.toFixed(1).replace(".", ",")}${suffix}`, cls };
+    }
+
+    function addDays(iso, delta) {
+      const d = new Date(`${iso}T12:00:00`);
+      d.setDate(d.getDate() + delta);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function dateRangeDays(start, end) {
+      const out = [];
+      let cur = start;
+      while (cur <= end) {
+        out.push(cur);
+        cur = addDays(cur, 1);
+      }
+      return out;
+    }
+
+    function computeMetrics(rows) {
+      const filtered = YardexDash.processCqeRows(rows);
+      let aprovado = 0;
+      let reprovado = 0;
+      filtered.forEach((r) => {
+        if (r.decisao === "aprovado") aprovado++;
+        else reprovado++;
+      });
+      const total = aprovado + reprovado;
+      return {
+        filtered,
+        aprovado,
+        reprovado,
+        total,
+        taxaAprov: fmtPctNum(aprovado, total),
+        taxaReprov: fmtPctNum(reprovado, total)
+      };
+    }
+
+    function deviceKey(row) {
+      const serial = String(row.serial || "").trim();
+      if (serial && serial !== "—") return `s:${serial}`;
+      const hu = String(row.hu || "").trim();
+      if (hu && hu !== "—") return `h:${hu}`;
+      const nr = String(row.nr || "").trim();
+      if (nr && nr !== "—") return `n:${nr}`;
+      const id = row.id != null ? String(row.id).trim() : "";
+      if (id) return `i:${id}`;
+      return null;
+    }
+
+    function eventTime(row) {
+      const t = new Date(row.data_qualidade).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    }
+
+    function isInPeriod(row, start, end) {
+      const day = YardexDash.toLocalDateStr(row.data_qualidade);
+      return day >= start && day <= end;
+    }
+
+    function buildRetrabalho(periodRows, allMapped, periodStart, periodEnd) {
+      const m = computeMetrics(periodRows);
+      const allProcessed = YardexDash.processCqeRows(allMapped);
+
+      const history = new Map();
+      allProcessed.forEach((r) => {
+        const key = deviceKey(r);
+        if (!key) return;
+        if (!history.has(key)) history.set(key, []);
+        history.get(key).push(r);
+      });
+      history.forEach((events) => {
+        events.sort((a, b) => eventTime(a) - eventTime(b));
+      });
+
+      const reprovDevices = new Set();
+      m.filtered
+        .filter((r) => r.decisao === "reprovado")
+        .forEach((r) => {
+          const key = deviceKey(r);
+          if (key) reprovDevices.add(key);
+        });
+
+      let aprovPosRetrabalho = 0;
+      let voltaram = 0;
+      reprovDevices.forEach((key) => {
+        const events = history.get(key) || [];
+        let anchorIdx = -1;
+        events.forEach((e, i) => {
+          if (e.decisao === "reprovado" && isInPeriod(e, periodStart, periodEnd)) {
+            anchorIdx = i;
+          }
+        });
+        if (anchorIdx < 0) return;
+
+        const later = events.slice(anchorIdx + 1);
+        if (later.length) voltaram++;
+        if (later.some((e) => e.decisao === "aprovado")) aprovPosRetrabalho++;
+      });
+
+      const sucata = m.filtered.filter((r) =>
+        /sucat|descart|irrecuper/.test(String(r.motivo).toLowerCase())
+      ).length;
+
+      return {
+        entraram: m.total,
+        aprovados: m.aprovado,
+        reprovados: m.reprovado,
+        voltaram,
+        aprovPosRetrabalho,
+        sucata,
+        retrabalhoPct: m.total ? (voltaram / m.total) * 100 : 0
+      };
+    }
+
+    function statusMeta(taxaAprov) {
+      if (taxaAprov >= META_APROVACAO) {
+        return { label: "Dentro da Meta", cls: "ok", hint: `≥ ${META_APROVACAO}% aprovação` };
+      }
+      if (taxaAprov >= META_APROVACAO - 5) {
+        return { label: "Atenção", cls: "warn", hint: "Próximo do limite da meta" };
+      }
+      return { label: "Crítico", cls: "crit", hint: "Abaixo da meta de qualidade" };
+    }
+
+    function applyUiFilters(rows) {
+      const modelo = document.getElementById("fModelo").value;
+      const tecnico = document.getElementById("fTecnico").value;
+      const marca = document.getElementById("fMarca").value;
+      const tipo = document.getElementById("fTipo").value;
+      const linha = document.getElementById("fLinha").value;
+      const qualidade = document.getElementById("fQualidade").value;
+      const cliente = document.getElementById("fCliente").value;
+
+      return rows.filter((r) => {
+        if (modelo && r.modelo !== modelo) return false;
+        if (tecnico && r.tecnico !== tecnico) return false;
+        if (marca && r.marca !== marca) return false;
+        if (tipo && r.tipo_reparo !== tipo) return false;
+        if (linha && r.linha !== linha) return false;
+        if (qualidade && r.usuario !== qualidade) return false;
+        if (cliente && r.nr !== cliente) return false;
+        return true;
+      });
+    }
+
+    function populateFilters(rows) {
+      const fill = (id, values, limit = 80) => {
+        const el = document.getElementById(id);
+        const cur = el.value;
+        const sorted = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+        const slice = sorted.slice(0, limit);
+        el.innerHTML = `<option value="">Todos</option>` + slice.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+        if (cur && slice.includes(cur)) el.value = cur;
+      };
+      fill("fModelo", rows.map((r) => r.modelo));
+      fill("fTecnico", rows.map((r) => r.tecnico));
+      fill("fMarca", rows.map((r) => r.marca));
+      fill("fTipo", rows.map((r) => r.tipo_reparo));
+      fill("fLinha", rows.map((r) => r.linha));
+      fill("fQualidade", rows.map((r) => r.usuario));
+      fill("fCliente", rows.map((r) => r.nr), 40);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) {
+        charts[key].destroy();
+        charts[key] = null;
+      }
+    }
+
+    function sampleForTooltip(rows) {
+      return rows[0] || null;
+    }
+
+    function richTooltipHtml(row, extra = "") {
+      if (!row) return `<div>Sem registro</div>`;
+      const foto = row.raw?.foto || row.raw?.Foto || row.raw?.url_foto;
+      return `
+        <div><strong>IMEI:</strong> ${escapeHtml(row.serial)}</div>
+        <div><strong>OS (NR):</strong> ${escapeHtml(row.nr)} · HU ${escapeHtml(row.hu)}</div>
+        <div><strong>Técnico:</strong> ${escapeHtml(row.tecnico)}</div>
+        <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
+        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo_curto)}</div>
+        <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? YardexDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
+        <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? YardexDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
+        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo)}</div>
+        ${foto ? `<div><strong>Foto:</strong> disponível</div>` : ""}
+        ${extra ? `<div style="margin-top:4px;color:${SKY.accent}">${extra}</div>` : ""}
+      `;
+    }
+
+    function bindRichTooltip(canvas, matchFn) {
+      canvas.onmousemove = (ev) => {
+        const chart = Chart.getChart(canvas);
+        if (!chart) return;
+        const pts = chart.getElementsAtEventForMode(ev, "nearest", { intersect: true }, false);
+        if (!pts.length) {
+          tooltipEl.style.display = "none";
+          return;
+        }
+        const idx = pts[0].index;
+        const rows = matchFn(idx, chart);
+        tooltipEl.innerHTML = richTooltipHtml(sampleForTooltip(rows), rows.length > 1 ? `${rows.length} registro(s)` : "");
+        tooltipEl.style.display = "block";
+        tooltipEl.style.left = `${Math.min(ev.clientX + 12, window.innerWidth - 340)}px`;
+        tooltipEl.style.top = `${Math.min(ev.clientY + 12, window.innerHeight - 200)}px`;
+      };
+      canvas.onmouseleave = () => { tooltipEl.style.display = "none"; };
+    }
+
+    function openDrill(title, rows) {
+      document.getElementById("drillTitle").textContent = title;
+      const tbody = document.getElementById("drillBody");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-gm">Nenhum registro.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.slice(0, 200).map((r) => `
+          <tr>
+            <td>${escapeHtml(r.serial)}</td>
+            <td>${escapeHtml(r.nr)}</td>
+            <td>${escapeHtml(r.modelo_curto)}</td>
+            <td>${escapeHtml(r.tecnico)}</td>
+            <td>${escapeHtml(r.usuario)}</td>
+            <td>${escapeHtml(r.decisao)}</td>
+            <td>${escapeHtml(r.motivo)}</td>
+            <td>${r.tempo_reparo_ms != null ? YardexDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
+            <td>${r.tempo_ate_qc_ms != null ? YardexDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("drillModal").classList.add("open");
+    }
+
+    function renderFunnel(funnel) {
+      const base = funnel.entraram || 1;
+      const steps = [
+        { label: "Entraram", val: funnel.entraram },
+        { label: "Aprovados", val: funnel.aprovados },
+        { label: "Reprovados", val: funnel.reprovados },
+        { label: "V. manutenção", val: funnel.voltaram },
+        { label: "Aprov. retrab.", val: funnel.aprovPosRetrabalho },
+        { label: "Sucata", val: funnel.sucata }
+      ];
+      document.getElementById("funnelTrack").innerHTML = steps.map((s, i) => {
+        const pct = fmtPct(s.val, base, 0);
+        const arrow = i < steps.length - 1 ? `<div class="gm-funnel-arrow">→</div>` : "";
+        return `
+          ${i ? "" : ""}
+          <div class="gm-funnel-step">
+            <div class="step-val">${s.val}</div>
+            <div class="step-label">${s.label}</div>
+            <div class="step-pct">${pct} do total</div>
+          </div>${arrow}
+        `;
+      }).join("");
+    }
+
+    function renderHeatmap(reprovados) {
+      const table = document.getElementById("heatmapTable");
+      const empty = document.getElementById("heatmapEmpty");
+      const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+      const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+
+      const matrix = Array.from({ length: 7 }, () => new Array(hours.length).fill(0));
+      let max = 0;
+      reprovados.forEach((r) => {
+        const d = new Date(r.data_qualidade);
+        if (Number.isNaN(d.getTime())) return;
+        const dow = d.getDay();
+        const hr = d.getHours();
+        const hi = hours.indexOf(hr);
+        if (hi < 0) return;
+        matrix[dow][hi]++;
+        if (matrix[dow][hi] > max) max = matrix[dow][hi];
+      });
+
+      const total = reprovados.length;
+      if (!total) {
+        table.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+
+      const header = `<tr><th>Dia \\ Hora</th>${hours.map((h) => `<th>${String(h).padStart(2, "0")}h</th>`).join("")}</tr>`;
+      const body = days.map((dayLabel, di) => {
+        const cells = hours.map((h, hi) => {
+          const val = matrix[di][hi];
+          const pct = max ? val / max : 0;
+          const bg = val ? `rgba(105, 73, 146, ${0.12 + pct * 0.72})` : SKY.surface;
+          return `<td class="cell" data-dow="${di}" data-hour="${h}" style="background:${bg}">${val || "—"}</td>`;
+        }).join("");
+        return `<tr><td class="row-label">${dayLabel}</td>${cells}</tr>`;
+      }).join("");
+      table.innerHTML = header + body;
+
+      table.querySelectorAll("td.cell").forEach((cell) => {
+        cell.addEventListener("click", () => {
+          const dow = Number(cell.dataset.dow);
+          const hour = Number(cell.dataset.hour);
+          const rows = reprovados.filter((r) => {
+            const d = new Date(r.data_qualidade);
+            return d.getDay() === dow && d.getHours() === hour;
+          });
+          openDrill(`${days[dow]} ${String(hour).padStart(2, "0")}h — ${rows.length} reprovação(ões)`, rows);
+        });
+      });
+    }
+
+    function renderMotivosFunnel(reprovados) {
+      const el = document.getElementById("motivosFunnel");
+      const title = document.getElementById("motivosFunnelTitle");
+      const motivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo);
+      const colors = [
+        "#694992", "#8b6bb8", "#5c3d7a", "#a78bca", "#c4a8e8",
+        "#7c5294", "#9d7bb8", "#dc2626", "#b45309"
+      ];
+
+      if (!motivos.length) {
+        el.innerHTML = "";
+        el.classList.remove("motivos-funnel--many");
+        title.textContent = "Motivos de reprovação";
+        return;
+      }
+      title.textContent = `Motivos de reprovação (${motivos.length})`;
+
+      const max = motivos[0][1];
+      const total = motivos.reduce((sum, [, qtd]) => sum + qtd, 0) || 1;
+      el.classList.toggle("motivos-funnel--many", motivos.length > 8);
+
+      el.innerHTML = motivos.map(([motivo, qtd], i) => {
+        const pct = Math.round((qtd / total) * 100);
+        const width = Math.max(52, Math.round((qtd / max) * 98));
+        const c1 = colors[i % colors.length];
+        const c2 = colors[(i + 1) % colors.length];
+        return `
+          <div class="motivos-funnel-step" style="--funnel-w:${width}%;background:linear-gradient(135deg,${c1} 0%,${c2} 100%)" data-idx="${i}" title="${escapeHtml(motivo)}">
+            <span class="motivos-funnel-label">${escapeHtml(motivo)}</span>
+            <span class="motivos-funnel-metrics">${qtd} · ${pct}%</span>
+          </div>
+        `;
+      }).join("");
+
+      el.querySelectorAll(".motivos-funnel-step").forEach((step) => {
+        step.addEventListener("click", () => {
+          const idx = Number(step.dataset.idx);
+          const [motivo] = motivos[idx] || [];
+          if (!motivo) return;
+          openDrill(`Motivo: ${motivo}`, reprovados.filter((r) => r.motivo === motivo));
+        });
+      });
+    }
+
+    function renderCharts(periodRows, metrics) {
+      const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
+      const { start, end } = YardexDash.getDateRange();
+      const days = dateRangeDays(start, end);
+      const tickSmall = { font: { size: 9 } };
+      const legendSmall = { display: true, labels: { boxWidth: 8, font: { size: 9 }, padding: 6 } };
+      const labelCountEnd = {
+        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+        anchor: "end",
+        align: "end",
+        offset: 4,
+        color: SKY.red,
+        font: { weight: "700", size: 9 },
+        formatter: (v) => v
+      };
+      const labelPctTop = {
+        display: (ctx) => ctx.datasetIndex === 0 && ctx.dataset.data[ctx.dataIndex] != null,
+        anchor: "end",
+        align: "top",
+        offset: 2,
+        color: SKY.strong,
+        font: { weight: "700", size: 8 },
+        formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
+      };
+
+      // Evolução diária
+      const dailyRates = days.map((day) => {
+        const dayRows = periodRows.filter((r) => YardexDash.toLocalDateStr(r.data_qualidade) === day);
+        const dm = computeMetrics(dayRows);
+        return dm.taxaAprov;
+      });
+      destroyChart("evolucao");
+      charts.evolucao = new Chart(document.getElementById("chartEvolucao"), {
+        type: "line",
+        data: {
+          labels: days.map((d) => d.slice(8)),
+          datasets: [{
+            label: "Taxa aprovação %",
+            data: dailyRates,
+            borderColor: SKY.bg,
+            backgroundColor: SKY.fill,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3
+          }, {
+            label: "Meta",
+            data: days.map(() => META_APROVACAO),
+            borderColor: SKY.green,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 8, bottom: 2 } },
+          plugins: { legend: { ...legendSmall, display: true }, datalabels: { ...labelPctTop, clip: false } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { ...tickSmall, callback: (v) => `${v}%`, maxTicksLimit: 5 } },
+            x: { ticks: { ...tickSmall, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } }
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const day = days[elems[0].index];
+            const rows = periodRows.filter((r) => YardexDash.toLocalDateStr(r.data_qualidade) === day);
+            openDrill(`Inspeções em ${YardexDash.formatPeriodBR(day, day)}`, YardexDash.processCqeRows(rows));
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartEvolucao"), (idx) =>
+        periodRows.filter((r) => YardexDash.toLocalDateStr(r.data_qualidade) === days[idx])
+      );
+
+      const yBarScale = (n) => ({
+        offset: true,
+        ticks: {
+          ...tickSmall,
+          autoSkip: false,
+          padding: 6,
+          font: { size: n > 10 ? 7 : 8 }
+        }
+      });
+      const barLayoutPad = { top: 8, bottom: 10, left: 2, right: 10 };
+      const labelCountGreen = {
+        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+        anchor: "end",
+        align: "end",
+        offset: 4,
+        color: SKY.green,
+        font: { weight: "700", size: 9 },
+        formatter: (v) => v
+      };
+      const aprovados = metrics.filtered.filter(
+        (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
+      );
+      const qualAprov = YardexDash.aggregateCount(aprovados, (r) => r.usuario);
+      destroyChart("qualAprov");
+      charts.qualAprov = new Chart(document.getElementById("chartQualAprov"), {
+        type: "bar",
+        data: {
+          labels: qualAprov.map(([nome]) => nome),
+          datasets: [{
+            label: "Aprovados",
+            data: qualAprov.map(([, qtd]) => qtd),
+            backgroundColor: SKY.strong,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: barLayoutPad },
+          plugins: { legend: { display: false }, datalabels: { ...labelCountGreen, clip: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 } },
+            y: yBarScale(qualAprov.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const nome = qualAprov[elems[0].index][0];
+            openDrill(
+              `Usuario qualidade: ${nome} — aprovações`,
+              aprovados.filter((r) => r.usuario === nome)
+            );
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartQualAprov"), (idx) =>
+        aprovados.filter((r) => r.usuario === (qualAprov[idx]?.[0] || ""))
+      );
+
+      renderMotivosFunnel(reprovados);
+
+      // Ranking — Usuario final por reprovações (exclui qualidade, implantação e fora da operação)
+      const reprovSemTeste = reprovados.filter((r) => isUsuarioFinalProducao(r.usuario_final));
+      const ranking = YardexDash.aggregateCount(reprovSemTeste, (r) => r.usuario_final);
+      destroyChart("ranking");
+      charts.ranking = new Chart(document.getElementById("chartRanking"), {
+        type: "bar",
+        data: {
+          labels: ranking.map(([nome]) => nome),
+          datasets: [{
+            label: "Reprovados",
+            data: ranking.map(([, qtd]) => qtd),
+            backgroundColor: SKY.red,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { ...barLayoutPad, top: 10, right: 14 } },
+          plugins: { legend: { display: false }, datalabels: { ...labelCountEnd, clip: false } },
+          elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
+          scales: {
+            x: { beginAtZero: true, ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 } },
+            y: yBarScale(ranking.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const nome = ranking[elems[0].index][0];
+            openDrill(
+              `Usuario final: ${nome} — reprovações`,
+              reprovSemTeste.filter((r) => r.usuario_final === nome)
+            );
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
+        reprovSemTeste.filter((r) => r.usuario_final === (ranking[idx]?.[0] || ""))
+      );
+
+      // Modelo
+      const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
+      destroyChart("marca");
+      charts.marca = YardexDash.createBarChart(
+        "chartMarca", charts.marca,
+        byMarca.map(([m]) => m),
+        byMarca.map(([, v]) => v),
+        SKY.bg
+      );
+      if (charts.marca?.options?.plugins?.datalabels) {
+        charts.marca.options.plugins.datalabels.font = { weight: "700", size: 9 };
+      }
+      document.getElementById("chartMarca").onclick = (ev) => {
+        const chart = charts.marca;
+        if (!chart) return;
+        const pts = chart.getElementsAtEventForMode(ev, "nearest", { intersect: true }, false);
+        if (!pts.length) return;
+        const marca = byMarca[pts[0].index][0];
+        openDrill(`Marca: ${marca}`, reprovados.filter((r) => (r.marca || "Outros") === marca));
+      };
+
+      // Taxa de reprovação por Usuario final (%)
+      const taxaTecRows = metrics.filtered.filter((r) => isUsuarioFinalProducao(r.usuario_final));
+      const taxaReprov = aggregateTaxaReprovTecnico(metrics.filtered);
+      const labelPctReprov = {
+        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+        anchor: "end",
+        align: "end",
+        offset: 4,
+        color: SKY.red,
+        font: { weight: "700", size: 8 },
+        formatter: (v, ctx) => {
+          const row = taxaReprov[ctx.dataIndex];
+          const pct = `${Number(v).toFixed(1).replace(".", ",")}%`;
+          return row ? `${pct} (${row.reprov}/${row.total})` : pct;
+        }
+      };
+      destroyChart("taxaReprov");
+      charts.taxaReprov = new Chart(document.getElementById("chartTaxaReprov"), {
+        type: "bar",
+        data: {
+          labels: taxaReprov.map((x) => x.nome),
+          datasets: [{
+            label: "Taxa reprovação %",
+            data: taxaReprov.map((x) => x.pct),
+            backgroundColor: taxaReprov.map((x) =>
+              x.pct >= 20 ? SKY.red : x.pct >= 10 ? SKY.amber : SKY.accent
+            ),
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { ...barLayoutPad, top: 10, right: 18 } },
+          plugins: { legend: { display: false }, datalabels: { ...labelPctReprov, clip: false } },
+          elements: { bar: { barThickness: taxaReprov.length > 8 ? 10 : 14, maxBarThickness: 16 } },
+          scales: {
+            x: {
+              min: 0,
+              max: 100,
+              ticks: {
+                ...tickSmall,
+                callback: (v) => `${v}%`,
+                maxTicksLimit: 6
+              }
+            },
+            y: yBarScale(taxaReprov.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const nome = taxaReprov[elems[0].index].nome;
+            openDrill(
+              `Usuario final: ${nome} — inspeções`,
+              taxaTecRows.filter((r) => r.usuario_final === nome)
+            );
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartTaxaReprov"), (idx) =>
+        taxaTecRows.filter((r) => r.usuario_final === (taxaReprov[idx]?.nome || ""))
+      );
+
+      renderHeatmap(reprovados);
+    }
+
+    function renderCompare(end, currentTaxa, rowsAll) {
+      const yesterday = addDays(end, -1);
+      const start7 = addDays(end, -6);
+      const start30 = addDays(end, -29);
+
+      const mOntem = computeMetrics(YardexDash.filterByDateField(rowsAll, yesterday, yesterday, DATE_FIELD));
+      const m7 = computeMetrics(YardexDash.filterByDateField(rowsAll, start7, end, DATE_FIELD));
+      const m30 = computeMetrics(YardexDash.filterByDateField(rowsAll, start30, end, DATE_FIELD));
+
+      document.getElementById("cmpOntem").textContent = fmtPct(mOntem.aprovado, mOntem.total);
+      document.getElementById("cmp7d").textContent = fmtPct(m7.aprovado, m7.total);
+      document.getElementById("cmp30d").textContent = fmtPct(m30.aprovado, m30.total);
+
+      const d1 = fmtDelta(currentTaxa, mOntem.taxaAprov);
+      const d7 = fmtDelta(currentTaxa, m7.taxaAprov);
+      const d30 = fmtDelta(currentTaxa, m30.taxaAprov);
+      const setDelta = (id, d) => {
+        const el = document.getElementById(id);
+        el.textContent = d.text;
+        el.className = `kpi-delta ${d.cls}`;
+      };
+      setDelta("deltaOntem", d1);
+      setDelta("delta7d", d7);
+      setDelta("delta30d", d30);
+    }
+
+    function renderDashboard() {
+      const { start, end } = YardexDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const inPeriodRaw = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      const periodRows = applyUiFilters(inPeriodRaw);
+      const metrics = computeMetrics(periodRows);
+      const funnel = buildRetrabalho(periodRows, allRows, start, end);
+      const st = statusMeta(metrics.taxaAprov);
+
+      document.getElementById("kpiTaxaAprov").textContent = fmtPctQty(metrics.aprovado, metrics.total);
+      document.getElementById("kpiTaxaReprov").textContent = fmtPctQty(metrics.reprovado, metrics.total);
+      document.getElementById("kpiTaxaReprovHint").textContent = "Sem motivo teste";
+      document.getElementById("kpiTotal").textContent = metrics.total;
+      document.getElementById("kpiMeta").textContent = `${META_APROVACAO}%`;
+      document.getElementById("kpiStatusWrap").innerHTML = `<span class="gm-status ${st.cls}">${st.label}</span>`;
+      document.getElementById("kpiTaxaAprovHint").textContent = "Aprovados / total inspecionado";
+      renderCompare(end, metrics.taxaAprov, allRows);
+      renderFunnel(funnel);
+
+      renderCharts(periodRows, metrics);
+
+      document.getElementById("periodLabel").textContent = YardexDash.formatPeriodBR(start, end);
+      YardexDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
+    }
+
+    async function loadData() {
+      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        const mapped = YardexDash.normalizeRows(json)
+          .map(mapRow)
+          .filter(Boolean)
+          .filter((r) => r.data_qualidade);
+        allRows = mapped;
+        populateFilters(mapped);
+        YardexDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
+        renderDashboard();
+      } catch (err) {
+        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+      }
+    }
+
+    document.getElementById("drillClose").addEventListener("click", () => {
+      document.getElementById("drillModal").classList.remove("open");
+    });
+    document.getElementById("drillModal").addEventListener("click", (e) => {
+      if (e.target.id === "drillModal") document.getElementById("drillModal").classList.remove("open");
+    });
+
+    ["fModelo", "fTecnico", "fMarca", "fTipo", "fLinha", "fQualidade", "fCliente"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", renderDashboard);
+    });
+
+    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+  </script>
+</body>
+</html>
