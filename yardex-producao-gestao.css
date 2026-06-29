@@ -11,35 +11,44 @@
       --rg-amber: #b45309;
       --rg-shadow: var(--shadow);
       --rg-surface: #faf8fc;
+      --rg-pad-x: 10px;
+      --rg-pad-y: 3px;
+      --rg-gap: 3px;
     }
 
     body.rg-page.dash-page {
       height: 100vh;
       min-height: 100vh;
+      max-width: 100vw;
       overflow: hidden;
-      padding: 6px 20px 8px;
+      padding: var(--rg-pad-y) var(--rg-pad-x) 4px;
+      box-sizing: border-box;
     }
 
     .rg-page .page {
-      height: 100vh;
+      height: 100%;
+      width: 100%;
       max-width: none;
       margin: 0;
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: var(--rg-gap);
       overflow: hidden;
+      min-height: 0;
+      min-width: 0;
     }
 
     .rg-topbar {
       background: var(--rg-card);
       border: 1px solid var(--rg-border);
       border-top: 3px solid var(--rg-primary);
-      border-radius: 8px;
-      padding: 4px 8px;
+      border-radius: 6px;
+      padding: 3px 6px;
       box-shadow: var(--rg-shadow);
       color: var(--rg-text);
       flex-shrink: 0;
+      min-width: 0;
     }
 
     .rg-topbar-head {
@@ -47,13 +56,14 @@
       flex-wrap: nowrap;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       margin-bottom: 0;
+      min-width: 0;
     }
 
     .rg-topbar .title-block {
-      flex-shrink: 0;
-      min-width: 160px;
+      flex-shrink: 1;
+      min-width: 0;
     }
 
     .rg-topbar .back {
@@ -72,12 +82,12 @@
 
     .rg-topbar .subtitle {
       margin: 0;
-      font-size: 0.58rem;
+      font-size: 0.56rem;
       color: var(--rg-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 220px;
+      max-width: 100%;
     }
 
     .rg-badge-homolog {
@@ -95,34 +105,40 @@
     .rg-filters {
       display: flex;
       flex-wrap: nowrap;
-      gap: 4px;
+      gap: 3px;
       align-items: flex-end;
       overflow-x: auto;
       flex: 1;
       min-width: 0;
       padding-bottom: 1px;
+      scrollbar-width: none;
     }
+
+    .rg-filters::-webkit-scrollbar { display: none; }
 
     .rg-filters label {
       display: flex;
       flex-direction: column;
       gap: 1px;
-      font-size: 0.48rem;
+      font-size: 0.46rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       color: var(--rg-muted);
-      flex-shrink: 0;
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: 110px;
     }
 
     .rg-filters input,
     .rg-filters select {
-      min-width: 78px;
-      max-width: 96px;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
       padding: 2px 4px;
       border: 1px solid var(--rg-border);
-      border-radius: 5px;
-      font-size: 0.62rem;
+      border-radius: 4px;
+      font-size: 0.6rem;
       background: #fff;
       color: var(--rg-text);
     }
@@ -146,17 +162,18 @@
 
     .rg-kpis {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: 1fr;
-      gap: 4px;
-      flex-shrink: 0;
+      gap: var(--rg-gap);
+      flex: 0 0 auto;
+      min-width: 0;
     }
 
     .rg-kpi {
       background: var(--rg-card);
       border: 1px solid var(--rg-border);
       border-radius: 6px;
-      padding: 3px 6px;
+      padding: 2px 5px;
       box-shadow: var(--rg-shadow);
       min-width: 0;
     }
@@ -182,9 +199,9 @@
     .rg-kpi .kpi-icon { font-size: 0.62rem; opacity: 0.85; flex-shrink: 0; }
 
     .rg-kpi .kpi-value {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 800;
-      line-height: 1.1;
+      line-height: 1;
       margin-top: 1px;
       color: var(--rg-bg);
     }
@@ -200,19 +217,20 @@
       border: 1px solid var(--rg-border);
       border-top: 3px solid var(--rg-primary);
       border-radius: 6px;
-      padding: 4px 6px;
+      padding: 2px 5px;
       box-shadow: var(--rg-shadow);
       color: var(--rg-text);
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       overflow: hidden;
     }
 
     .rg-status-panel h2,
     .rg-status-panel h3 {
-      margin: 0 0 4px;
-      font-size: 0.78rem;
+      margin: 0 0 2px;
+      font-size: 0.68rem;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
@@ -258,7 +276,7 @@
     .rg-status-table td.tec-name {
       color: var(--rg-primary);
       font-weight: 800;
-      font-size: 0.88rem;
+      font-size: 0.82rem;
     }
 
     .rg-status-table tr.total td:first-child {
@@ -268,10 +286,10 @@
     }
 
     .rg-status-table td {
-      padding: 5px 3px;
+      padding: 3px 2px;
       text-align: center;
       font-weight: 800;
-      line-height: 1.2;
+      line-height: 1.1;
       vertical-align: middle;
     }
 
@@ -311,11 +329,12 @@
 
     .rg-main-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: minmax(108px, 0.95fr) 1fr;
-      gap: 4px;
-      flex: 1;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 0.92fr) minmax(0, 1fr);
+      gap: var(--rg-gap);
+      flex: 1 1 0;
       min-height: 0;
+      min-width: 0;
       overflow: hidden;
     }
 
@@ -324,20 +343,21 @@
       border: 1px solid var(--rg-border);
       border-top: 3px solid var(--rg-primary);
       border-radius: 6px;
-      padding: 4px 6px;
+      padding: 2px 5px;
       box-shadow: var(--rg-shadow);
       color: var(--rg-text);
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       overflow: hidden;
     }
 
     .rg-panel.wide { grid-column: span 4; }
 
     .rg-panel h3 {
-      margin: 0 0 3px;
-      font-size: 0.64rem;
+      margin: 0 0 1px;
+      font-size: 0.58rem;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
@@ -346,11 +366,12 @@
     }
 
     .rg-panel .chart-box {
-      flex: 1;
+      flex: 1 1 0;
       min-height: 0;
+      min-width: 0;
       position: relative;
       cursor: pointer;
-      padding-top: 2px;
+      padding-top: 0;
     }
 
     .rg-heatmap {
@@ -363,7 +384,7 @@
 
     .rg-heatmap th,
     .rg-heatmap td {
-      padding: 6px 4px;
+      padding: 2px 2px;
       text-align: center;
       border: 1px solid var(--rg-border);
       vertical-align: middle;
@@ -388,13 +409,14 @@
     .rg-heatmap td.cell {
       cursor: pointer;
       font-weight: 800;
-      font-size: 0.72rem;
+      font-size: 0.62rem;
       color: var(--rg-bg);
     }
 
     .rg-heatmap-wrap {
-      flex: 1;
+      flex: 1 1 0;
       min-height: 0;
+      min-width: 0;
       overflow: hidden;
       display: flex;
       align-items: stretch;
