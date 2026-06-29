@@ -29,11 +29,11 @@
     body {
       background: var(--bg);
       color: var(--text-on-bg);
-      padding: 16px var(--side-space);
+      padding: 24px var(--side-space) 32px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       border-left: 3px solid rgba(255, 255, 255, 0.2);
       border-right: 3px solid rgba(255, 255, 255, 0.2);
     }
@@ -64,7 +64,29 @@
       flex: 1;
       min-height: 0;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .menu-section-label {
+      margin: 4px 0 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--accent);
+    }
+
+    .menu-section-label .homolog-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(180, 83, 9, 0.22);
+      color: #fde68a;
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
     }
 
     .menu-grid {
@@ -92,6 +114,13 @@
     }
 
     .menu-btn.consolidado .badge { color: #b45309; }
+
+    .menu-btn.gestao-reparo {
+      border-color: rgba(180, 83, 9, 0.22);
+      background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%);
+    }
+
+    .menu-btn.gestao-reparo .badge { color: #b45309; }
 
     .menu-btn {
       display: flex;
@@ -187,6 +216,26 @@
       <a class="menu-btn ready consolidado" href="consolidado.html">
         Consolidado
         <span class="badge">Dashboard ativo</span>
+      </a>
+    </nav>
+
+    <p class="menu-section-label">Gestão Reparo</p>
+    <nav class="menu-grid">
+      <a class="menu-btn ready android" href="producao-android1-gestao.html">
+        Android 1 — Gestão
+        <span class="badge">Claudia · Karoline · Francisco</span>
+      </a>
+      <a class="menu-btn ready android" href="producao-android2-gestao.html">
+        Android 2 — Gestão
+        <span class="badge">Viviane · Michele</span>
+      </a>
+      <a class="menu-btn ready android" href="producao-android3-gestao.html">
+        Android 3 — Gestão
+        <span class="badge">Keytman · Fernanda</span>
+      </a>
+      <a class="menu-btn ready" href="producao-iphone-gestao.html">
+        iPhone — Gestão
+        <span class="badge">Thaís · Noemi · Fran</span>
       </a>
     </nav>
   </div>

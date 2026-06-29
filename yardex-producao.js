@@ -57,6 +57,17 @@ const ProducaoDash = {
     }
   ],
 
+  IPHONE_PANEL: {
+    id: "iphone",
+    title: "iPhone",
+    subtitle: "Thaís · Noemi · Fran",
+    users: [
+      { match: "thaís mazoline", label: "Thaís" },
+      { match: "noemi firmo", label: "Noemi" },
+      { match: "fran dias", label: "Fran" }
+    ]
+  },
+
   DATE_FIELDS: ["iniciado_reparo", "retorno_1", "retorno_2", "retorno_3"],
 
   isFilled(v) {
@@ -179,9 +190,121 @@ const ProducaoDash = {
     }, 0);
   },
 
+  /** Expediente produção Android: 07:00–16:48, almoço 12:00–13:00. */
+  SHIFT_REPAIR: {
+    dayStart: { h: 7, m: 0 },
+    dayEnd: { h: 16, m: 48 },
+    lunchStart: { h: 12, m: 0 },
+    lunchEnd: { h: 13, m: 0 }
+  },
+
+  overlapMs(aStart, aEnd, bStart, bEnd) {
+    const start = Math.max(aStart, bStart);
+    const end = Math.min(aEnd, bEnd);
+    return Math.max(0, end - start);
+  },
+
+  localDayStartMs(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  },
+
+  localTimeOnDayMs(dayStartMs, h, m) {
+    return dayStartMs + (h * 60 + m) * 60 * 1000;
+  },
+
+  getDayShiftWindows(dayStartMs, cfg = this.SHIFT_REPAIR) {
+    const t = (h, m) => this.localTimeOnDayMs(dayStartMs, h, m);
+    return [
+      { start: t(cfg.dayStart.h, cfg.dayStart.m), end: t(cfg.lunchStart.h, cfg.lunchStart.m) },
+      { start: t(cfg.lunchEnd.h, cfg.lunchEnd.m), end: t(cfg.dayEnd.h, cfg.dayEnd.m) }
+    ];
+  },
+
+  /** Soma intervalos apenas dentro do expediente (manhã + tarde, sem almoço). */
+  sumShiftIntervalsMs(intervals, cfg = this.SHIFT_REPAIR) {
+    if (!intervals?.length) return 0;
+    let total = 0;
+    for (const { start, end } of intervals) {
+      if (!start || !end || end <= start) continue;
+      let dayStart = this.localDayStartMs(start);
+      const lastDay = this.localDayStartMs(end);
+      while (dayStart <= lastDay) {
+        for (const w of this.getDayShiftWindows(dayStart, cfg)) {
+          total += this.overlapMs(start, end, w.start, w.end);
+        }
+        dayStart += 86400000;
+      }
+    }
+    return total;
+  },
+
+  /** Tempo em reparo no expediente, recortado ao período (evita aparelho aberto somar dias futuros). */
+  calcShiftWorkMsInPeriod(raw, periodStart, periodEnd, nowMs = Date.now()) {
+    if (!periodStart || !periodEnd) return 0;
+    const bounds = this.periodBoundsMs(periodStart, periodEnd);
+    const capEnd = Math.min(nowMs, bounds.end);
+    const intervals = this.getWorkIntervals(raw, capEnd);
+    let total = 0;
+    for (const { start, end } of intervals) {
+      const a = Math.max(start, bounds.start);
+      const b = Math.min(end, bounds.end);
+      if (b > a) total += this.sumShiftIntervalsMs([{ start: a, end: b }]);
+    }
+    return total;
+  },
+
   calcWorkMs(raw, nowMs = Date.now(), periodStart = null, periodEnd = null) {
     const intervals = this.getWorkIntervals(raw, nowMs);
     return this.sumWorkIntervalsMs(intervals, periodStart, periodEnd);
+  },
+
+  /**
+   * Tempo em reparo (Início → Fim, descontando pausas explícitas).
+   * Com { shift: true }, conta só dentro do expediente 07:00–16:48 (exc. almoço 12–13h).
+   */
+  calcRepairTimes(raw, options = {}) {
+    const inicio = this.parseDt(raw["Iniciado_Reparo"]);
+    const fim = this.parseDt(raw["Fim do Reparo"]);
+    if (!inicio || !fim) return null;
+
+    const pauseIntervals = [];
+    let pauseCount = 0;
+    for (let i = 1; i <= 3; i++) {
+      const p = this.parseDt(raw[`${i} Pausa`]);
+      const r = this.parseDt(raw[`${i} Retorno`]);
+      if (p && r) {
+        const d = r.getTime() - p.getTime();
+        if (d > 0) {
+          pauseIntervals.push({ start: p.getTime(), end: r.getTime() });
+          pauseCount++;
+        }
+      }
+    }
+
+    const workIntervals = this.getWorkIntervals(raw, fim.getTime());
+    const cfg = options.shiftCfg || this.SHIFT_REPAIR;
+
+    if (options.shift) {
+      const workMs = this.sumShiftIntervalsMs(workIntervals, cfg);
+      const pauseMs = this.sumShiftIntervalsMs(pauseIntervals, cfg);
+      return { totalMs: workMs + pauseMs, pauseMs, workMs, pauseCount, shift: true };
+    }
+
+    const totalMs = Math.max(0, fim.getTime() - inicio.getTime());
+    const pauseMs = pauseIntervals.reduce((acc, iv) => acc + (iv.end - iv.start), 0);
+    return {
+      totalMs,
+      pauseMs,
+      workMs: Math.max(0, totalMs - pauseMs),
+      pauseCount
+    };
+  },
+
+  fmtWorkMin(ms, digits = 2) {
+    if (ms == null || Number.isNaN(ms)) return "—";
+    return `${(ms / 60000).toFixed(digits).replace(".", ",")} min`;
   },
 
   mapRow(raw) {
