@@ -1199,35 +1199,36 @@
     function renderCharts(periodRows, metrics) {
       const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
       const tickSmall = { font: { size: 8 } };
-      const labelCountEnd = {
-        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+      const barLayoutPad = { top: 4, bottom: 4, left: 0, right: 26 };
+      const dataLabelBase = {
+        clip: false,
         anchor: "end",
         align: "end",
-        offset: 4,
-        color: SKY.red,
-        font: { weight: "700", size: 9 },
-        formatter: (v) => v
+        offset: 3,
+        font: { weight: "700", size: 8 }
       };
+      const dataLabelCount = (color, fmt = (v) => v) => ({
+        ...dataLabelBase,
+        color,
+        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+        formatter: (v) => fmt(v)
+      });
 
       const yBarScale = (n) => ({
         offset: true,
         ticks: {
           ...tickSmall,
           autoSkip: false,
-          padding: 6,
+          padding: 4,
           font: { size: n > 10 ? 7 : 8 }
         }
       });
-      const barLayoutPad = { top: 3, bottom: 4, left: 0, right: 4 };
-      const labelCountGreen = {
-        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-        anchor: "end",
-        align: "end",
-        offset: 4,
-        color: SKY.green,
-        font: { weight: "700", size: 9 },
-        formatter: (v) => v
+      const xCountScale = {
+        beginAtZero: true,
+        grace: "12%",
+        ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 }
       };
+
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
       );
@@ -1249,9 +1250,9 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: { padding: barLayoutPad },
-          plugins: { legend: { display: false }, datalabels: { ...labelCountGreen, clip: false } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.green) },
           scales: {
-            x: { beginAtZero: true, ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 } },
+            x: xCountScale,
             y: yBarScale(qualAprov.length)
           },
           onClick: (_, elems) => {
@@ -1270,7 +1271,6 @@
 
       renderMotivosFunnel(reprovados);
 
-      // Ranking — Usuario final por reprovações (exclui qualidade, implantação e fora da operação)
       const reprovSemTeste = reprovados.filter((r) => isUsuarioFinalProducao(r.usuario_final));
       const ranking = YardexDash.aggregateCount(reprovSemTeste, (r) => r.usuario_final);
       destroyChart("ranking");
@@ -1289,11 +1289,11 @@
           indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { ...barLayoutPad, top: 6, right: 12 } },
-          plugins: { legend: { display: false }, datalabels: { ...labelCountEnd, clip: false } },
+          layout: { padding: { ...barLayoutPad, top: 6 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.red) },
           elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
           scales: {
-            x: { beginAtZero: true, ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 } },
+            x: xCountScale,
             y: yBarScale(ranking.length)
           },
           onClick: (_, elems) => {
@@ -1310,43 +1310,42 @@
         reprovSemTeste.filter((r) => r.usuario_final === (ranking[idx]?.[0] || ""))
       );
 
-      // Modelo
       const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
       destroyChart("marca");
-      charts.marca = YardexDash.createBarChart(
-        "chartMarca", charts.marca,
-        byMarca.map(([m]) => m),
-        byMarca.map(([, v]) => v),
-        SKY.bg
+      charts.marca = new Chart(document.getElementById("chartMarca"), {
+        type: "bar",
+        data: {
+          labels: byMarca.map(([m]) => m),
+          datasets: [{
+            label: "Reprovações",
+            data: byMarca.map(([, v]) => v),
+            backgroundColor: SKY.bg,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: barLayoutPad },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.bg) },
+          scales: {
+            x: xCountScale,
+            y: yBarScale(byMarca.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const marca = byMarca[elems[0].index][0];
+            openDrill(`Marca: ${marca}`, reprovados.filter((r) => (r.marca || "Outros") === marca));
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartMarca"), (idx) =>
+        reprovados.filter((r) => (r.marca || "Outros") === (byMarca[idx]?.[0] || ""))
       );
-      if (charts.marca?.options?.plugins?.datalabels) {
-        charts.marca.options.plugins.datalabels.font = { weight: "700", size: 9 };
-      }
-      document.getElementById("chartMarca").onclick = (ev) => {
-        const chart = charts.marca;
-        if (!chart) return;
-        const pts = chart.getElementsAtEventForMode(ev, "nearest", { intersect: true }, false);
-        if (!pts.length) return;
-        const marca = byMarca[pts[0].index][0];
-        openDrill(`Marca: ${marca}`, reprovados.filter((r) => (r.marca || "Outros") === marca));
-      };
 
-      // Taxa de reprovação por Usuario final (%)
       const taxaTecRows = metrics.filtered.filter((r) => isUsuarioFinalProducao(r.usuario_final));
       const taxaReprov = aggregateTaxaReprovTecnico(metrics.filtered);
-      const labelPctReprov = {
-        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-        anchor: "end",
-        align: "end",
-        offset: 4,
-        color: SKY.red,
-        font: { weight: "700", size: 8 },
-        formatter: (v, ctx) => {
-          const row = taxaReprov[ctx.dataIndex];
-          const pct = `${Number(v).toFixed(1).replace(".", ",")}%`;
-          return row ? `${pct} (${row.reprov}/${row.total})` : pct;
-        }
-      };
       destroyChart("taxaReprov");
       charts.taxaReprov = new Chart(document.getElementById("chartTaxaReprov"), {
         type: "bar",
@@ -1365,13 +1364,26 @@
           indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { ...barLayoutPad, top: 6, right: 14 } },
-          plugins: { legend: { display: false }, datalabels: { ...labelPctReprov, clip: false } },
+          layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              ...dataLabelBase,
+              color: SKY.red,
+              display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+              formatter: (v, ctx) => {
+                const row = taxaReprov[ctx.dataIndex];
+                const pct = `${Number(v).toFixed(1).replace(".", ",")}%`;
+                return row ? `${pct} (${row.reprov}/${row.total})` : pct;
+              }
+            }
+          },
           elements: { bar: { barThickness: taxaReprov.length > 8 ? 10 : 14, maxBarThickness: 16 } },
           scales: {
             x: {
               min: 0,
               max: 100,
+              grace: "8%",
               ticks: {
                 ...tickSmall,
                 callback: (v) => `${v}%`,
