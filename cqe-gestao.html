@@ -313,11 +313,11 @@
       color: var(--gm-muted);
     }
 
-    /* ── Zona 3: gráficos (ocupa o restante da tela) ── */
+    /* ── Zona 3: 5 gráficos na mesma linha ── */
     .gm-grid {
-      display: flex;
-      flex-direction: row;
-      align-items: stretch;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr);
       gap: 5px;
       flex: 1 1 0;
       height: 0;
@@ -327,7 +327,8 @@
     }
 
     .gm-panel {
-      flex: 1 1 0;
+      height: 100%;
+      min-height: 0;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
       border-top: 3px solid var(--gm-primary);
@@ -352,13 +353,14 @@
 
     .gm-panel h2 {
       margin: 0 0 3px;
-      font-size: 0.6rem;
+      font-size: 0.52rem;
       font-weight: 700;
       color: var(--gm-text);
       flex-shrink: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.15;
     }
 
     .gm-panel .chart-box {
@@ -595,34 +597,8 @@
       display: none;
     }
 
-    @media (max-width: 1200px) {
-      body.cqe-gestao-page.dash-page {
-        height: auto;
-        min-height: 100vh;
-        max-height: none;
-        overflow: auto;
-      }
-      .cqe-gestao-page .page {
-        height: auto;
-        min-height: calc(100vh - 16px);
-        overflow: visible;
-      }
+    @media (max-width: 900px) {
       .gm-hero { grid-template-columns: repeat(4, 1fr); }
-      .gm-grid {
-        flex: 1 1 auto;
-        height: auto;
-        min-height: 280px;
-        flex-wrap: wrap;
-      }
-      .gm-panel {
-        flex: 1 1 calc(50% - 3px);
-        min-height: 220px;
-      }
-      .gm-panel .chart-box,
-      .motivos-funnel {
-        height: auto;
-        min-height: 160px;
-      }
     }
 
     .gm-panel--motivos h2 {
@@ -716,23 +692,23 @@
 
     <section class="gm-grid">
       <div class="gm-panel">
-        <h2>Usuario qualidade — aprovações</h2>
+        <h2>Qualidade — aprov.</h2>
         <div class="chart-box"><canvas id="chartQualAprov"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--motivos">
-        <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
+        <h2 id="motivosFunnelTitle">Motivos reprov.</h2>
         <div class="motivos-funnel" id="motivosFunnel"></div>
       </div>
       <div class="gm-panel gm-panel--ranking">
-        <h2>Ranking — Usuario final (reprovações)</h2>
+        <h2>Ranking reprov.</h2>
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
-        <h2>Reprovações por marca</h2>
+        <h2>Reprov. marca</h2>
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--ranking">
-        <h2>Usuario final — taxa de reprovação</h2>
+        <h2>Taxa reprov.</h2>
         <div class="chart-box"><canvas id="chartTaxaReprov"></canvas></div>
       </div>
     </section>
@@ -1210,10 +1186,10 @@
       if (!motivos.length) {
         el.innerHTML = "";
         el.classList.remove("motivos-funnel--many");
-        title.textContent = "Motivos de reprovação";
+        title.textContent = "Motivos reprov.";
         return;
       }
-      title.textContent = `Motivos de reprovação (${motivos.length})`;
+      title.textContent = `Motivos reprov. (${motivos.length})`;
 
       const max = motivos[0][1];
       const total = motivos.reduce((sum, [, qtd]) => sum + qtd, 0) || 1;
