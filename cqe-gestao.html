@@ -30,15 +30,21 @@
       --gm-radius: 6px;
     }
 
+    html {
+      height: 100%;
+    }
+
     body.cqe-gestao-page.dash-page {
       height: 100vh;
       min-height: 100vh;
+      max-height: 100vh;
       overflow: hidden;
       background: var(--gm-bg);
       color: var(--text-on-bg);
       padding: 5px 12px 6px;
       box-sizing: border-box;
-      display: block;
+      display: flex;
+      flex-direction: column;
     }
 
     .cqe-gestao-page .page {
@@ -52,6 +58,7 @@
       gap: 5px;
       overflow: hidden;
       min-height: 0;
+      flex: 1 1 0;
     }
 
     /* ── Zona 1: topbar (1 linha) ── */
@@ -308,17 +315,19 @@
 
     /* ── Zona 3: gráficos (ocupa o restante da tela) ── */
     .gm-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      grid-template-rows: minmax(0, 1fr);
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
       gap: 5px;
       flex: 1 1 0;
+      height: 0;
       min-height: 0;
       min-width: 0;
       overflow: hidden;
     }
 
     .gm-panel {
+      flex: 1 1 0;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
       border-top: 3px solid var(--gm-primary);
@@ -354,10 +363,17 @@
 
     .gm-panel .chart-box {
       flex: 1 1 0;
-      min-height: 0;
+      height: 0;
+      min-height: 48px;
       min-width: 0;
       position: relative;
       cursor: pointer;
+    }
+
+    .gm-panel .chart-box canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
     }
 
     .gm-panel .panel-note {
@@ -509,7 +525,8 @@
 
     .motivos-funnel {
       flex: 1 1 0;
-      min-height: 0;
+      height: 0;
+      min-height: 48px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -579,10 +596,33 @@
     }
 
     @media (max-width: 1200px) {
-      body.cqe-gestao-page { overflow: auto; height: auto; }
-      .cqe-gestao-page .page { height: auto; overflow: visible; }
+      body.cqe-gestao-page.dash-page {
+        height: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow: auto;
+      }
+      .cqe-gestao-page .page {
+        height: auto;
+        min-height: calc(100vh - 16px);
+        overflow: visible;
+      }
       .gm-hero { grid-template-columns: repeat(4, 1fr); }
-      .gm-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; flex: none; }
+      .gm-grid {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 280px;
+        flex-wrap: wrap;
+      }
+      .gm-panel {
+        flex: 1 1 calc(50% - 3px);
+        min-height: 220px;
+      }
+      .gm-panel .chart-box,
+      .motivos-funnel {
+        height: auto;
+        min-height: 160px;
+      }
     }
 
     .gm-panel--motivos h2 {
@@ -1065,6 +1105,12 @@
       }
     }
 
+    function resizeAllCharts() {
+      Object.values(charts).forEach((chart) => {
+        if (chart) chart.resize();
+      });
+    }
+
     function sampleForTooltip(rows) {
       return rows[0] || null;
     }
@@ -1405,6 +1451,10 @@
       bindRichTooltip(document.getElementById("chartTaxaReprov"), (idx) =>
         taxaTecRows.filter((r) => r.usuario_final === (taxaReprov[idx]?.nome || ""))
       );
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resizeAllCharts);
+      });
     }
 
     function renderCompare(end, currentTaxa, rowsAll) {
@@ -1492,6 +1542,7 @@
     });
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    window.addEventListener("resize", () => requestAnimationFrame(resizeAllCharts));
   </script>
 </body>
 </html>
