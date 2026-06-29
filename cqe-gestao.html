@@ -33,146 +33,120 @@
     body.cqe-gestao-page.dash-page {
       height: 100vh;
       min-height: 100vh;
-      max-width: 100vw;
       overflow: hidden;
       background: var(--gm-bg);
       color: var(--text-on-bg);
-      padding: var(--gm-pad-y) var(--gm-pad-x) 4px;
+      padding: 5px 12px 6px;
       box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    body.cqe-gestao-page.dash-page > .page {
-      flex: 1 1 0;
-      height: auto;
-      max-height: 100%;
-      min-height: 0;
+      display: block;
     }
 
     .cqe-gestao-page .page {
+      height: 100%;
       width: 100%;
       max-width: none;
       margin: 0;
       padding: 0;
-      display: grid;
-      grid-template-columns: 1fr;
-      grid-template-rows: auto auto auto 44px minmax(0, 1fr);
-      gap: var(--gm-gap);
-      overflow: hidden;
-      min-height: 0;
-      min-width: 0;
-    }
-
-    .gm-topbar {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 5px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Zona 1: topbar (1 linha) ── */
+    .gm-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
       border-top: 3px solid var(--gm-primary);
       border-radius: var(--gm-radius);
-      padding: 3px 6px;
+      padding: 5px 8px;
       box-shadow: var(--gm-shadow);
-      flex-shrink: 0;
+      flex: 0 0 auto;
       color: var(--gm-text);
       min-width: 0;
     }
 
-    .gm-topbar-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      min-width: 0;
-    }
-
     .gm-topbar .title-block {
-      flex-shrink: 1;
-      min-width: 0;
+      flex: 0 0 auto;
+      min-width: 150px;
+      max-width: 200px;
     }
 
     .gm-topbar .back {
       color: var(--gm-primary);
       text-decoration: none;
-      font-size: 0.68rem;
-      font-weight: 700;
+      font-size: 0.72rem;
+      font-weight: 600;
     }
 
     .gm-topbar h1 {
-      margin: 1px 0 0;
-      font-size: 0.82rem;
-      font-weight: 800;
+      margin: 2px 0 0;
+      font-size: 0.88rem;
+      font-weight: 700;
       letter-spacing: -0.02em;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       color: var(--gm-text);
     }
 
     .gm-topbar .subtitle {
       margin: 0;
-      font-size: 0.56rem;
+      font-size: 0.58rem;
       color: var(--gm-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
     }
 
     .gm-filters {
       display: flex;
       flex-wrap: nowrap;
-      gap: 3px;
+      gap: 4px;
       align-items: flex-end;
       overflow-x: auto;
-      overflow-y: hidden;
-      width: 100%;
+      flex: 1 1 0;
       min-width: 0;
       padding-bottom: 1px;
-      scrollbar-width: none;
     }
-
-    .gm-filters::-webkit-scrollbar { display: none; }
 
     .gm-filters label {
       display: flex;
       flex-direction: column;
       gap: 1px;
-      font-size: 0.48rem;
-      font-weight: 700;
+      font-size: 0.5rem;
+      font-weight: 600;
       color: var(--gm-muted);
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      flex: 1 1 0;
-      min-width: 0;
-      max-width: 118px;
+      flex-shrink: 0;
     }
 
     .gm-filters input,
     .gm-filters select {
-      width: 100%;
-      min-width: 0;
-      max-width: none;
-      padding: 2px 4px;
+      min-width: 76px;
+      max-width: 100px;
+      padding: 3px 5px;
       border: 1px solid var(--gm-border);
-      border-radius: 4px;
-      font-size: 0.62rem;
+      border-radius: 5px;
+      font-size: 0.65rem;
       background: #fff;
       color: var(--gm-text);
     }
 
     .gm-filters button {
-      padding: 3px 6px;
-      border-radius: 4px;
+      padding: 4px 7px;
+      border-radius: 5px;
       border: 1px solid var(--gm-border);
       background: #fff;
-      font-size: 0.62rem;
-      font-weight: 700;
+      font-size: 0.65rem;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
-      flex-shrink: 0;
     }
 
     .gm-filters button.primary {
@@ -181,25 +155,31 @@
       color: #fff;
     }
 
+    /* ── Zona 2: KPIs + retrabalho ── */
+    .gm-upper {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
     .gm-hero {
       display: grid;
       grid-template-columns: repeat(8, minmax(0, 1fr));
-      gap: var(--gm-gap);
+      gap: 5px;
       min-width: 0;
-      max-height: 46px;
-      overflow: hidden;
     }
 
     .gm-kpi {
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
       border-radius: var(--gm-radius);
-      padding: 2px 5px;
+      padding: 4px 6px;
       box-shadow: var(--gm-shadow);
       display: flex;
       flex-direction: column;
-      gap: 0;
-      min-height: 0;
+      gap: 1px;
       min-width: 0;
       color: var(--gm-text);
     }
@@ -222,9 +202,9 @@
     }
 
     .gm-kpi .kpi-value {
-      font-size: 0.88rem;
+      font-size: 0.95rem;
       font-weight: 800;
-      line-height: 1;
+      line-height: 1.1;
       letter-spacing: -0.03em;
     }
 
@@ -250,11 +230,10 @@
     }
 
     .gm-mid-row {
-      min-height: 0;
-      max-height: 44px;
-      height: 44px;
+      flex: 0 0 62px;
+      height: 62px;
       width: 100%;
-      overflow: hidden;
+      min-height: 0;
     }
 
     .gm-funnel {
@@ -264,7 +243,7 @@
       border: 1px solid var(--gm-border);
       border-top: 3px solid var(--gm-accent);
       border-radius: var(--gm-radius);
-      padding: 2px 5px;
+      padding: 4px 7px;
       box-shadow: var(--gm-shadow);
       overflow: hidden;
       display: flex;
@@ -273,8 +252,8 @@
     }
 
     .gm-funnel h2 {
-      margin: 0 0 1px;
-      font-size: 0.5rem;
+      margin: 0 0 3px;
+      font-size: 0.56rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -301,20 +280,17 @@
     }
 
     .gm-funnel-step .step-val {
-      font-size: 0.76rem;
+      font-size: 0.88rem;
       font-weight: 800;
       color: var(--gm-bg);
-      line-height: 1;
+      line-height: 1.1;
     }
 
     .gm-funnel-step .step-label {
-      font-size: 0.44rem;
+      font-size: 0.46rem;
       color: var(--gm-muted);
       font-weight: 600;
-      line-height: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.1;
     }
 
     .gm-funnel-step .step-pct {
@@ -330,14 +306,15 @@
       color: var(--gm-muted);
     }
 
+    /* ── Zona 3: gráficos (ocupa o restante da tela) ── */
     .gm-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      grid-template-rows: repeat(2, minmax(0, 1fr));
-      gap: var(--gm-gap);
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 5px;
+      flex: 1 1 0;
       min-height: 0;
       min-width: 0;
-      height: 100%;
       overflow: hidden;
     }
 
@@ -346,7 +323,7 @@
       border: 1px solid var(--gm-border);
       border-top: 3px solid var(--gm-primary);
       border-radius: var(--gm-radius);
-      padding: 2px 5px;
+      padding: 4px 6px;
       box-shadow: var(--gm-shadow);
       display: flex;
       flex-direction: column;
@@ -369,8 +346,8 @@
     }
 
     .gm-panel h2 {
-      margin: 0 0 1px;
-      font-size: 0.54rem;
+      margin: 0 0 3px;
+      font-size: 0.6rem;
       font-weight: 700;
       color: var(--gm-text);
       flex-shrink: 0;
@@ -385,16 +362,6 @@
       min-width: 0;
       position: relative;
       cursor: pointer;
-      padding-top: 0;
-    }
-
-    .gm-panel .chart-box canvas {
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    .gm-panel--ranking .chart-box {
-      padding-top: 0;
     }
 
     .gm-heatmap-wrap {
@@ -407,18 +374,17 @@
 
     .gm-heatmap {
       width: 100%;
-      table-layout: fixed;
+      height: 100%;
       border-collapse: collapse;
-      font-size: 0.5rem;
+      table-layout: fixed;
+      font-size: 0.52rem;
     }
 
     .gm-heatmap th,
     .gm-heatmap td {
-      padding: 1px 2px;
+      padding: 2px 3px;
       text-align: center;
       border: 1px solid var(--gm-border);
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .gm-heatmap td.row-label {
@@ -426,8 +392,7 @@
       font-weight: 600;
       background: var(--gm-surface);
       white-space: nowrap;
-      max-width: 52px;
-      font-size: 0.46rem;
+      font-size: 0.48rem;
     }
 
     .gm-heatmap th {
@@ -562,18 +527,19 @@
 
     .gm-topbar-actions {
       display: flex;
-      gap: 3px;
-      flex-shrink: 0;
+      gap: 4px;
+      flex: 0 0 auto;
       align-items: center;
+      align-self: flex-end;
     }
 
     .gm-topbar-actions button {
-      padding: 3px 6px;
-      border-radius: 4px;
+      padding: 4px 7px;
+      border-radius: 5px;
       border: 1px solid var(--gm-border);
       background: #fff;
-      font-size: 0.62rem;
-      font-weight: 700;
+      font-size: 0.65rem;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
     }
@@ -585,56 +551,28 @@
     }
 
     .cqe-gestao-page #statusMsg {
-      flex-shrink: 0;
-      margin: 0;
-      padding: 0;
-      font-size: 0;
-      line-height: 0;
-      color: var(--text-on-bg);
-      overflow: hidden;
-      max-height: 0;
-    }
-
-    .cqe-gestao-page #statusMsg:not([hidden]) {
-      font-size: 0.58rem;
-      line-height: 1.2;
-      padding: 0 6px;
-      max-height: 1rem;
-    }
-
-    .cqe-gestao-page #statusMsg[hidden] {
       display: none !important;
-      padding: 0;
-      margin: 0;
-    }
-
-    .gm-panel--motivos h2 {
-      text-align: center;
-    }
-
-    .gm-panel--motivos .chart-box {
-      display: none;
     }
 
     .motivos-funnel {
       flex: 1 1 0;
       min-height: 0;
-      min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      gap: 2px;
-      padding: 2px 2px 1px;
-      overflow: hidden;
+      gap: 3px;
+      padding: 4px 4px 2px;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .motivos-funnel-step {
       position: relative;
       width: var(--funnel-w, 80%);
       flex: 0 0 auto;
-      height: 17px;
-      min-height: 17px;
+      height: 19px;
+      min-height: 19px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -687,35 +625,30 @@
       display: none;
     }
 
-    @media (min-width: 1200px) {
-      .gm-filters label {
-        max-width: none;
-      }
-    }
-
     @media (max-width: 1200px) {
       body.cqe-gestao-page { overflow: auto; height: auto; }
       .cqe-gestao-page .page { height: auto; overflow: visible; }
       .gm-hero { grid-template-columns: repeat(4, 1fr); }
-      .gm-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; }
+      .gm-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; flex: none; }
       .gm-panel.wide { grid-column: span 2; }
+    }
+
+    .gm-panel--motivos h2 {
+      text-align: center;
+    }
+
+    .gm-panel--motivos .chart-box {
+      display: none;
     }
   </style>
 </head>
 <body class="dash-page cqe-gestao-page">
   <div class="page">
     <header class="gm-topbar">
-      <div class="gm-topbar-head">
-        <div class="title-block">
-          <a class="back" href="menu.html">← Menu</a>
-          <h1>CQE — Painel Gerencial</h1>
-          <p class="subtitle" id="periodLabel">Carregando…</p>
-        </div>
-        <div class="gm-topbar-actions">
-          <button type="button" class="primary" id="btnApply">Atualizar</button>
-          <button type="button" id="btnToday">Hoje</button>
-          <button type="button" id="btnReload">↻</button>
-        </div>
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>CQE — Painel Gerencial</h1>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
       <div class="gm-filters">
         <label>Início <input type="date" id="dateStart" /></label>
@@ -728,10 +661,16 @@
         <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
         <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
       </div>
+      <div class="gm-topbar-actions">
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">↻</button>
+      </div>
     </header>
 
     <div id="statusMsg" class="status" hidden></div>
 
+    <div class="gm-upper">
     <section class="gm-hero">
       <div class="gm-kpi aprov">
         <div class="kpi-head"><span class="kpi-label">Taxa aprovação</span><span class="kpi-icon">✓</span></div>
@@ -780,6 +719,7 @@
         <h2>Retrabalho</h2>
         <div class="gm-funnel-track" id="funnelTrack"></div>
       </section>
+    </div>
     </div>
 
     <section class="gm-grid">
