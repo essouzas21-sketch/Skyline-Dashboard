@@ -798,7 +798,7 @@
 
     function aliasReprov(name) {
       if (!name || name === "—") return "—";
-      return reprovAlias.get(name) || name;
+      return reprovAlias.get(name) ?? "—";
     }
 
     function logReprovAliasMap() {
@@ -1333,7 +1333,12 @@
       renderMotivosFunnel(reprovados);
 
       const reprovSemTeste = reprovados.filter((r) => isUsuarioFinalProducao(r.usuario_final));
-      buildReprovAlias(reprovSemTeste.map((r) => r.usuario_final));
+      const taxaTecRows = metrics.filtered.filter((r) => isUsuarioFinalProducao(r.usuario_final));
+      const taxaReprov = aggregateTaxaReprovTecnico(metrics.filtered);
+      buildReprovAlias([
+        ...reprovSemTeste.map((r) => r.usuario_final),
+        ...taxaReprov.map((x) => x.nome)
+      ]);
       logReprovAliasMap();
       const ranking = YardexDash.aggregateCount(reprovSemTeste, (r) => r.usuario_final);
       destroyChart("ranking");
@@ -1409,8 +1414,6 @@
         reprovados.filter((r) => (r.marca || "Outros") === (byMarca[idx]?.[0] || ""))
       );
 
-      const taxaTecRows = metrics.filtered.filter((r) => isUsuarioFinalProducao(r.usuario_final));
-      const taxaReprov = aggregateTaxaReprovTecnico(metrics.filtered);
       destroyChart("taxaReprov");
       charts.taxaReprov = new Chart(document.getElementById("chartTaxaReprov"), {
         type: "bar",
