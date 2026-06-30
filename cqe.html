@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=50"></script>
+  <script src="yardex-dash.js?v=51"></script>
   <style>
     :root {
       --gm-bg: var(--bg);
@@ -765,9 +765,6 @@
       "helen",
       "bruno marcos"
     ]);
-    /** Inspetores de qualidade — entram na aprovação, saem do ranking de reprovação (Usuario final). */
-    const USUARIOS_QUALIDADE_FINAL = new Set(["fran romao", "renata emely"]);
-    const USUARIOS_EXCLUIDOS_FINAL = new Set(["josefa alves"]);
     const statusEl = document.getElementById("statusMsg");
     const tooltipEl = document.getElementById("richTooltip");
 
@@ -798,6 +795,7 @@
 
     function aliasReprov(name) {
       if (!name || name === "—") return "—";
+      if (name === "Usuario X") return "Usuario X";
       return reprovAlias.get(name) ?? "—";
     }
 
@@ -830,36 +828,6 @@
     function isUsuarioExcluidoAprov(nome) {
       const k = normNameKey(nome);
       return k && k !== "—" && USUARIOS_EXCLUIDOS_APROV.has(k);
-    }
-
-    /** Usuario final de produção — exclui inspetores de qualidade e usuários fora da operação. */
-    function isUsuarioFinalProducao(nome) {
-      const k = normNameKey(nome);
-      if (!k || k === "—") return false;
-      if (USUARIOS_EXCLUIDOS_APROV.has(k)) return false;
-      if (USUARIOS_QUALIDADE_FINAL.has(k)) return false;
-      if (USUARIOS_EXCLUIDOS_FINAL.has(k)) return false;
-      return true;
-    }
-
-    function aggregateTaxaReprovTecnico(rows) {
-      const stats = new Map();
-      rows.forEach((r) => {
-        if (!isUsuarioFinalProducao(r.usuario_final)) return;
-        const nome = r.usuario_final;
-        if (!stats.has(nome)) stats.set(nome, { a: 0, r: 0 });
-        const t = stats.get(nome);
-        if (r.decisao === "aprovado") t.a++;
-        else if (r.decisao === "reprovado") t.r++;
-      });
-      return [...stats.entries()]
-        .map(([nome, t]) => {
-          const total = t.a + t.r;
-          const pct = total ? (t.r / total) * 100 : 0;
-          return { nome, pct, reprov: t.r, total };
-        })
-        .filter((x) => x.total > 0)
-        .sort((a, b) => b.pct - a.pct || b.reprov - a.reprov);
     }
 
     function fmtPctQty(part, total) {
@@ -1332,15 +1300,15 @@
 
       renderMotivosFunnel(reprovados);
 
-      const reprovSemTeste = reprovados.filter((r) => isUsuarioFinalProducao(r.usuario_final));
-      const taxaTecRows = metrics.filtered.filter((r) => isUsuarioFinalProducao(r.usuario_final));
-      const taxaReprov = aggregateTaxaReprovTecnico(metrics.filtered);
+      const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const taxaTecRows = metrics.filtered.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const taxaReprov = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
       buildReprovAlias([
-        ...reprovSemTeste.map((r) => r.usuario_final),
+        ...reprovContaveis.map((r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final)),
         ...taxaReprov.map((x) => x.nome)
-      ]);
+      ].filter((n) => n && n !== "—" && n !== "Usuario X"));
       logReprovAliasMap();
-      const ranking = YardexDash.aggregateCount(reprovSemTeste, (r) => r.usuario_final);
+      const ranking = YardexDash.aggregateCount(reprovContaveis, (r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final));
       destroyChart("ranking");
       charts.ranking = new Chart(document.getElementById("chartRanking"), {
         type: "bar",
@@ -1369,14 +1337,16 @@
             const nome = ranking[elems[0].index][0];
             openDrill(
               `${aliasReprov(nome)} — reprovações`,
-              reprovSemTeste.filter((r) => r.usuario_final === nome),
+              reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome)),
               { anonTecnico: true }
             );
           }
         }
       });
       bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
-        reprovSemTeste.filter((r) => r.usuario_final === (ranking[idx]?.[0] || "")),
+        reprovContaveis.filter((r) =>
+          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.[0] || "")
+        ),
         { anonTecnico: true }
       );
 
@@ -1465,14 +1435,16 @@
             const nome = taxaReprov[elems[0].index].nome;
             openDrill(
               `${aliasReprov(nome)} — inspeções`,
-              taxaTecRows.filter((r) => r.usuario_final === nome),
+              taxaTecRows.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome)),
               { anonTecnico: true }
             );
           }
         }
       });
       bindRichTooltip(document.getElementById("chartTaxaReprov"), (idx) =>
-        taxaTecRows.filter((r) => r.usuario_final === (taxaReprov[idx]?.nome || "")),
+        taxaTecRows.filter((r) =>
+          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, taxaReprov[idx]?.nome || "")
+        ),
         { anonTecnico: true }
       );
 

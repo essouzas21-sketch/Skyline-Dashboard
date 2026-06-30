@@ -253,6 +253,65 @@ const YardexDash = {
     return norm === "teste";
   },
 
+  normCqeUserKey(name) {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  },
+
+  /** Inspetores de qualidade — reprovações contam como Usuario X nos gráficos de reparo. */
+  CQE_USUARIOS_REPROV_X: new Set(["fran romao", "renata emely"]),
+
+  CQE_USUARIOS_EXCLUIDOS_REPROV: new Set([
+    "ewerton souza",
+    "ewerton souza implantacao log smart",
+    "helen",
+    "bruno marcos",
+    "josefa alves"
+  ]),
+
+  bucketCqeUsuarioReprov(nome) {
+    const k = this.normCqeUserKey(nome);
+    if (this.CQE_USUARIOS_REPROV_X.has(k)) return "Usuario X";
+    return String(nome || "—").trim() || "—";
+  },
+
+  isCqeUsuarioReprovContavel(nome) {
+    const k = this.normCqeUserKey(nome);
+    if (!k || k === "—") return false;
+    if (this.CQE_USUARIOS_EXCLUIDOS_REPROV.has(k)) return false;
+    return true;
+  },
+
+  matchesCqeUsuarioReprovBucket(usuarioFinal, bucket) {
+    if (bucket === "Usuario X") {
+      return this.CQE_USUARIOS_REPROV_X.has(this.normCqeUserKey(usuarioFinal));
+    }
+    return String(usuarioFinal || "").trim() === bucket;
+  },
+
+  aggregateCqeTaxaReprovTecnico(rows) {
+    const stats = new Map();
+    rows.forEach((r) => {
+      if (!this.isCqeUsuarioReprovContavel(r.usuario_final)) return;
+      const nome = this.bucketCqeUsuarioReprov(r.usuario_final);
+      if (!stats.has(nome)) stats.set(nome, { a: 0, r: 0 });
+      const t = stats.get(nome);
+      if (r.decisao === "aprovado") t.a++;
+      else if (r.decisao === "reprovado") t.r++;
+    });
+    return [...stats.entries()]
+      .map(([nome, t]) => {
+        const total = t.a + t.r;
+        const pct = total ? (t.r / total) * 100 : 0;
+        return { nome, pct, reprov: t.r, total };
+      })
+      .filter((x) => x.total > 0)
+      .sort((a, b) => b.pct - a.pct || b.reprov - a.reprov);
+  },
+
   /** CQE: data da inspeção (campo Data_qualidade). Fallback para datas legadas. */
   resolveCqeQualidadeDate(raw, decisao = null) {
     if (!raw || typeof raw !== "object") return null;
