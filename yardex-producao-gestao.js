@@ -333,35 +333,7 @@ const ProducaoGestao = {
     }
 
     function buildRepairHeatmap(finished) {
-      const hours = [7, 8, 9, 10, 11, 13, 14, 15, 16];
-      const matrix = hours.map(() => 0);
-
-      finished.forEach((r) => {
-        if (!r.raw || !r.fim) return;
-        const endMs = new Date(r.fim).getTime();
-        const intervals = ProducaoDash.getWorkIntervals(r.raw, endMs);
-        const hit = new Set();
-
-        intervals.forEach(({ start, end }) => {
-          let dayStart = ProducaoDash.localDayStartMs(start);
-          const lastDay = ProducaoDash.localDayStartMs(end);
-          while (dayStart <= lastDay) {
-            hours.forEach((hour) => {
-              const hStart = ProducaoDash.localTimeOnDayMs(dayStart, hour, 0);
-              const hEnd = hour === 16
-                ? ProducaoDash.localTimeOnDayMs(dayStart, 16, 48)
-                : ProducaoDash.localTimeOnDayMs(dayStart, hour + 1, 0);
-              const overlap = ProducaoDash.overlapMs(start, end, hStart, hEnd);
-              if (overlap > 0) hit.add(hour);
-            });
-            dayStart += 86400000;
-          }
-        });
-
-        hit.forEach((hour) => { matrix[hours.indexOf(hour)]++; });
-      });
-
-      return { hours, matrix };
+      return ProducaoDash.buildRepairHourHeatmap(finished, "fim");
     }
 
     function renderCharts(rows) {
@@ -487,24 +459,9 @@ const ProducaoGestao = {
       document.getElementById("heatmapTable").querySelectorAll("td.cell").forEach((cell) => {
         cell.addEventListener("click", () => {
           const h = Number(cell.dataset.h);
-          openDrill(`${String(h).padStart(2, "0")}h — em reparo`, statusFinished.filter((r) => {
-            if (!r.raw || !r.fim) return false;
-            const endMs = new Date(r.fim).getTime();
-            const intervals = ProducaoDash.getWorkIntervals(r.raw, endMs);
-            return intervals.some(({ start, end }) => {
-              let dayStart = ProducaoDash.localDayStartMs(start);
-              const lastDay = ProducaoDash.localDayStartMs(end);
-              while (dayStart <= lastDay) {
-                const hStart = ProducaoDash.localTimeOnDayMs(dayStart, h, 0);
-                const hEnd = h === 16
-                  ? ProducaoDash.localTimeOnDayMs(dayStart, 16, 48)
-                  : ProducaoDash.localTimeOnDayMs(dayStart, h + 1, 0);
-                if (ProducaoDash.overlapMs(start, end, hStart, hEnd) > 0) return true;
-                dayStart += 86400000;
-              }
-              return false;
-            });
-          }));
+          openDrill(`${String(h).padStart(2, "0")}h — finalizados`, statusFinished.filter((r) =>
+            ProducaoDash.matchesRepairHour(r, h, "fim")
+          ));
         });
       });
     }

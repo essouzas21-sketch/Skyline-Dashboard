@@ -198,6 +198,29 @@ const ProducaoDash = {
     lunchEnd: { h: 13, m: 0 }
   },
 
+  /** Colunas do heatmap gerencial (horário local, sem almoço). */
+  REPAIR_HEATMAP_HOURS: [7, 8, 9, 10, 11, 13, 14, 15, 16],
+
+  /** Reparos finalizados por hora local (Fim do Reparo). */
+  buildRepairHourHeatmap(rows, dateField = "fim") {
+    const hours = this.REPAIR_HEATMAP_HOURS;
+    const byHour = YardexDash.aggregateHourBuckets(rows, dateField, hours[0], hours[hours.length - 1], {
+      useLocal: true,
+      skipHours: [12]
+    });
+    const countMap = new Map(byHour.map(([label, count]) => [parseInt(label, 10), count]));
+    return {
+      hours,
+      matrix: hours.map((h) => countMap.get(h) || 0)
+    };
+  },
+
+  matchesRepairHour(row, hour, dateField = "fim") {
+    const raw = row?.[dateField];
+    if (!raw) return false;
+    return YardexDash.hourBucketFromIso(raw, true) === hour;
+  },
+
   overlapMs(aStart, aEnd, bStart, bEnd) {
     const start = Math.max(aStart, bStart);
     const end = Math.min(aEnd, bEnd);

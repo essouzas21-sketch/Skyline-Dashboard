@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imprimir Recebimento</title>
+  <link rel="stylesheet" href="yardex-dash.css" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f5f5f5;
+      color: #1a1a1a;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: #694992;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    input, button, select {
+      font-size: 15px;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #4b5563;
+    }
+
+    .mode-row {
+      gap: 16px;
+    }
+
+    .mode-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+
+    .search-panel {
+      display: none;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-panel.active {
+      display: flex;
+    }
+
+    .hint {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin: -6px 0 12px;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #374151;
+    }
+
+    .result {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafafa;
+      margin-bottom: 14px;
+    }
+
+    .result p {
+      margin: 4px 0;
+    }
+
+    .label {
+      width: 9cm;
+      height: 3cm;
+      border: 1px dashed #333;
+      box-sizing: border-box;
+      padding: 4mm;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .label .desc {
+      font-size: 7.5pt;
+      font-weight: 700;
+      line-height: 1.15;
+      max-height: 11mm;
+      overflow: hidden;
+      white-space: normal;
+      word-break: normal;
+    }
+
+    .label .serial {
+      font-size: 10pt;
+      margin-top: 2mm;
+      font-weight: 600;
+    }
+
+    .barcode-wrap {
+      margin-top: 1mm;
+    }
+
+    @media print {
+      @page {
+        size: 9cm 3cm;
+        margin: 0;
+      }
+
+      body {
+        padding: 0;
+        background: #fff;
+      }
+
+      .container > :not(.label-area) {
+        display: none !important;
+      }
+
+      .label-area {
+        display: block !important;
+      }
+
+      .label {
+        border: none;
+        width: 9cm;
+        height: 3cm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="menu.html">← Menu</a>
+    <h1>Imprimir Recebimento</h1>
+
+    <div class="row">
+      <input id="endpoint" type="text" value="https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6" />
+      <button id="btnLoadData" type="button">Atualizar dados</button>
+    </div>
+
+    <div class="row mode-row">
+      <label><input type="radio" name="searchMode" value="serial" checked /> Serial</label>
+      <label><input type="radio" name="searchMode" value="numero" /> Número</label>
+      <label><input type="radio" name="searchMode" value="prod" /> prod_cprod</label>
+    </div>
+
+    <div id="panelSerial" class="search-panel active row">
+      <input id="inputSerial" type="text" placeholder="Digite ou leia o serial / IMEI…" autofocus />
+    </div>
+
+    <div id="panelNumero" class="search-panel row">
+      <input id="inputNumero" type="text" placeholder="Número HU (hu_id) ou doc (numero)…" />
+    </div>
+
+    <div id="panelProd" class="search-panel row">
+      <input id="inputNumeroDoc" type="text" placeholder="Número (doc / NR)…" />
+      <input id="inputProdCprod" type="text" placeholder="prod_cprod…" />
+    </div>
+
+    <p class="hint" id="modeHint">Busca pelo serial do aparelho. Duplicatas priorizam registro com prod_cprod.</p>
+
+    <div class="row">
+      <button id="btnSearch" type="button">Buscar</button>
+      <button id="btnPrint" type="button" class="secondary">Imprimir etiqueta</button>
+    </div>
+
+    <div class="row">
+      <input id="extraField1" type="text" placeholder="GB (opcional)" aria-label="GB" />
+      <input id="extraField2" type="text" placeholder="Cor (opcional)" aria-label="Cor" />
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="resultBox" class="result" hidden></div>
+
+    <div class="label-area">
+      <div id="label" class="label">
+        <div id="labelDesc" class="desc">Descricao do produto</div>
+        <div id="labelSerial" class="serial">Serial: -</div>
+        <div class="barcode-wrap">
+          <svg id="barcode"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="yardex-version.js?v=2"></script>
+  <script src="yardex-dash.js?v=54"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    const ENDPOINT_DEFAULT = "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6";
+
+    const state = { rows: [], current: null, loading: false };
+    let loadPromise = null;
+
+    const endpointInput = document.getElementById("endpoint");
+    const extraField1 = document.getElementById("extraField1");
+    const extraField2 = document.getElementById("extraField2");
+    const statusEl = document.getElementById("status");
+    const resultBox = document.getElementById("resultBox");
+    const labelDesc = document.getElementById("labelDesc");
+    const labelSerial = document.getElementById("labelSerial");
+    const barcodeEl = document.getElementById("barcode");
+    const modeHint = document.getElementById("modeHint");
+    const btnLoadData = document.getElementById("btnLoadData");
+    const btnSearch = document.getElementById("btnSearch");
+    const btnPrint = document.getElementById("btnPrint");
+
+    if (!endpointInput || !btnLoadData || !btnSearch || !btnPrint || !statusEl) {
+      console.error("Imprimir Recebimento: elementos da página não encontrados.");
+      return;
+    }
+
+    const panels = {
+      serial: document.getElementById("panelSerial"),
+      numero: document.getElementById("panelNumero"),
+      prod: document.getElementById("panelProd")
+    };
+
+    function setLoading(loading) {
+      state.loading = loading;
+      btnLoadData.disabled = loading;
+    }
+
+    async function fetchRows(endpoint, force = false) {
+      if (typeof YardexDash === "undefined") {
+        throw new Error("yardex-dash.js não carregou — abra via servidor HTTP (ex.: localhost:8080).");
+      }
+
+      const homolog = YardexDash.useHomologData();
+      if (homolog) {
+        const fixture = YardexDash.homologFixtureFor(endpoint);
+        if (!fixture) throw new Error("Sem fixture local para este endpoint.");
+        const res = await fetch(`${fixture}?_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+        });
+        if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
+        const payload = JSON.parse(await res.text());
+        return YardexDash.normalizeRows(payload);
+      }
+
+      const payload = await YardexDash.fetchWebhook(
+        endpoint,
+        YardexDash.DEFAULT_FETCH_TIMEOUT_MS,
+        { force }
+      );
+      return YardexDash.normalizeRows(payload);
+    }
+
+    async function loadData(force = false) {
+      if (loadPromise && !force) return loadPromise;
+      if (loadPromise && force) await loadPromise.catch(() => {});
+
+      loadPromise = (async () => {
+        const endpoint = norm(endpointInput.value) || ENDPOINT_DEFAULT;
+        endpointInput.value = endpoint;
+        const homolog = typeof YardexDash !== "undefined" && YardexDash.useHomologData();
+        setLoading(true);
+        setStatus(homolog ? "Carregando homolog (recebimento.json)…" : "Carregando endpoint…");
+        try {
+          state.rows = await fetchRows(endpoint, force);
+          if (!state.rows.length) {
+            throw new Error("Nenhum registro retornado pelo endpoint.");
+          }
+          const src = homolog ? "homolog local" : "API";
+          setStatus(`${state.rows.length} registros carregados (${src}).`);
+        } catch (error) {
+          state.rows = [];
+          state.current = null;
+          resultBox.hidden = true;
+          setStatus(`Falha ao carregar: ${error.message}`, true);
+        } finally {
+          setLoading(false);
+        }
+      })();
+
+      return loadPromise;
+    }
+
+    function setStatus(msg, isError = false) {
+      statusEl.textContent = msg;
+      statusEl.style.color = isError ? "#b91c1c" : "#374151";
+    }
+
+    function norm(value) {
+      return String(value ?? "").trim();
+    }
+
+    function normKey(value) {
+      return norm(value).toLowerCase();
+    }
+
+    function hasProdCprod(item) {
+      const v = norm(item?.prod_cprod);
+      return Boolean(v && v !== "—" && v !== "-" && v.toLowerCase() !== "null");
+    }
+
+    function resolveDescricao(item) {
+      const descricao = norm(item?.descricao);
+      if (descricao) return descricao;
+      const prod = norm(item?.prod_cprod);
+      if (hasProdCprod(item)) return prod;
+      return "Sem descricao";
+    }
+
+    function pickBestMatch(matches) {
+      if (!matches.length) return null;
+      return matches
+        .map((item, idx) => ({ item, idx }))
+        .sort((a, b) => {
+          const aProd = hasProdCprod(a.item) ? 1 : 0;
+          const bProd = hasProdCprod(b.item) ? 1 : 0;
+          if (aProd !== bProd) return bProd - aProd;
+          const aDesc = norm(a.item.descricao) ? 1 : 0;
+          const bDesc = norm(b.item.descricao) ? 1 : 0;
+          if (aDesc !== bDesc) return bDesc - aDesc;
+          const aAlt = new Date(a.item.data_alt || a.item.data_add || 0).getTime();
+          const bAlt = new Date(b.item.data_alt || b.item.data_add || 0).getTime();
+          if (aAlt !== bAlt) return bAlt - aAlt;
+          return b.idx - a.idx;
+        })[0].item;
+    }
+
+    function formatDescricao(raw, maxChars = 100) {
+      const base = norm(raw) || "Sem descricao";
+      return base.length > maxChars ? `${base.slice(0, maxChars)}...` : base;
+    }
+
+    function buildDescricao(baseDesc) {
+      return [
+        norm(baseDesc) || "Sem descricao",
+        extraField1.value.trim(),
+        extraField2.value.trim()
+      ].filter(Boolean).join(" - ");
+    }
+
+    function getSearchMode() {
+      return document.querySelector('input[name="searchMode"]:checked')?.value || "serial";
+    }
+
+    function updateModeUi() {
+      const mode = getSearchMode();
+      Object.entries(panels).forEach(([key, el) => {
+        el.classList.toggle("active", key === mode);
+      });
+      if (mode === "serial") {
+        modeHint.textContent = "Busca pelo serial do aparelho. Duplicatas priorizam registro com prod_cprod.";
+        setTimeout(() => document.getElementById("inputSerial")?.focus(), 0);
+      } else if (mode === "numero") {
+        modeHint.textContent = "HU (hu_id) é único. Número doc (numero) só funciona se houver um único aparelho.";
+        setTimeout(() => document.getElementById("inputNumero")?.focus(), 0);
+      } else {
+        modeHint.textContent = "Informe o número do documento (campo numero) e o prod_cprod para vincular o item.";
+        setTimeout(() => document.getElementById("inputNumeroDoc")?.focus(), 0);
+      }
+    }
+
+    function updateLabelView() {
+      if (!state.current) return;
+      const serial = norm(state.current.serial);
+      const descricaoBase = resolveDescricao(state.current);
+      const descricaoComposta = buildDescricao(descricaoBase);
+
+      resultBox.hidden = false;
+      resultBox.innerHTML = `
+        <p><strong>Serial:</strong> ${serial}</p>
+        <p><strong>HU:</strong> ${state.current.hu_id ?? "—"}</p>
+        <p><strong>Número (doc):</strong> ${state.current.numero ?? "—"}</p>
+        <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "—"}</p>
+        <p><strong>Descricao base:</strong> ${descricaoBase}</p>
+        <p><strong>Descricao na etiqueta:</strong> ${descricaoComposta}</p>
+        <p><strong>Recebido:</strong> ${state.current.recebido === "S" ? "Sim" : state.current.recebido || "—"}</p>
+      `;
+
+      labelDesc.textContent = formatDescricao(descricaoComposta);
+      labelSerial.textContent = `Serial: ${serial}`;
+    }
+
+    function renderCurrent(item) {
+      state.current = item;
+      const serial = norm(item.serial);
+      if (!serial) {
+        setStatus("Registro sem serial — não é possível gerar código de barras.", true);
+        return;
+      }
+
+      try {
+        JsBarcode(barcodeEl, serial, {
+          format: "CODE128",
+          displayValue: false,
+          width: 1.6,
+          height: 36,
+          margin: 0
+        });
+      } catch (error) {
+        setStatus("Serial invalido para codigo de barras.", true);
+        return;
+      }
+
+      updateLabelView();
+    }
+
+    function matchesHuOrId(item, typed) {
+      const t = norm(typed);
+      if (!t) return false;
+      if (String(item.hu_id ?? "") === t) return true;
+      if (String(item.nr_item_id ?? "") === t) return true;
+      const nHu = Number(t);
+      if (Number.isFinite(nHu) && Number(item.hu_id) === nHu) return true;
+      return false;
+    }
+
+    function searchBySerial() {
+      const typed = norm(document.getElementById("inputSerial").value);
+      if (!typed) {
+        setStatus("Informe o serial.", true);
+        return null;
+      }
+      const matches = state.rows.filter((item) => norm(item.serial) === typed);
+      return { matches, label: "Serial" };
+    }
+
+    function searchByNumero() {
+      const typed = norm(document.getElementById("inputNumero").value);
+      if (!typed) {
+        setStatus("Informe o número.", true);
+        return null;
+      }
+
+      let matches = state.rows.filter((item) => matchesHuOrId(item, typed));
+      if (matches.length) {
+        return { matches, label: "Número HU" };
+      }
+
+      matches = state.rows.filter((item) => normKey(item.numero) === normKey(typed));
+      if (matches.length > 1) {
+        setStatus(
+          `Número doc ${typed}: ${matches.length} aparelhos. Use serial, HU ou prod_cprod + número.`,
+          true
+        );
+        return null;
+      }
+      if (matches.length === 1) {
+        return { matches, label: "Número doc" };
+      }
+
+      setStatus("Número não encontrado (HU, nr_item ou doc).", true);
+      return null;
+    }
+
+    function searchByProdCprod() {
+      const numeroDoc = norm(document.getElementById("inputNumeroDoc").value);
+      const prod = norm(document.getElementById("inputProdCprod").value);
+      if (!numeroDoc || !prod) {
+        setStatus("Informe o número (doc) e o prod_cprod.", true);
+        return null;
+      }
+      const matches = state.rows.filter((item) =>
+        normKey(item.numero) === normKey(numeroDoc) &&
+        normKey(item.prod_cprod) === normKey(prod)
+      );
+      return { matches, label: "prod_cprod" };
+    }
+
+    async function runSearch() {
+      if (!state.rows.length) {
+        await loadData(false);
+        if (!state.rows.length) return;
+      }
+
+      const mode = getSearchMode();
+      const result =
+        mode === "serial" ? searchBySerial() :
+        mode === "numero" ? searchByNumero() :
+        searchByProdCprod();
+
+      if (!result) return;
+
+      const { matches, label } = result;
+      if (!matches.length) {
+        resultBox.hidden = true;
+        state.current = null;
+        setStatus(`${label} não encontrado na base carregada.`, true);
+        return;
+      }
+
+      const found = pickBestMatch(matches);
+      renderCurrent(found);
+      const dupNote = matches.length > 1 ? ` (${matches.length} registros; priorizado prod_cprod)` : "";
+      setStatus(`${label} encontrado${dupNote}.`);
+    }
+
+    function printLabel() {
+      if (!state.current) {
+        setStatus("Busque um item antes de imprimir.", true);
+        return;
+      }
+      window.print();
+    }
+
+    document.querySelectorAll('input[name="searchMode"]').forEach((el) => {
+      el.addEventListener("change", updateModeUi);
+    });
+
+    btnLoadData.addEventListener("click", () => { void loadData(true); });
+    btnSearch.addEventListener("click", () => { void runSearch(); });
+    btnPrint.addEventListener("click", printLabel);
+    extraField1.addEventListener("input", updateLabelView);
+    extraField2.addEventListener("input", updateLabelView);
+
+    ["inputSerial", "inputNumero", "inputNumeroDoc", "inputProdCprod"].forEach((id) => {
+      document.getElementById(id).addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void runSearch();
+        }
+      });
+    });
+
+    updateModeUi();
+    void loadData(true);
+  })();
+  </script>
+</body>
+</html>
