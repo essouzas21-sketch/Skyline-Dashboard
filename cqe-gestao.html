@@ -1219,6 +1219,16 @@
         grace: "12%",
         ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 }
       };
+      const xPctScale = {
+        min: 0,
+        max: 100,
+        grace: "8%",
+        ticks: {
+          ...tickSmall,
+          callback: (v) => `${v}%`,
+          maxTicksLimit: 6
+        }
+      };
 
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
@@ -1263,17 +1273,15 @@
       renderMotivosFunnel(reprovados);
 
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const taxaReprov = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
-      const taxaByNome = new Map(taxaReprov.map((x) => [x.nome, x]));
-      const ranking = YardexDash.aggregateCount(reprovContaveis, (r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final));
+      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered).filter((x) => x.reprov > 0);
       destroyChart("ranking");
       charts.ranking = new Chart(document.getElementById("chartRanking"), {
         type: "bar",
         data: {
-          labels: ranking.map(([nome]) => nome),
+          labels: ranking.map((x) => x.nome),
           datasets: [{
-            label: "Reprovados",
-            data: ranking.map(([, qtd]) => qtd),
+            label: "Taxa reprovação %",
+            data: ranking.map((x) => x.pct),
             backgroundColor: SKY.red,
             borderRadius: 4
           }]
@@ -1294,25 +1302,16 @@
                   offset: 0,
                   color: "#ffffff",
                   font: { weight: "700", size: 9 },
-                  display: (ctx) => {
-                    const bucket = ranking[ctx.dataIndex]?.[0];
-                    const row = bucket ? taxaByNome.get(bucket) : null;
-                    return Boolean(row && row.pct > 0 && Number(ctx.dataset.data[ctx.dataIndex]) > 0);
-                  },
-                  formatter: (_v, ctx) => {
-                    const bucket = ranking[ctx.dataIndex]?.[0];
-                    const row = bucket ? taxaByNome.get(bucket) : null;
-                    return row ? `${Number(row.pct).toFixed(1).replace(".", ",")}%` : "";
-                  }
+                  display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                  formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
                 },
                 qtd: {
                   ...dataLabelBase,
                   color: SKY.red,
                   display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                  formatter: (v, ctx) => {
-                    const bucket = ranking[ctx.dataIndex]?.[0];
-                    const row = bucket ? taxaByNome.get(bucket) : null;
-                    return row ? `${row.reprov}/${row.total}` : v;
+                  formatter: (_v, ctx) => {
+                    const row = ranking[ctx.dataIndex];
+                    return row ? `${row.reprov}/${row.total}` : "";
                   }
                 }
               }
@@ -1320,12 +1319,12 @@
           },
           elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
           scales: {
-            x: xCountScale,
+            x: xPctScale,
             y: yBarScale(ranking.length)
           },
           onClick: (_, elems) => {
             if (!elems.length) return;
-            const nome = ranking[elems[0].index][0];
+            const nome = ranking[elems[0].index].nome;
             openDrill(
               `${nome} — reprovações`,
               reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
@@ -1335,7 +1334,7 @@
       });
       bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
         reprovContaveis.filter((r) =>
-          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.[0] || "")
+          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
         )
       );
 
