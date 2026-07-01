@@ -313,10 +313,10 @@
       color: var(--gm-muted);
     }
 
-    /* ── Zona 3: 5 gráficos na mesma linha ── */
+    /* ── Zona 3: 4 gráficos na mesma linha ── */
     .gm-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: minmax(0, 1fr);
       gap: 5px;
       flex: 1 1 0;
@@ -706,10 +706,6 @@
       <div class="gm-panel">
         <h2>Reprov. marca</h2>
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
-      </div>
-      <div class="gm-panel gm-panel--ranking">
-        <h2>Taxa reprov.</h2>
-        <div class="chart-box"><canvas id="chartTaxaReprov"></canvas></div>
       </div>
     </section>
   </div>
@@ -1261,6 +1257,8 @@
       renderMotivosFunnel(reprovados);
 
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const taxaReprov = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
+      const taxaByNome = new Map(taxaReprov.map((x) => [x.nome, x]));
       const ranking = YardexDash.aggregateCount(reprovContaveis, (r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final));
       destroyChart("ranking");
       charts.ranking = new Chart(document.getElementById("chartRanking"), {
@@ -1278,8 +1276,42 @@
           indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { ...barLayoutPad, top: 6 } },
-          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.red) },
+          layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              labels: {
+                pct: {
+                  clip: false,
+                  anchor: "center",
+                  align: "center",
+                  offset: 0,
+                  color: "#ffffff",
+                  font: { weight: "700", size: 9 },
+                  display: (ctx) => {
+                    const bucket = ranking[ctx.dataIndex]?.[0];
+                    const row = bucket ? taxaByNome.get(bucket) : null;
+                    return Boolean(row && row.pct > 0 && Number(ctx.dataset.data[ctx.dataIndex]) > 0);
+                  },
+                  formatter: (_v, ctx) => {
+                    const bucket = ranking[ctx.dataIndex]?.[0];
+                    const row = bucket ? taxaByNome.get(bucket) : null;
+                    return row ? `${Number(row.pct).toFixed(1).replace(".", ",")}%` : "";
+                  }
+                },
+                qtd: {
+                  ...dataLabelBase,
+                  color: SKY.red,
+                  display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                  formatter: (v, ctx) => {
+                    const bucket = ranking[ctx.dataIndex]?.[0];
+                    const row = bucket ? taxaByNome.get(bucket) : null;
+                    return row ? `${row.reprov}/${row.total}` : v;
+                  }
+                }
+              }
+            }
+          },
           elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
           scales: {
             x: xCountScale,
@@ -1333,70 +1365,6 @@
       });
       bindRichTooltip(document.getElementById("chartMarca"), (idx) =>
         reprovados.filter((r) => (r.marca || "Outros") === (byMarca[idx]?.[0] || ""))
-      );
-
-      const taxaTecRows = metrics.filtered.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const taxaReprov = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
-      destroyChart("taxaReprov");
-      charts.taxaReprov = new Chart(document.getElementById("chartTaxaReprov"), {
-        type: "bar",
-        data: {
-          labels: taxaReprov.map((x) => x.nome),
-          datasets: [{
-            label: "Taxa reprovação %",
-            data: taxaReprov.map((x) => x.pct),
-            backgroundColor: taxaReprov.map((x) =>
-              x.pct >= 20 ? SKY.red : x.pct >= 10 ? SKY.amber : SKY.accent
-            ),
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
-          plugins: {
-            legend: { display: false },
-            datalabels: {
-              ...dataLabelBase,
-              color: SKY.red,
-              display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-              formatter: (v, ctx) => {
-                const row = taxaReprov[ctx.dataIndex];
-                const pct = `${Number(v).toFixed(1).replace(".", ",")}%`;
-                return row ? `${pct} (${row.reprov}/${row.total})` : pct;
-              }
-            }
-          },
-          elements: { bar: { barThickness: taxaReprov.length > 8 ? 10 : 14, maxBarThickness: 16 } },
-          scales: {
-            x: {
-              min: 0,
-              max: 100,
-              grace: "8%",
-              ticks: {
-                ...tickSmall,
-                callback: (v) => `${v}%`,
-                maxTicksLimit: 6
-              }
-            },
-            y: yBarScale(taxaReprov.length)
-          },
-          onClick: (_, elems) => {
-            if (!elems.length) return;
-            const nome = taxaReprov[elems[0].index].nome;
-            openDrill(
-              `${nome} — inspeções`,
-              taxaTecRows.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
-            );
-          }
-        }
-      });
-      bindRichTooltip(document.getElementById("chartTaxaReprov"), (idx) =>
-        taxaTecRows.filter((r) =>
-          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, taxaReprov[idx]?.nome || "")
-        )
       );
 
       requestAnimationFrame(() => {
