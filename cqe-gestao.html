@@ -461,12 +461,18 @@
       padding: 6px 10px;
       border-bottom: 1px solid var(--gm-border);
       text-align: left;
+      color: #111827;
     }
 
     .gm-modal-body th {
       background: var(--gm-surface);
       position: sticky;
       top: 0;
+    }
+
+    .gm-modal-body td.col-motivo {
+      color: var(--gm-red);
+      font-weight: 600;
     }
 
     .empty-gm {
@@ -1104,7 +1110,7 @@
             <td>${escapeHtml(r.tecnico)}</td>
             <td>${escapeHtml(r.usuario)}</td>
             <td>${escapeHtml(r.decisao)}</td>
-            <td>${escapeHtml(r.motivo)}</td>
+            <td class="col-motivo">${escapeHtml(r.motivo)}</td>
             <td>${r.tempo_reparo_ms != null ? YardexDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
             <td>${r.tempo_ate_qc_ms != null ? YardexDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
           </tr>
