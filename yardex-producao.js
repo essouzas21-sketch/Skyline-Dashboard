@@ -5,6 +5,7 @@ const ProducaoDash = {
   USER_FILTERS: {
     android: [
       "claudia paz",
+      "thaís mazoline",
       "fernanda maria",
       "Francisco Chagas",
       "Karoline Alexandre",
@@ -13,20 +14,18 @@ const ProducaoDash = {
       "Viviane Ferreira"
     ],
     iphone: [
-      "thaís mazoline",
       "noemi firmo",
       "fran dias"
     ]
   },
 
-  /** TVs Produção Android — consolidado soma os 7 colaboradores (USER_FILTERS.android). */
+  /** TVs Produção Android — consolidado soma USER_FILTERS.android. */
   ANDROID_PANELS: [
     {
       id: "q1",
       title: "Quadro 1",
-      subtitle: "Claudia · Karoline · Francisco",
+      subtitle: "Karoline · Francisco",
       users: [
-        { match: "claudia paz", label: "Claudia" },
         { match: "Karoline Alexandre", label: "Karoline" },
         { match: "Francisco Chagas", label: "Francisco" }
       ]
@@ -54,15 +53,23 @@ const ProducaoDash = {
       title: "Quadro 4",
       subtitle: "Reservado",
       users: []
+    },
+    {
+      id: "q5",
+      title: "Quadro 5",
+      subtitle: "Claudia · Thaís",
+      users: [
+        { match: "claudia paz", label: "Claudia" },
+        { match: "thaís mazoline", label: "Thaís" }
+      ]
     }
   ],
 
   IPHONE_PANEL: {
     id: "iphone",
     title: "iPhone",
-    subtitle: "Thaís · Noemi · Fran",
+    subtitle: "Noemi · Fran",
     users: [
-      { match: "thaís mazoline", label: "Thaís" },
       { match: "noemi firmo", label: "Noemi" },
       { match: "fran dias", label: "Fran" }
     ]

@@ -28,6 +28,7 @@ const YardexDash = {
     "producao-diversas-2.html",
     "producao-diversas-3.html",
     "producao-diversas-4.html",
+    "producao-diversas-5.html",
     "producao-iphone.html",
     "cqe.html",
     "consolidado.html"
