@@ -254,6 +254,14 @@ const YardexDash = {
     return norm === "teste";
   },
 
+  /** Gráfico de motivos CQE — agrupa e exibe só a primeira palavra. */
+  cqeMotivoChartKey(motivo) {
+    const s = String(motivo || "").trim();
+    if (!s) return "Sem";
+    const word = s.split(/\s+/)[0];
+    return word || "Sem";
+  },
+
   normCqeUserKey(name) {
     return String(name || "")
       .trim()

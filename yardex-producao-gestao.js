@@ -392,7 +392,9 @@ const ProducaoGestao = {
           plugins: {
             legend: { display: false },
             datalabels: {
-              anchor: "end", align: "end",
+              anchor: "center",
+              align: "center",
+              color: "#fff",
               formatter: (v) => v > 0 ? v.toFixed(2).replace(".", ",") : "—",
               font: { size: 9, weight: "700" }
             }
@@ -430,7 +432,9 @@ const ProducaoGestao = {
           plugins: {
             legend: { display: false },
             datalabels: {
-              anchor: "end", align: "end",
+              anchor: "center",
+              align: "center",
+              color: "#fff",
               formatter: (v) => v > 0 ? `${String(v).replace(".", ",")} min` : "—",
               font: { size: 9, weight: "700" }
             }
