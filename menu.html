@@ -122,6 +122,13 @@
 
     .menu-btn.gestao-reparo .badge { color: #b45309; }
 
+    .menu-btn.doc-iso {
+      border-color: rgba(21, 128, 61, 0.28);
+      background: linear-gradient(135deg, #ffffff 0%, #eefaf2 100%);
+    }
+
+    .menu-btn.doc-iso .badge { color: #15803d; }
+
     .menu-btn {
       display: flex;
       flex-direction: column;
@@ -248,6 +255,18 @@
       <a class="menu-btn ready" href="producao-iphone-gestao.html">
         iPhone — Gestão
         <span class="badge">Noemi · Fran</span>
+      </a>
+    </nav>
+
+    <p class="menu-section-label">Documentação</p>
+    <nav class="menu-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 520px; margin: 0 auto;">
+      <a class="menu-btn ready doc-iso" href="DOCUMENTACAO-ISO-AUDIT.pdf" download="SKY-BI-DOC-001-Skyline-Dashboard.pdf">
+        Baixar PDF — Auditoria ISO
+        <span class="badge">SKY-BI-DOC-001 · v1.0</span>
+      </a>
+      <a class="menu-btn ready" href="DOCUMENTACAO-ISO-AUDIT.md" target="_blank" rel="noopener">
+        Ver Markdown
+        <span class="badge">Fonte editável</span>
       </a>
     </nav>
   </div>
