@@ -11,23 +11,22 @@
   <script src="yardex-dash.js?v=52"></script>
   <style>
     :root {
-      --gm-bg: var(--bg);
-      --gm-card: var(--card);
-      --gm-border: rgba(105, 73, 146, 0.16);
-      --gm-text: var(--text-on-card);
-      --gm-muted: var(--muted);
-      --gm-primary: var(--accent-strong);
-      --gm-accent: var(--accent);
+      --gm-page: #f4f5f7;
+      --gm-card: #ffffff;
+      --gm-border: rgba(15, 23, 42, 0.08);
+      --gm-text: #1e293b;
+      --gm-muted: #64748b;
+      --gm-primary: #5b4a8a;
+      --gm-accent: #7c6aad;
       --gm-green: #15803d;
       --gm-red: #dc2626;
       --gm-amber: #b45309;
-      --gm-shadow: var(--shadow);
-      --gm-surface: #faf8fc;
-      --gm-surface-2: #f3eef9;
-      --gm-pad-x: 10px;
-      --gm-pad-y: 3px;
-      --gm-gap: 3px;
-      --gm-radius: 6px;
+      --gm-teal: #0f766e;
+      --gm-slate: #334155;
+      --gm-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
+      --gm-surface: #f8fafc;
+      --gm-radius: 10px;
+      --gm-gap: 10px;
     }
 
     html {
@@ -39,12 +38,14 @@
       min-height: 100vh;
       max-height: 100vh;
       overflow: hidden;
-      background: var(--gm-bg);
-      color: var(--text-on-bg);
-      padding: 5px 12px 6px;
+      background: var(--gm-page);
+      color: var(--gm-text);
+      padding: 12px 16px 14px;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
+      border-left: none;
+      border-right: none;
     }
 
     .cqe-gestao-page .page {
@@ -55,24 +56,22 @@
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: var(--gm-gap);
       overflow: hidden;
       min-height: 0;
       flex: 1 1 0;
     }
 
-    /* ── Zona 1: topbar (1 linha) ── */
+    /* ── Zona 1: toolbar unificada ── */
     .gm-topbar {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       align-items: flex-end;
-      justify-content: space-between;
-      gap: 8px;
+      gap: 12px;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
-      border-top: 3px solid var(--gm-primary);
       border-radius: var(--gm-radius);
-      padding: 5px 8px;
+      padding: 10px 12px;
       box-shadow: var(--gm-shadow);
       flex: 0 0 auto;
       color: var(--gm-text);
@@ -81,8 +80,10 @@
 
     .gm-topbar .title-block {
       flex: 0 0 auto;
-      min-width: 150px;
-      max-width: 200px;
+      min-width: 160px;
+      max-width: 220px;
+      padding-right: 8px;
+      border-right: 1px solid var(--gm-border);
     }
 
     .gm-topbar .back {
@@ -94,7 +95,7 @@
 
     .gm-topbar h1 {
       margin: 2px 0 0;
-      font-size: 0.88rem;
+      font-size: 0.95rem;
       font-weight: 700;
       letter-spacing: -0.02em;
       white-space: nowrap;
@@ -103,8 +104,8 @@
 
     .gm-topbar .subtitle {
       margin: 0;
-      font-size: 0.58rem;
-      color: var(--gm-primary);
+      font-size: 0.62rem;
+      color: var(--gm-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -112,20 +113,40 @@
 
     .gm-filters {
       display: flex;
-      flex-wrap: nowrap;
-      gap: 4px;
+      flex-wrap: wrap;
+      gap: 10px;
       align-items: flex-end;
-      overflow-x: auto;
       flex: 1 1 0;
       min-width: 0;
-      padding-bottom: 1px;
+    }
+
+    .gm-filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: flex-end;
+      padding: 4px 8px;
+      background: var(--gm-surface);
+      border: 1px solid var(--gm-border);
+      border-radius: 8px;
+    }
+
+    .gm-filter-group::before {
+      content: attr(data-label);
+      flex: 0 0 100%;
+      font-size: 0.52rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gm-muted);
+      margin-bottom: 1px;
     }
 
     .gm-filters label {
       display: flex;
       flex-direction: column;
-      gap: 1px;
-      font-size: 0.5rem;
+      gap: 2px;
+      font-size: 0.55rem;
       font-weight: 600;
       color: var(--gm-muted);
       text-transform: uppercase;
@@ -135,30 +156,50 @@
 
     .gm-filters input,
     .gm-filters select {
-      min-width: 76px;
-      max-width: 100px;
-      padding: 3px 5px;
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
+      height: 28px;
+      padding: 4px 8px;
       border: 1px solid var(--gm-border);
-      border-radius: 5px;
-      font-size: 0.65rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
       background: #fff;
       color: var(--gm-text);
     }
 
+    .gm-filters input[type="date"] {
+      width: 124px;
+      min-width: 124px;
+      max-width: 124px;
+    }
+
+    .gm-topbar-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex: 0 0 auto;
+      padding-left: 4px;
+    }
+
+    .gm-topbar-actions button,
     .gm-filters button {
-      padding: 4px 7px;
-      border-radius: 5px;
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 6px;
       border: 1px solid var(--gm-border);
       background: #fff;
-      font-size: 0.65rem;
+      font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
+      color: var(--gm-text);
     }
 
+    .gm-topbar-actions button.primary,
     .gm-filters button.primary {
-      background: var(--gm-bg);
-      border-color: var(--gm-bg);
+      background: var(--gm-primary);
+      border-color: var(--gm-primary);
       color: #fff;
     }
 
@@ -167,14 +208,14 @@
       flex: 0 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: var(--gm-gap);
       min-width: 0;
     }
 
     .gm-hero {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
-      gap: 5px;
+      grid-template-columns: 1.2fr 1fr 1fr 1.15fr 1.15fr 1.35fr;
+      gap: var(--gm-gap);
       min-width: 0;
     }
 
@@ -182,26 +223,33 @@
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
       border-radius: var(--gm-radius);
-      padding: 4px 6px;
+      padding: 10px 12px;
       box-shadow: var(--gm-shadow);
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 4px;
       min-width: 0;
       color: var(--gm-text);
     }
 
+    .gm-kpi .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
     .gm-kpi .kpi-icon {
-      font-size: 0.62rem;
-      opacity: 0.85;
+      font-size: 0.7rem;
+      opacity: 0.8;
       flex-shrink: 0;
     }
 
     .gm-kpi .kpi-label {
-      font-size: 0.46rem;
+      font-size: 0.58rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
       color: var(--gm-muted);
       white-space: nowrap;
       overflow: hidden;
@@ -209,36 +257,108 @@
     }
 
     .gm-kpi .kpi-value {
-      font-size: 0.95rem;
+      font-size: 1.35rem;
       font-weight: 800;
       line-height: 1.1;
       letter-spacing: -0.03em;
+      color: var(--gm-slate);
     }
 
     .gm-kpi .kpi-hint {
-      display: none;
+      font-size: 0.62rem;
+      color: var(--gm-muted);
     }
 
     .gm-kpi .kpi-delta {
-      font-size: 0.58rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.68rem;
       font-weight: 700;
     }
 
-    .gm-kpi.compact .kpi-value {
-      font-size: 0.82rem;
+    .gm-kpi .kpi-delta.up { color: var(--gm-green); }
+    .gm-kpi .kpi-delta.down { color: var(--gm-red); }
+    .gm-kpi .kpi-delta.neutral { color: var(--gm-muted); }
+
+    .gm-kpi.trend-card .kpi-trends {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 2px;
     }
 
-    .gm-status {
-      padding: 1px 6px;
+    .gm-kpi.trend-card .trend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.68rem;
+    }
+
+    .gm-kpi.trend-card .trend-row .trend-label {
+      color: var(--gm-muted);
+      font-weight: 600;
+    }
+
+    .gm-meta-bar {
+      height: 8px;
       border-radius: 999px;
-      font-size: 0.52rem;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .gm-meta-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--gm-green), #22c55e);
+      transition: width 0.3s ease;
+    }
+
+    .gm-meta-bar.below > span {
+      background: linear-gradient(90deg, var(--gm-amber), #f59e0b);
+    }
+
+    .gm-meta-bar.critical > span {
+      background: linear-gradient(90deg, var(--gm-red), #f87171);
+    }
+
+    .gm-status-visual {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .gm-traffic {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
+      flex-shrink: 0;
+    }
+
+    .gm-traffic.ok { background: #22c55e; }
+    .gm-traffic.warn { background: #f59e0b; }
+    .gm-traffic.bad { background: #ef4444; }
+
+    .gm-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
       font-weight: 700;
       width: fit-content;
     }
 
+    .gm-status.ok { background: #dcfce7; color: var(--gm-green); }
+    .gm-status.warn { background: #ffedd5; color: var(--gm-amber); }
+    .gm-status.bad { background: #fee2e2; color: var(--gm-red); }
+
     .gm-mid-row {
-      flex: 0 0 62px;
-      height: 62px;
+      flex: 0 0 88px;
+      height: 88px;
       width: 100%;
       min-height: 0;
     }
@@ -248,22 +368,23 @@
       height: 100%;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
-      border-top: 3px solid var(--gm-accent);
+      border-top: 2px solid var(--gm-teal);
       border-radius: var(--gm-radius);
-      padding: 4px 7px;
+      padding: 8px 12px;
       box-shadow: var(--gm-shadow);
       overflow: hidden;
       display: flex;
       flex-direction: column;
       min-height: 0;
+      gap: 6px;
     }
 
     .gm-funnel h2 {
-      margin: 0 0 3px;
-      font-size: 0.56rem;
+      margin: 0;
+      font-size: 0.62rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       color: var(--gm-muted);
       flex-shrink: 0;
     }
@@ -272,45 +393,63 @@
       display: flex;
       align-items: stretch;
       gap: 0;
-      overflow: hidden;
+      overflow-x: auto;
       flex: 1;
       min-height: 0;
     }
 
     .gm-funnel-step {
       flex: 1;
-      min-width: 0;
-      text-align: center;
-      padding: 1px 2px;
-      background: linear-gradient(180deg, var(--gm-surface) 0%, #fff 100%);
+      min-width: 72px;
+      text-align: left;
+      padding: 4px 8px;
+      background: var(--gm-surface);
       border: 1px solid var(--gm-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
     }
 
     .gm-funnel-step .step-val {
-      font-size: 0.88rem;
+      font-size: 1rem;
       font-weight: 800;
-      color: var(--gm-bg);
+      color: var(--gm-slate);
       line-height: 1.1;
     }
 
     .gm-funnel-step .step-label {
-      font-size: 0.46rem;
+      font-size: 0.58rem;
       color: var(--gm-muted);
       font-weight: 600;
       line-height: 1.1;
     }
 
     .gm-funnel-step .step-pct {
-      display: none;
+      display: block;
+      font-size: 0.55rem;
+      color: var(--gm-teal);
+      font-weight: 700;
     }
 
     .gm-funnel-arrow {
-      font-size: 0.72rem;
-      padding: 0 1px;
       flex-shrink: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      min-width: 42px;
       color: var(--gm-muted);
+      font-size: 0.72rem;
+    }
+
+    .gm-funnel-arrow .conv {
+      font-size: 0.55rem;
+      font-weight: 800;
+      color: var(--gm-primary);
+      white-space: nowrap;
     }
 
     /* ── Zona 3: 4 gráficos na mesma linha ── */
@@ -318,7 +457,7 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: minmax(0, 1fr);
-      gap: 5px;
+      gap: var(--gm-gap);
       flex: 1 1 0;
       height: 0;
       min-height: 0;
@@ -331,29 +470,27 @@
       min-height: 0;
       background: var(--gm-card);
       border: 1px solid var(--gm-border);
-      border-top: 3px solid var(--gm-primary);
       border-radius: var(--gm-radius);
-      padding: 4px 6px;
+      padding: 10px 12px;
       box-shadow: var(--gm-shadow);
       display: flex;
       flex-direction: column;
-      min-height: 0;
       min-width: 0;
       overflow: hidden;
       color: var(--gm-text);
     }
 
     .gm-panel--motivos {
-      border-top-color: var(--gm-red);
+      border-top: 3px solid var(--gm-red);
     }
 
     .gm-panel--ranking {
-      border-top-color: var(--gm-amber);
+      border-top: 3px solid var(--gm-amber);
     }
 
     .gm-panel h2 {
-      margin: 0 0 3px;
-      font-size: 0.52rem;
+      margin: 0 0 8px;
+      font-size: 0.68rem;
       font-weight: 700;
       color: var(--gm-text);
       flex-shrink: 0;
@@ -379,14 +516,59 @@
     }
 
     .gm-panel .panel-note {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 0.58rem;
+      color: var(--gm-muted);
+    }
+
+    .gm-ranking-card {
+      flex: 1 1 0;
       display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 6px;
+      padding: 12px;
+      background: var(--gm-surface);
+      border-radius: 8px;
+      border: 1px solid var(--gm-border);
+      cursor: pointer;
+    }
+
+    .gm-ranking-card.visible { display: flex; }
+    .gm-panel--ranking.has-card .chart-box { display: none; }
+
+    .gm-ranking-card .rk-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--gm-slate);
+    }
+
+    .gm-ranking-card .rk-ratio {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--gm-red);
+      letter-spacing: -0.03em;
+    }
+
+    .gm-ranking-card .rk-pct {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--gm-amber);
+    }
+
+    .gm-ranking-card .rk-hint {
+      font-size: 0.62rem;
+      color: var(--gm-muted);
     }
 
     .gm-tooltip {
       position: fixed;
       z-index: 300;
       max-width: 320px;
-      background: #2d1f42;
+      background: #1e293b;
       color: #fff;
       border-radius: 8px;
       padding: 10px 12px;
@@ -397,7 +579,7 @@
       display: none;
     }
 
-    .gm-tooltip strong { color: var(--gm-accent); }
+    .gm-tooltip strong { color: #a5b4fc; }
 
     .gm-modal-backdrop {
       position: fixed;
@@ -603,16 +785,21 @@
       display: none;
     }
 
-    @media (max-width: 900px) {
-      .gm-hero { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 1100px) {
+      .gm-hero { grid-template-columns: repeat(3, 1fr); }
     }
 
     .gm-panel--motivos h2 {
-      text-align: center;
+      text-align: left;
     }
 
     .gm-panel--motivos .chart-box {
       display: none;
+    }
+
+    .motivos-funnel-step {
+      clip-path: none;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -625,20 +812,24 @@
         <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
       <div class="gm-filters">
-        <label>Início <input type="date" id="dateStart" /></label>
-        <label>Fim <input type="date" id="dateEnd" /></label>
-        <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
-        <label>Técnico <select id="fTecnico"><option value="">Todos</option></select></label>
-        <label>Marca <select id="fMarca"><option value="">Todas</option></select></label>
-        <label>Tipo <select id="fTipo"><option value="">Todos</option></select></label>
-        <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
-        <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
-        <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
+        <div class="gm-filter-group" data-label="Período">
+          <label>Início <input type="date" id="dateStart" /></label>
+          <label>Fim <input type="date" id="dateEnd" /></label>
+        </div>
+        <div class="gm-filter-group" data-label="Produto / equipe">
+          <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
+          <label>Técnico <select id="fTecnico"><option value="">Todos</option></select></label>
+          <label>Marca <select id="fMarca"><option value="">Todas</option></select></label>
+          <label>Tipo <select id="fTipo"><option value="">Todos</option></select></label>
+          <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
+          <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
+          <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
+        </div>
       </div>
       <div class="gm-topbar-actions">
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
-        <button type="button" id="btnReload">↻</button>
+        <button type="button" id="btnReload" title="Recarregar dados">↻</button>
       </div>
     </header>
 
@@ -649,48 +840,42 @@
       <div class="gm-kpi aprov">
         <div class="kpi-head"><span class="kpi-label">Taxa aprovação</span><span class="kpi-icon">✓</span></div>
         <div class="kpi-value" id="kpiTaxaAprov">—</div>
-        <div class="kpi-hint" id="kpiTaxaAprovHint">Período selecionado</div>
+        <div class="kpi-hint" id="kpiTaxaAprovHint">Aprovados / inspecionados</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Inspecionados</span><span class="kpi-icon">📋</span></div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-hint" id="kpiTotalHint">No período</div>
       </div>
       <div class="gm-kpi reprov">
-        <div class="kpi-head"><span class="kpi-label">Taxa reprovação</span><span class="kpi-icon">✕</span></div>
-        <div class="kpi-value" id="kpiTaxaReprov">—</div>
+        <div class="kpi-head"><span class="kpi-label">Reprovados</span><span class="kpi-icon">✕</span></div>
+        <div class="kpi-value" id="kpiReprov">0</div>
         <div class="kpi-hint" id="kpiTaxaReprovHint">Sem motivo teste</div>
       </div>
       <div class="gm-kpi">
-        <div class="kpi-head"><span class="kpi-label">Total inspecionado</span><span class="kpi-icon">📋</span></div>
-        <div class="kpi-value" id="kpiTotal">0</div>
-        <div class="kpi-hint" id="kpiTotalHint">Distinct id/dia/decisão</div>
-      </div>
-      <div class="gm-kpi">
-        <div class="kpi-head"><span class="kpi-label">Meta aprovação</span><span class="kpi-icon">🎯</span></div>
+        <div class="kpi-head"><span class="kpi-label">Meta 90%</span><span class="kpi-icon">🎯</span></div>
         <div class="kpi-value" id="kpiMeta">90%</div>
-        <div class="kpi-hint">Configurável</div>
+        <div class="gm-meta-bar" id="kpiMetaBar"><span id="kpiMetaFill" style="width:0%"></span></div>
+        <div class="kpi-hint" id="kpiMetaHint">Progresso vs meta</div>
       </div>
       <div class="gm-kpi">
         <div class="kpi-head"><span class="kpi-label">Status</span><span class="kpi-icon">⚑</span></div>
-        <div id="kpiStatusWrap"></div>
+        <div class="gm-status-visual" id="kpiStatusWrap"></div>
         <div class="kpi-hint" id="kpiStatusHint">—</div>
       </div>
-      <div class="gm-kpi compact">
-        <div class="kpi-label">vs Ontem</div>
-        <div class="kpi-value" id="cmpOntem">—</div>
-        <div class="kpi-delta neutral" id="deltaOntem">—</div>
-      </div>
-      <div class="gm-kpi compact">
-        <div class="kpi-label">vs 7 dias</div>
-        <div class="kpi-value" id="cmp7d">—</div>
-        <div class="kpi-delta neutral" id="delta7d">—</div>
-      </div>
-      <div class="gm-kpi compact">
-        <div class="kpi-label">vs 30 dias</div>
-        <div class="kpi-value" id="cmp30d">—</div>
-        <div class="kpi-delta neutral" id="delta30d">—</div>
+      <div class="gm-kpi trend-card">
+        <div class="kpi-head"><span class="kpi-label">Tendência da taxa</span><span class="kpi-icon">↗</span></div>
+        <div class="kpi-trends">
+          <div class="trend-row"><span class="trend-label">vs ontem</span><span class="kpi-delta neutral" id="deltaOntem">—</span></div>
+          <div class="trend-row"><span class="trend-label">vs 7 dias</span><span class="kpi-delta neutral" id="delta7d">—</span></div>
+          <div class="trend-row"><span class="trend-label">vs 30 dias</span><span class="kpi-delta neutral" id="delta30d">—</span></div>
+        </div>
       </div>
     </section>
 
     <div class="gm-mid-row">
       <section class="gm-funnel">
-        <h2>Retrabalho</h2>
+        <h2>Fluxo de retrabalho</h2>
         <div class="gm-funnel-track" id="funnelTrack"></div>
       </section>
     </div>
@@ -698,19 +883,24 @@
 
     <section class="gm-grid">
       <div class="gm-panel">
-        <h2>Qualidade — aprov.</h2>
+        <h2>Qualidade — aprovados</h2>
+        <p class="panel-note">Eixo X: quantidade de aprovações</p>
         <div class="chart-box"><canvas id="chartQualAprov"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--motivos">
-        <h2 id="motivosFunnelTitle">Motivos reprov.</h2>
+        <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
+        <p class="panel-note">Largura proporcional ao volume · % do total</p>
         <div class="motivos-funnel" id="motivosFunnel"></div>
       </div>
-      <div class="gm-panel gm-panel--ranking">
-        <h2>Ranking reprov.</h2>
+      <div class="gm-panel gm-panel--ranking" id="rankingPanel">
+        <h2>Ranking reprovação</h2>
+        <p class="panel-note" id="rankingNote">Taxa % e volume (reprov / total)</p>
+        <div class="gm-ranking-card" id="rankingCard"></div>
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
-        <h2>Reprov. marca</h2>
+        <h2>Reprovações por marca</h2>
+        <p class="panel-note">Eixo X: quantidade de reprovações</p>
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
     </section>
@@ -752,14 +942,15 @@
     const DATE_FIELD = "data_qualidade";
     const META_APROVACAO = 90;
     const SKY = {
-      bg: "#694992",
-      strong: "#8b6bb8",
-      accent: "#c4a8e8",
-      fill: "rgba(105, 73, 146, 0.15)",
+      bg: "#5b4a8a",
+      strong: "#334155",
+      accent: "#7c6aad",
+      fill: "rgba(15, 118, 110, 0.15)",
       green: "#15803d",
       red: "#dc2626",
       amber: "#b45309",
-      surface: "#faf8fc"
+      teal: "#0f766e",
+      surface: "#f8fafc"
     };
     const USUARIOS_EXCLUIDOS_APROV = new Set([
       "ewerton souza",
@@ -881,11 +1072,12 @@
     }
 
     function fmtDelta(current, ref, suffix = " p.p.") {
-      if (ref == null || current == null) return { text: "—", cls: "neutral" };
+      if (ref == null || current == null) return { text: "—", cls: "neutral", arrow: "" };
       const d = current - ref;
       const sign = d > 0 ? "+" : "";
       const cls = d > 0.05 ? "up" : d < -0.05 ? "down" : "neutral";
-      return { text: `${sign}${d.toFixed(1).replace(".", ",")}${suffix}`, cls };
+      const arrow = d > 0.05 ? "↑" : d < -0.05 ? "↓" : "→";
+      return { text: `${arrow} ${sign}${d.toFixed(1).replace(".", ",")}${suffix}`, cls, arrow };
     }
 
     function addDays(iso, delta) {
@@ -992,12 +1184,12 @@
 
     function statusMeta(taxaAprov) {
       if (taxaAprov >= META_APROVACAO) {
-        return { label: "Dentro da Meta", cls: "ok", hint: `≥ ${META_APROVACAO}% aprovação` };
+        return { label: "Saudável", cls: "ok", hint: `≥ ${META_APROVACAO}% aprovação` };
       }
       if (taxaAprov >= META_APROVACAO - 5) {
         return { label: "Atenção", cls: "warn", hint: "Próximo do limite da meta" };
       }
-      return { label: "Crítico", cls: "crit", hint: "Abaixo da meta de qualidade" };
+      return { label: "Crítico", cls: "bad", hint: "Abaixo da meta de qualidade" };
     }
 
     function applyUiFilters(rows) {
@@ -1130,14 +1322,19 @@
         { label: "Sucata", val: funnel.sucata }
       ];
       document.getElementById("funnelTrack").innerHTML = steps.map((s, i) => {
-        const pct = fmtPct(s.val, base, 0);
-        const arrow = i < steps.length - 1 ? `<div class="gm-funnel-arrow">→</div>` : "";
+        const pctOfEntry = fmtPct(s.val, base, 0);
+        const arrow = i < steps.length - 1
+          ? (() => {
+              const next = steps[i + 1].val;
+              const c = s.val > 0 ? Math.round((next / s.val) * 100) : 0;
+              return `<div class="gm-funnel-arrow"><span class="conv">${c}%</span><span>→</span></div>`;
+            })()
+          : "";
         return `
-          ${i ? "" : ""}
           <div class="gm-funnel-step">
             <div class="step-val">${s.val}</div>
             <div class="step-label">${s.label}</div>
-            <div class="step-pct">${pct} do total</div>
+            <div class="step-pct">${pctOfEntry} do fluxo</div>
           </div>${arrow}
         `;
       }).join("");
@@ -1148,8 +1345,8 @@
       const title = document.getElementById("motivosFunnelTitle");
       const motivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo);
       const colors = [
-        "#694992", "#8b6bb8", "#5c3d7a", "#a78bca", "#c4a8e8",
-        "#7c5294", "#9d7bb8", "#dc2626", "#b45309"
+        "#0f766e", "#334155", "#b45309", "#dc2626", "#5b4a8a",
+        "#0369a1", "#7c3aed", "#be123c", "#047857"
       ];
 
       if (!motivos.length) {
@@ -1253,7 +1450,10 @@
           layout: { padding: barLayoutPad },
           plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.green) },
           scales: {
-            x: xCountScale,
+            x: {
+              ...xCountScale,
+              title: { display: true, text: "Qtd. aprovações", font: { size: 9 }, color: "#64748b" }
+            },
             y: yBarScale(qualAprov.length)
           },
           onClick: (_, elems) => {
@@ -1275,68 +1475,96 @@
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
       const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered).filter((x) => x.reprov > 0);
       destroyChart("ranking");
-      charts.ranking = new Chart(document.getElementById("chartRanking"), {
-        type: "bar",
-        data: {
-          labels: ranking.map((x) => x.nome),
-          datasets: [{
-            label: "Taxa reprovação %",
-            data: ranking.map((x) => x.pct),
-            backgroundColor: SKY.red,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
-          plugins: {
-            legend: { display: false },
-            datalabels: {
-              labels: {
-                pct: {
-                  clip: false,
-                  anchor: "center",
-                  align: "center",
-                  offset: 0,
-                  color: "#ffffff",
-                  font: { weight: "700", size: 9 },
-                  display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                  formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
-                },
-                qtd: {
-                  ...dataLabelBase,
-                  color: SKY.red,
-                  display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                  formatter: (_v, ctx) => {
-                    const row = ranking[ctx.dataIndex];
-                    return row ? `${row.reprov}/${row.total}` : "";
+      const rankingPanel = document.getElementById("rankingPanel");
+      const rankingCard = document.getElementById("rankingCard");
+      const rankingNote = document.getElementById("rankingNote");
+
+      if (ranking.length === 1) {
+        rankingPanel.classList.add("has-card");
+        const row = ranking[0];
+        rankingCard.classList.add("visible");
+        rankingCard.innerHTML = `
+          <div class="rk-name">${escapeHtml(row.nome)}</div>
+          <div class="rk-ratio">${row.reprov}/${row.total}</div>
+          <div class="rk-pct">${Number(row.pct).toFixed(1).replace(".", ",")}%</div>
+          <div class="rk-hint">Taxa de reprovação no período</div>
+        `;
+        rankingNote.textContent = "Card direto — único técnico com reprovações";
+        rankingCard.onclick = () => openDrill(
+          `${row.nome} — reprovações`,
+          reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, row.nome))
+        );
+      } else {
+        rankingPanel.classList.remove("has-card");
+        rankingCard.classList.remove("visible");
+        rankingCard.innerHTML = "";
+        rankingNote.textContent = "Barras: taxa % · rótulo: reprov / total";
+        charts.ranking = new Chart(document.getElementById("chartRanking"), {
+          type: "bar",
+          data: {
+            labels: ranking.map((x) => x.nome),
+            datasets: [{
+              label: "Taxa reprovação %",
+              data: ranking.map((x) => x.pct),
+              backgroundColor: SKY.red,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                labels: {
+                  pct: {
+                    clip: false,
+                    anchor: "center",
+                    align: "center",
+                    offset: 0,
+                    color: "#ffffff",
+                    font: { weight: "700", size: 9 },
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
+                  },
+                  qtd: {
+                    ...dataLabelBase,
+                    color: SKY.red,
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (_v, ctx) => {
+                      const row = ranking[ctx.dataIndex];
+                      return row ? `${row.reprov}/${row.total}` : "";
+                    }
                   }
                 }
               }
+            },
+            elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
+            scales: {
+              x: {
+                ...xPctScale,
+                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 9 }, color: "#64748b" }
+              },
+              y: yBarScale(ranking.length)
+            },
+            onClick: (_, elems) => {
+              if (!elems.length) return;
+              const nome = ranking[elems[0].index].nome;
+              openDrill(
+                `${nome} — reprovações`,
+                reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
+              );
             }
-          },
-          elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
-          scales: {
-            x: xPctScale,
-            y: yBarScale(ranking.length)
-          },
-          onClick: (_, elems) => {
-            if (!elems.length) return;
-            const nome = ranking[elems[0].index].nome;
-            openDrill(
-              `${nome} — reprovações`,
-              reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
-            );
           }
-        }
-      });
-      bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
-        reprovContaveis.filter((r) =>
-          YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
-        )
-      );
+        });
+        bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
+          reprovContaveis.filter((r) =>
+            YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
+          )
+        );
+      }
 
       const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
       destroyChart("marca");
@@ -1347,7 +1575,7 @@
           datasets: [{
             label: "Reprovações",
             data: byMarca.map(([, v]) => v),
-            backgroundColor: SKY.bg,
+            backgroundColor: SKY.teal,
             borderRadius: 4
           }]
         },
@@ -1356,9 +1584,12 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: { padding: barLayoutPad },
-          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.bg) },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.teal) },
           scales: {
-            x: xCountScale,
+            x: {
+              ...xCountScale,
+              title: { display: true, text: "Qtd. reprovações", font: { size: 9 }, color: "#64748b" }
+            },
             y: yBarScale(byMarca.length)
           },
           onClick: (_, elems) => {
@@ -1385,10 +1616,6 @@
       const mOntem = computeMetrics(YardexDash.filterByDateField(rowsAll, yesterday, yesterday, DATE_FIELD));
       const m7 = computeMetrics(YardexDash.filterByDateField(rowsAll, start7, end, DATE_FIELD));
       const m30 = computeMetrics(YardexDash.filterByDateField(rowsAll, start30, end, DATE_FIELD));
-
-      document.getElementById("cmpOntem").textContent = fmtPct(mOntem.aprovado, mOntem.total);
-      document.getElementById("cmp7d").textContent = fmtPct(m7.aprovado, m7.total);
-      document.getElementById("cmp30d").textContent = fmtPct(m30.aprovado, m30.total);
 
       const d1 = fmtDelta(currentTaxa, mOntem.taxaAprov);
       const d7 = fmtDelta(currentTaxa, m7.taxaAprov);
@@ -1417,13 +1644,23 @@
       const funnel = buildRetrabalho(periodRows, allRows, start, end);
       const st = statusMeta(metrics.taxaAprov);
 
-      document.getElementById("kpiTaxaAprov").textContent = fmtPctQty(metrics.aprovado, metrics.total);
-      document.getElementById("kpiTaxaReprov").textContent = fmtPctQty(metrics.reprovado, metrics.total);
-      document.getElementById("kpiTaxaReprovHint").textContent = "Sem motivo teste";
+      document.getElementById("kpiTaxaAprov").textContent = fmtPct(metrics.aprovado, metrics.total);
+      document.getElementById("kpiReprov").textContent = metrics.reprovado;
+      document.getElementById("kpiTaxaReprovHint").textContent = `${fmtPct(metrics.reprovado, metrics.total)} do total · sem motivo teste`;
       document.getElementById("kpiTotal").textContent = metrics.total;
-      document.getElementById("kpiMeta").textContent = `${META_APROVACAO}%`;
-      document.getElementById("kpiStatusWrap").innerHTML = `<span class="gm-status ${st.cls}">${st.label}</span>`;
-      document.getElementById("kpiTaxaAprovHint").textContent = "Aprovados / total inspecionado";
+      document.getElementById("kpiMeta").textContent = `${metrics.taxaAprov.toFixed(1).replace(".", ",")}%`;
+      const metaBar = document.getElementById("kpiMetaBar");
+      const metaFill = document.getElementById("kpiMetaFill");
+      const progress = Math.min(100, Math.round((metrics.taxaAprov / META_APROVACAO) * 100));
+      metaFill.style.width = `${Math.min(100, Math.round(metrics.taxaAprov))}%`;
+      metaBar.className = "gm-meta-bar" + (st.cls === "ok" ? "" : st.cls === "warn" ? " below" : " critical");
+      document.getElementById("kpiMetaHint").textContent = `Meta ${META_APROVACAO}% · progresso ${progress}%`;
+      document.getElementById("kpiStatusWrap").innerHTML = `
+        <span class="gm-traffic ${st.cls}"></span>
+        <span class="gm-status ${st.cls}">${st.label}</span>
+      `;
+      document.getElementById("kpiStatusHint").textContent = st.hint;
+      document.getElementById("kpiTaxaAprovHint").textContent = `${metrics.aprovado} aprovados de ${metrics.total}`;
       renderCompare(end, metrics.taxaAprov, allRows);
       renderFunnel(funnel);
 
