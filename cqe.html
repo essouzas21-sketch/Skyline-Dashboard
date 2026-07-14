@@ -802,48 +802,64 @@
       border-radius: 6px;
     }
 
-    /* ═══ TV / kiosk overrides (legível a distância) ═══ */
+    /* ═══ TV 50" / kiosk — leitura a 2–4 m ═══ */
     body.cqe-tv-page.dash-page {
-      padding: 8px 12px 10px;
+      --tv-zoom: clamp(1.15, 100vh / 780, 1.5);
+      zoom: var(--tv-zoom);
+      padding: 6px 10px 6px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    body.cqe-tv-page .page {
+      gap: 8px;
     }
 
     body.cqe-tv-page .gm-topbar {
-      display: grid;
-      grid-template-columns: minmax(220px, 1.15fr) auto auto;
-      align-items: center;
-      gap: 12px 18px;
-      padding: 10px 14px;
+      display: flex;
       flex-wrap: nowrap;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 12px;
     }
 
     body.cqe-tv-page .gm-topbar .title-block {
       max-width: none;
+      min-width: 240px;
       border-right: none;
       padding-right: 0;
-    }
-
-    body.cqe-tv-page .gm-topbar h1 {
-      font-size: 1.4rem;
-      font-weight: 800;
-    }
-
-    body.cqe-tv-page .gm-topbar .subtitle {
-      font-size: 0.9rem;
-      font-weight: 600;
+      flex: 1 1 auto;
     }
 
     body.cqe-tv-page .gm-topbar .back {
-      font-size: 0.85rem;
+      display: none;
     }
 
-    body.cqe-tv-page .gm-filter-group[data-label="Produto / equipe"] {
+    body.cqe-tv-page .gm-topbar h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    body.cqe-tv-page .gm-topbar .subtitle {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--gm-text);
+      opacity: 0.75;
+    }
+
+    body.cqe-tv-page .gm-filters {
+      flex: 0 0 auto;
+    }
+
+    body.cqe-tv-page:not(.show-filters) .gm-filters {
       display: none !important;
     }
 
-    body.cqe-tv-page.show-filters .gm-filter-group[data-label="Produto / equipe"] {
+    body.cqe-tv-page.show-filters .gm-filters {
       display: flex !important;
       flex-wrap: wrap;
-      max-width: min(920px, 72vw);
+      max-width: min(980px, 70vw);
     }
 
     body.cqe-tv-page .gm-filter-group::before {
@@ -851,173 +867,202 @@
     }
 
     body.cqe-tv-page .gm-filters label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
     }
 
     body.cqe-tv-page .gm-filters input,
     body.cqe-tv-page .gm-filters select {
-      width: 148px;
-      min-width: 148px;
-      max-width: 148px;
-      height: 38px;
+      width: 140px;
+      min-width: 140px;
+      max-width: 140px;
+      height: 40px;
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     body.cqe-tv-page .gm-filters input[type="date"] {
-      width: 160px;
-      min-width: 160px;
-      max-width: 160px;
+      width: 156px;
+      min-width: 156px;
+      max-width: 156px;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions {
+      margin-left: auto;
     }
 
     body.cqe-tv-page .gm-topbar-actions button {
-      height: 38px;
-      padding: 0 16px;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-
-    body.cqe-tv-page .gm-hero {
-      gap: 12px;
-    }
-
-    body.cqe-tv-page .gm-kpi {
-      padding: 14px 16px;
-      gap: 6px;
-    }
-
-    body.cqe-tv-page .gm-kpi .kpi-label {
-      font-size: 0.82rem;
+      height: 42px;
+      padding: 0 18px;
+      font-size: 1.05rem;
       font-weight: 800;
-    }
-
-    body.cqe-tv-page .gm-kpi .kpi-value {
-      font-size: 2.25rem;
-    }
-
-    body.cqe-tv-page .gm-kpi .kpi-hint,
-    body.cqe-tv-page .gm-kpi.trend-card .trend-row {
-      font-size: 0.9rem;
-    }
-
-    body.cqe-tv-page .gm-kpi .kpi-delta {
-      font-size: 0.95rem;
-    }
-
-    body.cqe-tv-page .gm-status {
-      font-size: 1rem;
-      padding: 4px 12px;
-    }
-
-    body.cqe-tv-page .gm-traffic {
-      width: 18px;
-      height: 18px;
-    }
-
-    body.cqe-tv-page .gm-meta-bar {
-      height: 12px;
-    }
-
-    body.cqe-tv-page .gm-mid-row {
-      flex: 0 0 120px;
-      height: 120px;
-    }
-
-    body.cqe-tv-page .gm-funnel {
-      padding: 10px 14px;
-      gap: 8px;
-    }
-
-    body.cqe-tv-page .gm-funnel h2 {
-      font-size: 0.85rem;
-    }
-
-    body.cqe-tv-page .gm-funnel-step {
-      padding: 8px 10px;
-      min-width: 90px;
-    }
-
-    body.cqe-tv-page .gm-funnel-step .step-val {
-      font-size: 1.45rem;
-    }
-
-    body.cqe-tv-page .gm-funnel-step .step-label {
-      font-size: 0.8rem;
-    }
-
-    body.cqe-tv-page .gm-funnel-step .step-pct {
-      font-size: 0.75rem;
-    }
-
-    body.cqe-tv-page .gm-funnel-arrow {
-      min-width: 52px;
-      font-size: 0.95rem;
-    }
-
-    body.cqe-tv-page .gm-funnel-arrow .conv {
-      font-size: 0.8rem;
-    }
-
-    body.cqe-tv-page .gm-panel {
-      padding: 12px 14px;
-    }
-
-    body.cqe-tv-page .gm-panel h2 {
-      font-size: 0.95rem;
-      margin-bottom: 6px;
-    }
-
-    body.cqe-tv-page .gm-panel .panel-note {
-      font-size: 0.75rem;
-      margin-bottom: 4px;
-    }
-
-    body.cqe-tv-page .gm-ranking-card .rk-name {
-      font-size: 1.15rem;
-    }
-
-    body.cqe-tv-page .gm-ranking-card .rk-ratio {
-      font-size: 2.4rem;
-    }
-
-    body.cqe-tv-page .gm-ranking-card .rk-pct {
-      font-size: 1.2rem;
-    }
-
-    body.cqe-tv-page .gm-ranking-card .rk-hint {
-      font-size: 0.85rem;
-    }
-
-    body.cqe-tv-page .motivos-funnel-step {
-      height: 28px;
-      min-height: 28px;
-      font-size: 0.85rem;
-      padding: 0 12px;
-    }
-
-    body.cqe-tv-page .motivos-funnel-step .motivos-funnel-metrics {
-      font-size: 0.85rem;
-    }
-
-    @media (min-width: 1600px) {
-      body.cqe-tv-page .gm-kpi .kpi-value { font-size: 2.55rem; }
-      body.cqe-tv-page .gm-topbar h1 { font-size: 1.55rem; }
-    }
-
-    body.cqe-tv-page .gm-topbar .back {
-      display: none;
-    }
-
-    body.cqe-tv-page .last-refresh {
-      font-size: 0.95rem !important;
-      font-weight: 700;
-      opacity: 0.95;
-      padding: 4px 8px;
     }
 
     body.cqe-tv-page .gm-topbar-actions button#btnToggleFilters.primary {
       background: var(--gm-accent);
       border-color: var(--gm-accent);
+    }
+
+    body.cqe-tv-page .gm-upper {
+      gap: 8px;
+    }
+
+    body.cqe-tv-page .gm-hero {
+      gap: 10px;
+    }
+
+    body.cqe-tv-page .gm-kpi {
+      padding: 12px 14px;
+      gap: 4px;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-label {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-icon {
+      font-size: 1rem;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-value {
+      font-size: 2.85rem;
+      line-height: 1.05;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-hint,
+    body.cqe-tv-page .gm-kpi.trend-card .trend-row {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-delta {
+      font-size: 1.1rem;
+    }
+
+    body.cqe-tv-page .gm-status {
+      font-size: 1.15rem;
+      padding: 6px 14px;
+    }
+
+    body.cqe-tv-page .gm-traffic {
+      width: 22px;
+      height: 22px;
+    }
+
+    body.cqe-tv-page .gm-meta-bar {
+      height: 14px;
+      margin-top: 6px;
+    }
+
+    body.cqe-tv-page .gm-mid-row {
+      flex: 0 0 132px;
+      height: 132px;
+    }
+
+    body.cqe-tv-page .gm-funnel {
+      padding: 10px 14px;
+      gap: 6px;
+    }
+
+    body.cqe-tv-page .gm-funnel h2 {
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+    }
+
+    body.cqe-tv-page .gm-funnel-step {
+      padding: 10px 12px;
+      min-width: 100px;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-val {
+      font-size: 1.85rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-pct {
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow {
+      min-width: 56px;
+      font-size: 1.05rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow .conv {
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-grid {
+      gap: 10px;
+    }
+
+    body.cqe-tv-page .gm-panel {
+      padding: 10px 12px;
+    }
+
+    body.cqe-tv-page .gm-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-panel .panel-note {
+      display: none;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-ratio {
+      font-size: 3rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-pct {
+      font-size: 1.45rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-hint {
+      font-size: 0.95rem;
+    }
+
+    body.cqe-tv-page .motivos-funnel-step {
+      height: 36px;
+      min-height: 36px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      padding: 0 14px;
+    }
+
+    body.cqe-tv-page .motivos-funnel-step .motivos-funnel-metrics {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .last-refresh {
+      font-size: 1rem !important;
+      font-weight: 800;
+      opacity: 1;
+      padding: 6px 10px;
+      right: 12px;
+      bottom: 8px;
+    }
+
+    @media (min-height: 1000px) {
+      body.cqe-tv-page .gm-kpi .kpi-value { font-size: 3.15rem; }
+      body.cqe-tv-page .gm-topbar h1 { font-size: 1.85rem; }
+      body.cqe-tv-page .gm-mid-row { flex: 0 0 148px; height: 148px; }
     }
   </style>
 </head>
@@ -1045,9 +1090,10 @@
         </div>
       </div>
       <div class="gm-topbar-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
-        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
+        <button type="button" id="btnFullscreen" title="Tela cheia (F11)">⛶</button>
         <button type="button" id="btnReload" title="Recarregar dados">↻</button>
       </div>
     </header>
@@ -1643,14 +1689,14 @@
 
     function renderCharts(periodRows, metrics) {
       const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
-      const tickSmall = { font: { size: 12, weight: "600" } };
-      const barLayoutPad = { top: 8, bottom: 6, left: 4, right: 36 };
+      const tickSmall = { font: { size: 15, weight: "700" } };
+      const barLayoutPad = { top: 10, bottom: 8, left: 6, right: 42 };
       const dataLabelBase = {
         clip: false,
         anchor: "end",
         align: "end",
-        offset: 4,
-        font: { weight: "700", size: 12 }
+        offset: 6,
+        font: { weight: "800", size: 15 }
       };
       const dataLabelCount = (color, fmt = (v) => v) => ({
         ...dataLabelBase,
@@ -1663,14 +1709,14 @@
         offset: true,
         ticks: {
           ...tickSmall,
-          autoSkip: n > 8,
-          maxTicksLimit: 8,
-          padding: 6,
-          font: { size: n > 8 ? 11 : 13, weight: "600" },
+          autoSkip: false,
+          maxTicksLimit: 6,
+          padding: 8,
+          font: { size: 15, weight: "700" },
           callback: function (val) {
             const label = this.getLabelForValue(val);
             const s = String(label || "");
-            return s.length > 14 ? `${s.slice(0, 13)}…` : s;
+            return s.length > 12 ? `${s.slice(0, 11)}…` : s;
           }
         }
       });
@@ -1694,7 +1740,7 @@
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
       );
       const qualAprovAll = YardexDash.aggregateCount(aprovados, (r) => r.usuario);
-      const qualAprov = qualAprovAll.slice(0, 8);
+      const qualAprov = qualAprovAll.slice(0, 5);
       destroyChart("qualAprov");
       charts.qualAprov = new Chart(document.getElementById("chartQualAprov"), {
         type: "bar",
@@ -1704,9 +1750,9 @@
             label: "Aprovados",
             data: qualAprov.map(([, qtd]) => qtd),
             backgroundColor: SKY.strong,
-            borderRadius: 4,
-            barThickness: qualAprov.length > 6 ? 18 : 24,
-            maxBarThickness: 28
+            borderRadius: 6,
+            barThickness: 28,
+            maxBarThickness: 34
           }]
         },
         options: {
@@ -1718,7 +1764,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. aprovações", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
+              title: { display: false }
             },
             y: yBarScale(qualAprov.length)
           },
@@ -1737,15 +1783,17 @@
       );
       const qualPanelNote = document.getElementById("qualAprovNote");
       if (qualPanelNote) {
-        qualPanelNote.textContent = qualAprovAll.length > 8
-          ? `Top 8 de ${qualAprovAll.length} · rótulos legíveis na TV`
-          : "Aprovações por colaborador de qualidade";
+        qualPanelNote.textContent = qualAprovAll.length > 5
+          ? `Top 5 de ${qualAprovAll.length}`
+          : "Aprovações por colaborador";
       }
 
       renderMotivosFunnel(reprovados);
 
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered).filter((x) => x.reprov > 0);
+      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered)
+        .filter((x) => x.reprov > 0)
+        .slice(0, 5);
       buildReprovAlias(
         ranking.map((x) => x.nome).filter((n) => n && n !== "—" && n !== "Usuario X")
       );
@@ -1802,7 +1850,7 @@
                     align: "center",
                     offset: 0,
                     color: "#ffffff",
-                    font: { weight: "700", size: 12 },
+                    font: { weight: "800", size: 15 },
                     display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
                     formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
                   },
@@ -1822,7 +1870,7 @@
             scales: {
               x: {
                 ...xPctScale,
-                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
+                title: { display: false }
               },
               y: yBarScale(ranking.length)
             },
@@ -1865,7 +1913,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. reprovações", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
+              title: { display: false }
             },
             y: yBarScale(byMarca.length)
           },
@@ -1980,6 +2028,17 @@
       btnToggleFilters.addEventListener("click", () => {
         document.body.classList.toggle("show-filters");
         btnToggleFilters.classList.toggle("primary", document.body.classList.contains("show-filters"));
+        requestAnimationFrame(resizeAllCharts);
+      });
+    }
+
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) { /* TV browsers sem Fullscreen API: use F11 */ }
       });
     }
 
