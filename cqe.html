@@ -801,9 +801,227 @@
       clip-path: none;
       border-radius: 6px;
     }
+
+    /* ═══ TV / kiosk overrides (legível a distância) ═══ */
+    body.cqe-tv-page.dash-page {
+      padding: 8px 12px 10px;
+    }
+
+    body.cqe-tv-page .gm-topbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.15fr) auto auto;
+      align-items: center;
+      gap: 12px 18px;
+      padding: 10px 14px;
+      flex-wrap: nowrap;
+    }
+
+    body.cqe-tv-page .gm-topbar .title-block {
+      max-width: none;
+      border-right: none;
+      padding-right: 0;
+    }
+
+    body.cqe-tv-page .gm-topbar h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-topbar .subtitle {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    body.cqe-tv-page .gm-topbar .back {
+      font-size: 0.85rem;
+    }
+
+    body.cqe-tv-page .gm-filter-group[data-label="Produto / equipe"] {
+      display: none !important;
+    }
+
+    body.cqe-tv-page.show-filters .gm-filter-group[data-label="Produto / equipe"] {
+      display: flex !important;
+      flex-wrap: wrap;
+      max-width: min(920px, 72vw);
+    }
+
+    body.cqe-tv-page .gm-filter-group::before {
+      display: none;
+    }
+
+    body.cqe-tv-page .gm-filters label {
+      font-size: 0.75rem;
+    }
+
+    body.cqe-tv-page .gm-filters input,
+    body.cqe-tv-page .gm-filters select {
+      width: 148px;
+      min-width: 148px;
+      max-width: 148px;
+      height: 38px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    body.cqe-tv-page .gm-filters input[type="date"] {
+      width: 160px;
+      min-width: 160px;
+      max-width: 160px;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions button {
+      height: 38px;
+      padding: 0 16px;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-hero {
+      gap: 12px;
+    }
+
+    body.cqe-tv-page .gm-kpi {
+      padding: 14px 16px;
+      gap: 6px;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-label {
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-value {
+      font-size: 2.25rem;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-hint,
+    body.cqe-tv-page .gm-kpi.trend-card .trend-row {
+      font-size: 0.9rem;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-delta {
+      font-size: 0.95rem;
+    }
+
+    body.cqe-tv-page .gm-status {
+      font-size: 1rem;
+      padding: 4px 12px;
+    }
+
+    body.cqe-tv-page .gm-traffic {
+      width: 18px;
+      height: 18px;
+    }
+
+    body.cqe-tv-page .gm-meta-bar {
+      height: 12px;
+    }
+
+    body.cqe-tv-page .gm-mid-row {
+      flex: 0 0 120px;
+      height: 120px;
+    }
+
+    body.cqe-tv-page .gm-funnel {
+      padding: 10px 14px;
+      gap: 8px;
+    }
+
+    body.cqe-tv-page .gm-funnel h2 {
+      font-size: 0.85rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-step {
+      padding: 8px 10px;
+      min-width: 90px;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-val {
+      font-size: 1.45rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-label {
+      font-size: 0.8rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-pct {
+      font-size: 0.75rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow {
+      min-width: 52px;
+      font-size: 0.95rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow .conv {
+      font-size: 0.8rem;
+    }
+
+    body.cqe-tv-page .gm-panel {
+      padding: 12px 14px;
+    }
+
+    body.cqe-tv-page .gm-panel h2 {
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+
+    body.cqe-tv-page .gm-panel .panel-note {
+      font-size: 0.75rem;
+      margin-bottom: 4px;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-name {
+      font-size: 1.15rem;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-ratio {
+      font-size: 2.4rem;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-pct {
+      font-size: 1.2rem;
+    }
+
+    body.cqe-tv-page .gm-ranking-card .rk-hint {
+      font-size: 0.85rem;
+    }
+
+    body.cqe-tv-page .motivos-funnel-step {
+      height: 28px;
+      min-height: 28px;
+      font-size: 0.85rem;
+      padding: 0 12px;
+    }
+
+    body.cqe-tv-page .motivos-funnel-step .motivos-funnel-metrics {
+      font-size: 0.85rem;
+    }
+
+    @media (min-width: 1600px) {
+      body.cqe-tv-page .gm-kpi .kpi-value { font-size: 2.55rem; }
+      body.cqe-tv-page .gm-topbar h1 { font-size: 1.55rem; }
+    }
+
+    body.cqe-tv-page .gm-topbar .back {
+      display: none;
+    }
+
+    body.cqe-tv-page .last-refresh {
+      font-size: 0.95rem !important;
+      font-weight: 700;
+      opacity: 0.95;
+      padding: 4px 8px;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions button#btnToggleFilters.primary {
+      background: var(--gm-accent);
+      border-color: var(--gm-accent);
+    }
   </style>
 </head>
-<body class="dash-page cqe-gestao-page">
+<body class="dash-page cqe-gestao-page cqe-tv-page">
   <div class="page">
     <header class="gm-topbar">
       <div class="title-block">
@@ -815,6 +1033,7 @@
         <div class="gm-filter-group" data-label="Período">
           <label>Início <input type="date" id="dateStart" /></label>
           <label>Fim <input type="date" id="dateEnd" /></label>
+          <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
         </div>
         <div class="gm-filter-group" data-label="Produto / equipe">
           <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
@@ -823,12 +1042,12 @@
           <label>Tipo <select id="fTipo"><option value="">Todos</option></select></label>
           <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
           <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
-          <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
         </div>
       </div>
       <div class="gm-topbar-actions">
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
         <button type="button" id="btnReload" title="Recarregar dados">↻</button>
       </div>
     </header>
@@ -884,7 +1103,7 @@
     <section class="gm-grid">
       <div class="gm-panel">
         <h2>Qualidade — aprovados</h2>
-        <p class="panel-note">Eixo X: quantidade de aprovações</p>
+        <p class="panel-note" id="qualAprovNote">Eixo X: quantidade de aprovações</p>
         <div class="chart-box"><canvas id="chartQualAprov"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--motivos">
@@ -1424,14 +1643,14 @@
 
     function renderCharts(periodRows, metrics) {
       const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
-      const tickSmall = { font: { size: 8 } };
-      const barLayoutPad = { top: 4, bottom: 4, left: 0, right: 26 };
+      const tickSmall = { font: { size: 12, weight: "600" } };
+      const barLayoutPad = { top: 8, bottom: 6, left: 4, right: 36 };
       const dataLabelBase = {
         clip: false,
         anchor: "end",
         align: "end",
-        offset: 3,
-        font: { weight: "700", size: 8 }
+        offset: 4,
+        font: { weight: "700", size: 12 }
       };
       const dataLabelCount = (color, fmt = (v) => v) => ({
         ...dataLabelBase,
@@ -1444,9 +1663,15 @@
         offset: true,
         ticks: {
           ...tickSmall,
-          autoSkip: false,
-          padding: 4,
-          font: { size: n > 10 ? 7 : 8 }
+          autoSkip: n > 8,
+          maxTicksLimit: 8,
+          padding: 6,
+          font: { size: n > 8 ? 11 : 13, weight: "600" },
+          callback: function (val) {
+            const label = this.getLabelForValue(val);
+            const s = String(label || "");
+            return s.length > 14 ? `${s.slice(0, 13)}…` : s;
+          }
         }
       });
       const xCountScale = {
@@ -1468,7 +1693,8 @@
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
       );
-      const qualAprov = YardexDash.aggregateCount(aprovados, (r) => r.usuario);
+      const qualAprovAll = YardexDash.aggregateCount(aprovados, (r) => r.usuario);
+      const qualAprov = qualAprovAll.slice(0, 8);
       destroyChart("qualAprov");
       charts.qualAprov = new Chart(document.getElementById("chartQualAprov"), {
         type: "bar",
@@ -1478,7 +1704,9 @@
             label: "Aprovados",
             data: qualAprov.map(([, qtd]) => qtd),
             backgroundColor: SKY.strong,
-            borderRadius: 4
+            borderRadius: 4,
+            barThickness: qualAprov.length > 6 ? 18 : 24,
+            maxBarThickness: 28
           }]
         },
         options: {
@@ -1490,7 +1718,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. aprovações", font: { size: 9 }, color: "#6b5b7a" }
+              title: { display: true, text: "Qtd. aprovações", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
             },
             y: yBarScale(qualAprov.length)
           },
@@ -1507,6 +1735,12 @@
       bindRichTooltip(document.getElementById("chartQualAprov"), (idx) =>
         aprovados.filter((r) => r.usuario === (qualAprov[idx]?.[0] || ""))
       );
+      const qualPanelNote = document.getElementById("qualAprovNote");
+      if (qualPanelNote) {
+        qualPanelNote.textContent = qualAprovAll.length > 8
+          ? `Top 8 de ${qualAprovAll.length} · rótulos legíveis na TV`
+          : "Aprovações por colaborador de qualidade";
+      }
 
       renderMotivosFunnel(reprovados);
 
@@ -1568,7 +1802,7 @@
                     align: "center",
                     offset: 0,
                     color: "#ffffff",
-                    font: { weight: "700", size: 9 },
+                    font: { weight: "700", size: 12 },
                     display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
                     formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
                   },
@@ -1588,7 +1822,7 @@
             scales: {
               x: {
                 ...xPctScale,
-                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 9 }, color: "#6b5b7a" }
+                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
               },
               y: yBarScale(ranking.length)
             },
@@ -1631,7 +1865,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. reprovações", font: { size: 9 }, color: "#6b5b7a" }
+              title: { display: true, text: "Qtd. reprovações", font: { size: 12, weight: "600" }, color: "#6b5b7a" }
             },
             y: yBarScale(byMarca.length)
           },
@@ -1740,6 +1974,14 @@
     ["fModelo", "fTecnico", "fMarca", "fTipo", "fLinha", "fQualidade", "fCliente"].forEach((id) => {
       document.getElementById(id).addEventListener("change", renderDashboard);
     });
+
+    const btnToggleFilters = document.getElementById("btnToggleFilters");
+    if (btnToggleFilters) {
+      btnToggleFilters.addEventListener("click", () => {
+        document.body.classList.toggle("show-filters");
+        btnToggleFilters.classList.toggle("primary", document.body.classList.contains("show-filters"));
+      });
+    }
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
     window.addEventListener("resize", () => requestAnimationFrame(resizeAllCharts));
