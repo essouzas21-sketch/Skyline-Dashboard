@@ -11,20 +11,20 @@
   <script src="yardex-dash.js?v=52"></script>
   <style>
     :root {
-      --gm-page: #f4f5f7;
+      --gm-page: #694992;
       --gm-card: #ffffff;
-      --gm-border: rgba(15, 23, 42, 0.08);
-      --gm-text: #1e293b;
-      --gm-muted: #64748b;
-      --gm-primary: #5b4a8a;
-      --gm-accent: #7c6aad;
+      --gm-border: rgba(105, 73, 146, 0.18);
+      --gm-text: #2d1f42;
+      --gm-muted: #6b5b7a;
+      --gm-primary: #694992;
+      --gm-accent: #8b6bb8;
       --gm-green: #15803d;
       --gm-red: #dc2626;
       --gm-amber: #b45309;
-      --gm-teal: #0f766e;
-      --gm-slate: #334155;
-      --gm-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
-      --gm-surface: #f8fafc;
+      --gm-teal: #8b6bb8;
+      --gm-slate: #2d1f42;
+      --gm-shadow: 0 4px 16px rgba(45, 31, 66, 0.18);
+      --gm-surface: #faf8fc;
       --gm-radius: 10px;
       --gm-gap: 10px;
     }
@@ -568,7 +568,7 @@
       position: fixed;
       z-index: 300;
       max-width: 320px;
-      background: #1e293b;
+      background: #2d1f42;
       color: #fff;
       border-radius: 8px;
       padding: 10px 12px;
@@ -579,7 +579,7 @@
       display: none;
     }
 
-    .gm-tooltip strong { color: #a5b4fc; }
+    .gm-tooltip strong { color: var(--gm-accent); }
 
     .gm-modal-backdrop {
       position: fixed;
@@ -942,15 +942,15 @@
     const DATE_FIELD = "data_qualidade";
     const META_APROVACAO = 90;
     const SKY = {
-      bg: "#5b4a8a",
-      strong: "#334155",
-      accent: "#7c6aad",
-      fill: "rgba(15, 118, 110, 0.15)",
+      bg: "#694992",
+      strong: "#8b6bb8",
+      accent: "#c4a8e8",
+      fill: "rgba(105, 73, 146, 0.15)",
       green: "#15803d",
       red: "#dc2626",
       amber: "#b45309",
-      teal: "#0f766e",
-      surface: "#f8fafc"
+      teal: "#8b6bb8",
+      surface: "#faf8fc"
     };
     const USUARIOS_EXCLUIDOS_APROV = new Set([
       "ewerton souza",
@@ -1345,8 +1345,8 @@
       const title = document.getElementById("motivosFunnelTitle");
       const motivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo);
       const colors = [
-        "#0f766e", "#334155", "#b45309", "#dc2626", "#5b4a8a",
-        "#0369a1", "#7c3aed", "#be123c", "#047857"
+        "#694992", "#8b6bb8", "#5c3d7a", "#a78bca", "#c4a8e8",
+        "#7c5294", "#9d7bb8", "#dc2626", "#b45309"
       ];
 
       if (!motivos.length) {
@@ -1452,7 +1452,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. aprovações", font: { size: 9 }, color: "#64748b" }
+              title: { display: true, text: "Qtd. aprovações", font: { size: 9 }, color: "#6b5b7a" }
             },
             y: yBarScale(qualAprov.length)
           },
@@ -1545,7 +1545,7 @@
             scales: {
               x: {
                 ...xPctScale,
-                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 9 }, color: "#64748b" }
+                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 9 }, color: "#6b5b7a" }
               },
               y: yBarScale(ranking.length)
             },
@@ -1588,7 +1588,7 @@
           scales: {
             x: {
               ...xCountScale,
-              title: { display: true, text: "Qtd. reprovações", font: { size: 9 }, color: "#64748b" }
+              title: { display: true, text: "Qtd. reprovações", font: { size: 9 }, color: "#6b5b7a" }
             },
             y: yBarScale(byMarca.length)
           },
