@@ -794,6 +794,12 @@
     }
 
     .gm-panel--motivos .chart-box {
+      display: block;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .gm-panel--motivos .motivos-funnel {
       display: none;
     }
 
@@ -1040,19 +1046,6 @@
       font-size: 0.78rem;
     }
 
-    body.cqe-tv-page .motivos-funnel-step {
-      height: 30px;
-      min-height: 30px;
-      font-size: 0.9rem;
-      font-weight: 800;
-      padding: 0 12px;
-    }
-
-    body.cqe-tv-page .motivos-funnel-step .motivos-funnel-metrics {
-      font-size: 0.9rem;
-      font-weight: 800;
-    }
-
     body.cqe-tv-page .last-refresh {
       font-size: 0.85rem !important;
       font-weight: 700;
@@ -1151,8 +1144,9 @@
       </div>
       <div class="gm-panel gm-panel--motivos">
         <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
-        <p class="panel-note">Largura proporcional ao volume · % do total</p>
-        <div class="motivos-funnel" id="motivosFunnel"></div>
+        <p class="panel-note">Barras: quantidade por motivo</p>
+        <div class="motivos-funnel" id="motivosFunnel" hidden></div>
+        <div class="chart-box"><canvas id="chartMotivos"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--ranking" id="rankingPanel">
         <h2>Ranking reprovação</h2>
@@ -1637,63 +1631,79 @@
       }).join("");
     }
 
-    function renderMotivosFunnel(reprovados) {
-      const el = document.getElementById("motivosFunnel");
+    function renderMotivosBars(reprovados, chartOpts) {
       const title = document.getElementById("motivosFunnelTitle");
-      const motivos = YardexDash.aggregateCount(reprovados, (r) => YardexDash.cqeMotivoChartKey(r.motivo));
-      const colors = [
-        "#694992", "#8b6bb8", "#5c3d7a", "#a78bca", "#c4a8e8",
-        "#7c5294", "#9d7bb8", "#dc2626", "#b45309"
-      ];
+      const motivosAll = YardexDash.aggregateCount(
+        reprovados,
+        (r) => YardexDash.cqeMotivoChartKey(r.motivo)
+      );
+      const motivos = motivosAll.slice(0, 5);
+      const {
+        tickSmall,
+        barLayoutPad,
+        dataLabelCount,
+        yBarScale,
+        xCountScale
+      } = chartOpts;
 
       if (!motivos.length) {
-        el.innerHTML = "";
-        el.classList.remove("motivos-funnel--many");
         title.textContent = "Motivos de reprovação";
+        destroyChart("motivos");
         return;
       }
-      title.textContent = `Motivos de reprovação (${motivos.length})`;
+      title.textContent = `Motivos de reprovação (${motivosAll.length})`;
 
-      const max = motivos[0][1];
-      const total = motivos.reduce((sum, [, qtd]) => sum + qtd, 0) || 1;
-      el.classList.toggle("motivos-funnel--many", motivos.length > 8);
-
-      el.innerHTML = motivos.map(([motivo, qtd], i) => {
-        const pct = Math.round((qtd / total) * 100);
-        const width = Math.max(52, Math.round((qtd / max) * 98));
-        const c1 = colors[i % colors.length];
-        const c2 = colors[(i + 1) % colors.length];
-        return `
-          <div class="motivos-funnel-step" style="--funnel-w:${width}%;background:linear-gradient(135deg,${c1} 0%,${c2} 100%)" data-idx="${i}" title="${escapeHtml(motivo)}">
-            <span class="motivos-funnel-label">${escapeHtml(motivo)}</span>
-            <span class="motivos-funnel-metrics">${qtd} · ${pct}%</span>
-          </div>
-        `;
-      }).join("");
-
-      el.querySelectorAll(".motivos-funnel-step").forEach((step) => {
-        step.addEventListener("click", () => {
-          const idx = Number(step.dataset.idx);
-          const [motivo] = motivos[idx] || [];
-          if (!motivo) return;
-          openDrill(
-            `Motivo: ${motivo}`,
-            reprovados.filter((r) => YardexDash.cqeMotivoChartKey(r.motivo) === motivo)
-          );
-        });
+      destroyChart("motivos");
+      charts.motivos = new Chart(document.getElementById("chartMotivos"), {
+        type: "bar",
+        data: {
+          labels: motivos.map(([m]) => m),
+          datasets: [{
+            label: "Reprovações",
+            data: motivos.map(([, qtd]) => qtd),
+            backgroundColor: SKY.bg,
+            borderRadius: 4,
+            barThickness: motivos.length > 4 ? 16 : 22,
+            maxBarThickness: 26
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: barLayoutPad },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.bg) },
+          scales: {
+            x: { ...xCountScale, title: { display: false } },
+            y: yBarScale(motivos.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const motivo = motivos[elems[0].index][0];
+            openDrill(
+              `Motivo: ${motivo}`,
+              reprovados.filter((r) => YardexDash.cqeMotivoChartKey(r.motivo) === motivo)
+            );
+          }
+        }
       });
+      bindRichTooltip(document.getElementById("chartMotivos"), (idx) =>
+        reprovados.filter(
+          (r) => YardexDash.cqeMotivoChartKey(r.motivo) === (motivos[idx]?.[0] || "")
+        )
+      );
     }
 
     function renderCharts(periodRows, metrics) {
       const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
-      const tickSmall = { font: { size: 15, weight: "700" } };
-      const barLayoutPad = { top: 10, bottom: 8, left: 6, right: 42 };
+      const tickSmall = { font: { size: 10, weight: "600" } };
+      const barLayoutPad = { top: 6, bottom: 4, left: 2, right: 28 };
       const dataLabelBase = {
         clip: false,
         anchor: "end",
         align: "end",
-        offset: 6,
-        font: { weight: "800", size: 15 }
+        offset: 4,
+        font: { weight: "700", size: 10 }
       };
       const dataLabelCount = (color, fmt = (v) => v) => ({
         ...dataLabelBase,
@@ -1708,12 +1718,12 @@
           ...tickSmall,
           autoSkip: false,
           maxTicksLimit: 6,
-          padding: 8,
-          font: { size: 15, weight: "700" },
+          padding: 4,
+          font: { size: 10, weight: "600" },
           callback: function (val) {
             const label = this.getLabelForValue(val);
             const s = String(label || "");
-            return s.length > 18 ? `${s.slice(0, 17)}…` : s;
+            return s.length > 16 ? `${s.slice(0, 15)}…` : s;
           }
         }
       });
@@ -1747,9 +1757,9 @@
             label: "Aprovados",
             data: qualAprov.map(([, qtd]) => qtd),
             backgroundColor: SKY.strong,
-            borderRadius: 6,
-            barThickness: 28,
-            maxBarThickness: 34
+            borderRadius: 4,
+            barThickness: qualAprov.length > 4 ? 16 : 22,
+            maxBarThickness: 26
           }]
         },
         options: {
@@ -1785,7 +1795,13 @@
           : "Aprovações por colaborador";
       }
 
-      renderMotivosFunnel(reprovados);
+      renderMotivosBars(reprovados, {
+        tickSmall,
+        barLayoutPad,
+        dataLabelCount,
+        yBarScale,
+        xCountScale
+      });
 
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
       const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered)
@@ -1847,7 +1863,7 @@
                     align: "center",
                     offset: 0,
                     color: "#ffffff",
-                    font: { weight: "800", size: 15 },
+                    font: { weight: "700", size: 10 },
                     display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
                     formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
                   },
