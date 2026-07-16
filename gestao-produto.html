@@ -4,111 +4,698 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gestão de Produto</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=11" />
+  <link rel="stylesheet" href="yardex-dash.css?v=12" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=55"></script>
+  <script src="yardex-dash.js?v=56"></script>
+  <style>
+    :root {
+      --gp-page: #694992;
+      --gp-card: #ffffff;
+      --gp-border: rgba(105, 73, 146, 0.18);
+      --gp-text: #2d1f42;
+      --gp-muted: #6b5b7a;
+      --gp-primary: #694992;
+      --gp-accent: #8b6bb8;
+      --gp-green: #15803d;
+      --gp-red: #dc2626;
+      --gp-amber: #b45309;
+      --gp-surface: #faf8fc;
+      --gp-shadow: 0 4px 16px rgba(45, 31, 66, 0.16);
+      --gp-radius: 12px;
+      --gp-gap: 12px;
+    }
+
+    body.gestao-pecas-page.dash-page {
+      background: var(--gp-page);
+      color: var(--gp-text);
+      padding: 14px 16px 18px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      border: none;
+    }
+
+    .gestao-pecas-page .page {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gp-gap);
+    }
+
+    .gp-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 12px;
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: var(--gp-radius);
+      padding: 10px 14px;
+      box-shadow: var(--gp-shadow);
+    }
+
+    .gp-topbar .title-block {
+      min-width: 200px;
+      flex: 1 1 auto;
+      padding-right: 0;
+      border-right: none;
+    }
+
+    .gp-topbar .back {
+      color: var(--gp-primary);
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .gp-topbar h1 {
+      margin: 2px 0 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--gp-text);
+    }
+
+    .gp-topbar .subtitle {
+      margin: 2px 0 0;
+      font-size: 0.72rem;
+      color: var(--gp-muted);
+    }
+
+    .gp-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      flex: 0 1 auto;
+      max-width: min(920px, 70vw);
+    }
+
+    body.gestao-pecas-page.show-filters .gp-filters {
+      display: flex;
+    }
+
+    body.gestao-pecas-page.show-filters .gp-topbar {
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .gp-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gp-muted);
+    }
+
+    .gp-filters input,
+    .gp-filters select {
+      height: 34px;
+      min-width: 132px;
+      padding: 0 10px;
+      border: 1px solid var(--gp-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--gp-text);
+    }
+
+    .gp-filters input[type="search"] {
+      min-width: 180px;
+    }
+
+    .gp-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .gp-actions button {
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--gp-border);
+      background: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--gp-text);
+    }
+
+    .gp-actions button.primary {
+      background: var(--gp-primary);
+      border-color: var(--gp-primary);
+      color: #fff;
+    }
+
+    .gp-actions button#btnToggleFilters.primary {
+      background: var(--gp-accent);
+      border-color: var(--gp-accent);
+    }
+
+    .gestao-pecas-page #statusMsg {
+      display: none !important;
+    }
+
+    .gp-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .gp-kpi {
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: var(--gp-radius);
+      padding: 12px 14px;
+      box-shadow: var(--gp-shadow);
+      min-width: 0;
+    }
+
+    .gp-kpi .label {
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gp-muted);
+    }
+
+    .gp-kpi .value {
+      margin-top: 4px;
+      font-size: 1.7rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--gp-text);
+    }
+
+    .gp-kpi .hint {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gp-muted);
+    }
+
+    .gp-kpi .delta {
+      font-weight: 800;
+    }
+
+    .gp-kpi .delta.up { color: var(--gp-green); }
+    .gp-kpi .delta.down { color: var(--gp-red); }
+    .gp-kpi .delta.neutral { color: var(--gp-muted); }
+    .gp-kpi.danger .value { color: var(--gp-red); }
+
+    .gp-mid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 280px;
+      gap: 10px;
+      min-height: 280px;
+    }
+
+    .gp-panel {
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: var(--gp-radius);
+      padding: 12px 14px;
+      box-shadow: var(--gp-shadow);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .gp-panel h2 {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gp-muted);
+    }
+
+    .gp-panel .chart-box {
+      flex: 1;
+      min-height: 220px;
+      position: relative;
+    }
+
+    .gp-alerts {
+      gap: 8px;
+      overflow: auto;
+    }
+
+    .gp-alert {
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--gp-border);
+      background: var(--gp-surface);
+    }
+
+    .gp-alert.critical {
+      border-color: rgba(220, 38, 38, 0.35);
+      background: #fef2f2;
+    }
+
+    .gp-alert.warn {
+      border-color: rgba(180, 83, 9, 0.35);
+      background: #fff7ed;
+    }
+
+    .gp-alert.ok {
+      border-color: rgba(21, 128, 61, 0.3);
+      background: #f0fdf4;
+    }
+
+    .gp-alert .title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--gp-text);
+    }
+
+    .gp-alert .body {
+      margin-top: 2px;
+      font-size: 0.72rem;
+      color: var(--gp-muted);
+      font-weight: 600;
+    }
+
+    .gp-bottom {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .gp-table-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .gp-table-tools input {
+      height: 32px;
+      min-width: 220px;
+      padding: 0 10px;
+      border: 1px solid var(--gp-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .gp-table-tools button {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--gp-border);
+      background: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .gp-table-wrap {
+      overflow: auto;
+      max-height: 360px;
+      border: 1px solid var(--gp-border);
+      border-radius: 10px;
+    }
+
+    .gp-table-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .gp-table-wrap th,
+    .gp-table-wrap td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--gp-border);
+      text-align: left;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    .gp-table-wrap th {
+      position: sticky;
+      top: 0;
+      background: var(--gp-surface);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gp-muted);
+      z-index: 1;
+    }
+
+    .gp-table-wrap th.col-peca,
+    .gp-table-wrap td.col-peca {
+      white-space: normal;
+      word-break: break-word;
+      min-width: 280px;
+      width: 52%;
+    }
+
+    .gp-table-wrap td.qtd {
+      font-weight: 800;
+      color: var(--gp-primary);
+    }
+
+    .gestao-pecas-page .last-refresh {
+      display: none !important;
+    }
+
+    .gp-table-wrap tr:hover td {
+      background: rgba(105, 73, 146, 0.05);
+      cursor: pointer;
+    }
+
+    .gp-empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--gp-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .gp-sankhya-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .gp-sankhya-stats .box {
+      background: var(--gp-surface);
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid var(--gp-border);
+    }
+
+    .gp-sankhya-stats .box .n {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    .gp-sankhya-stats .box .l {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--gp-muted);
+      text-transform: uppercase;
+    }
+
+    .gp-error-list {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 260px;
+    }
+
+    .gp-error-item {
+      font-size: 0.75rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #fef2f2;
+      border: 1px solid rgba(220, 38, 38, 0.2);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .gp-error-item button {
+      border: none;
+      background: transparent;
+      color: var(--gp-primary);
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 0.7rem;
+    }
+
+    .gp-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      padding: 20px;
+    }
+
+    .gp-modal-backdrop.open { display: flex; }
+
+    .gp-modal {
+      width: min(920px, 100%);
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--gp-shadow);
+      padding: 16px;
+    }
+
+    .gp-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .gp-modal-head h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+      .gp-kpi-row { grid-template-columns: repeat(3, 1fr); }
+      .gp-mid { grid-template-columns: 1fr 1fr; }
+      .gp-mid .gp-alerts { grid-column: 1 / -1; }
+      .gp-bottom { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .gp-kpi-row { grid-template-columns: 1fr 1fr; }
+      .gp-mid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
-    <div class="dash-toolbar">
-      <a class="back" href="menu.html">← Menu</a>
-      <div class="dash-title">
+    <header class="gp-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
         <h1>Gestão de Produto</h1>
-        <p class="subtitle" id="periodLabel">Carregando período…</p>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
-      <div class="filter-row">
-        <label>Data inicial <input type="date" id="dateStart" /></label>
-        <label>Data final <input type="date" id="dateEnd" /></label>
+      <div class="gp-filters" id="gpFilters">
+        <label>Início <input type="date" id="dateStart" /></label>
+        <label>Fim <input type="date" id="dateEnd" /></label>
+        <label>Marca
+          <select id="fMarca"><option value="">Todas</option></select>
+        </label>
+        <label>Categoria
+          <select id="fCategoria"><option value="">Todas</option></select>
+        </label>
+        <label>Buscar peça <input type="search" id="fBusca" placeholder="código ou descrição" /></label>
+      </div>
+      <div class="gp-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnClear">Limpar</button>
         <button type="button" id="btnReload">Recarregar</button>
       </div>
-    </div>
+    </header>
 
     <div id="statusMsg" class="status" hidden></div>
 
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="label">Peças pedidas no período</div>
-        <div class="value" id="kpiTotal">0</div>
+    <section class="gp-kpi-row">
+      <div class="gp-kpi">
+        <div class="label">Peças no período</div>
+        <div class="value" id="kpiPeriodo">0</div>
+        <div class="hint" id="kpiPeriodoHint">Pedidos diários únicos</div>
       </div>
-      <div class="kpi-card">
+      <div class="gp-kpi">
+        <div class="label">Peças hoje</div>
+        <div class="value" id="kpiHoje">0</div>
+        <div class="hint"><span class="delta neutral" id="kpiVsOntem">vs ontem —</span></div>
+      </div>
+      <div class="gp-kpi">
+        <div class="label" id="kpiMesLabel">Peças no mês</div>
+        <div class="value" id="kpiMes">0</div>
+        <div class="hint"><span class="delta neutral" id="kpiVsMesAnt">vs mês ant. —</span></div>
+      </div>
+      <div class="gp-kpi">
         <div class="label">Aparelhos no período</div>
-        <div class="value" id="kpiProdutos">0</div>
+        <div class="value" id="kpiAparelhos">0</div>
+        <div class="hint" id="kpiAparelhosHint">OS distintas</div>
       </div>
-    </div>
+      <div class="gp-kpi">
+        <div class="label">Aparelhos no mês</div>
+        <div class="value" id="kpiAparelhosMes">0</div>
+        <div class="hint" id="kpiAparelhosMesHint">—</div>
+      </div>
+    </section>
 
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="label" id="monthPecasLabel">Peças pedidas no mês</div>
-        <div class="value" id="kpiTotalMes">0</div>
+    <section class="gp-mid">
+      <div class="gp-panel">
+        <h2>Top peças solicitadas</h2>
+        <div class="chart-box"><canvas id="chartTopPecas"></canvas></div>
       </div>
-      <div class="kpi-card">
-        <div class="label" id="monthAparelhosLabel">Aparelhos no mês</div>
-        <div class="value" id="kpiProdutosMes">0</div>
+      <div class="gp-panel">
+        <h2>Top aparelhos</h2>
+        <div class="chart-box"><canvas id="chartAparelhos"></canvas></div>
       </div>
-    </div>
+      <aside class="gp-panel gp-alerts" id="alertsPanel">
+        <h2>Alertas</h2>
+        <div id="alertsList"></div>
+      </aside>
+    </section>
 
-    <div class="dash-main dash-main--table-only">
-      <div class="panel">
-        <h2>Peças por produto_requisitado_id</h2>
-        <div class="table-wrap">
+    <section class="gp-bottom">
+      <div class="gp-panel">
+        <h2>Peças do período</h2>
+        <div class="gp-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>produto_requisitado_id</th>
-                <th>Descrição</th>
+                <th>Código</th>
+                <th class="col-peca">Peça</th>
+                <th>Categoria</th>
+                <th>Marca</th>
                 <th>Qtd</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>
           </table>
+          <div id="tableEmpty" class="gp-empty" hidden>Nenhuma peça no período.</div>
         </div>
-        <div id="tableEmpty" class="empty" hidden>Nenhuma peça pedida no período.</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="gp-modal-backdrop" id="drillModal">
+    <div class="gp-modal">
+      <div class="gp-modal-head">
+        <h3 id="drillTitle">Detalhe da peça</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="gp-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>OS</th>
+              <th>NR</th>
+              <th>Aparelho</th>
+              <th>Solicitante</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
 
   <script>
-    const API_URL = YardexDash.API_REPARO;
-    const ETAPAS_PERMITIDAS = YardexDash.ETAPAS_OPERACAO;
-    const statusEl = document.getElementById("statusMsg");
+    Chart.register(ChartDataLabels);
 
-    const SESSION_KEY = "yardex_gestao_rows_v3";
+    const API_URL = YardexDash.API_REPARO;
+    const ETAPAS = YardexDash.ETAPAS_OPERACAO;
+    const statusEl = document.getElementById("statusMsg");
+    const SESSION_KEY = "yardex_gestao_rows_v5";
     const SESSION_TTL_MS = 3600000;
+    const SKY = { primary: "#694992", accent: "#8b6bb8", red: "#dc2626", green: "#15803d", muted: "#6b5b7a" };
+    const dataLabelCount = {
+      anchor: "end",
+      align: "end",
+      offset: 4,
+      color: SKY.primary,
+      font: { weight: "700", size: 11 },
+      clamp: true,
+      display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+      formatter: (v) => v
+    };
 
     let allRows = [];
+    let tableRowsCache = [];
     let loadSeq = 0;
+    const charts = {};
 
-    function ingestGestaoRows(payload) {
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function addDaysISO(iso, delta) {
+      const [y, m, d] = iso.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + delta);
+      const yy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      return `${yy}-${mm}-${dd}`;
+    }
+
+    function categorizePeca(nome) {
+      const p = String(nome || "").toUpperCase();
+      if (p.includes("TELA") || p.includes("LCD") || p.includes("DISPLAY")) return "TELA";
+      if (p.includes("BATER")) return "BATERIA";
+      if (p.includes("CAMERA") || p.includes("CÂMERA") || p.includes("CAMARA")) return "CAMERA";
+      if (p.includes("FLEX")) return "FLEX";
+      if (p.includes("TAMPA") || p.includes("CARCACA") || p.includes("CARCAÇA")) return "TAMPA";
+      if (p.includes("CONECTOR") || p.includes("DOCK")) return "CONECTOR";
+      return "OUTROS";
+    }
+
+    function mapGestaoRow(raw, statusForced) {
+      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado;
+      const peca = raw.peca_requisitada || raw.PECA_REQUISITADA || "—";
+      const aparelho = raw.descricao || raw.DESCRICAO || "";
+      return {
+        id: raw.id ?? null,
+        nr: raw.NR ?? raw.nr ?? null,
+        serial: raw.serial ?? null,
+        data_pedido_sankhya: YardexDash.resolveGestaoDate(raw),
+        produto_requisitado_id: String(produtoId).trim(),
+        descricao: peca,
+        aparelho,
+        marca: YardexDash.normalizeBrandName(aparelho) || "—",
+        categoria: categorizePeca(peca),
+        solicitante: raw.Nome_solicitante_peca || raw["Usuario Solicitação Peça"] || "—",
+        status_sankhya: statusForced || String(raw.STATUS_SANKHYA || raw.status_sankhya || "").toLowerCase() || "—"
+      };
+    }
+
+    function ingestPayload(payload) {
       const rawList = YardexDash.normalizeRows(payload);
-      const out = [];
+      const ok = [];
       for (let i = 0; i < rawList.length; i++) {
         const raw = rawList[i];
         if (!raw || typeof raw !== "object") continue;
-        if (!YardexDash.passesGestaoRaw(raw, ETAPAS_PERMITIDAS)) continue;
-
-        const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado;
-
-        out.push({
-          id: raw.id ?? null,
-          data_pedido_sankhya: YardexDash.resolveGestaoDate(raw),
-          produto_requisitado_id: String(produtoId).trim(),
-          descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
-        });
+        if (!YardexDash.passesGestaoRaw(raw, ETAPAS)) continue;
+        ok.push(mapGestaoRow(raw, "sucesso"));
       }
-      return YardexDash.dedupeGestaoRows(out);
+      return YardexDash.dedupeGestaoRows(ok);
     }
 
-    function saveSessionRows(rows) {
+    function saveSession() {
       try {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows }));
-      } catch {
-        /* payload grande demais — ignora */
-      }
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows: allRows }));
+      } catch { /* ignore */ }
     }
 
-    function restoreSessionRows() {
+    function restoreSession() {
       try {
         const raw = sessionStorage.getItem(SESSION_KEY);
         if (!raw) return false;
@@ -125,72 +712,229 @@
     function getMonthRange(refISO) {
       const [y, m] = refISO.split("-");
       const lastDay = new Date(Number(y), Number(m), 0).getDate();
-      return {
-        start: `${y}-${m}-01`,
-        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
-      };
+      return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
     }
 
     function monthLabel(refISO) {
-      const [y, m] = refISO.split("-");
       const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      const [y, m] = refISO.split("-");
       return `${names[Number(m) - 1]}/${y}`;
-    }
-
-    function computeGestaoKpis(rows, start, end) {
-      let pecas = 0;
-      const ids = new Set();
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const local = YardexDash.toLocalDateStr(row.data_pedido_sankhya);
-        if (local < start || local > end) continue;
-        pecas++;
-        if (row.id != null && String(row.id).trim() !== "") ids.add(String(row.id).trim());
-      }
-      return { pecas, aparelhos: ids.size };
     }
 
     function rowsForPeriod(rows, start, end) {
       const out = [];
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const local = YardexDash.toLocalDateStr(row.data_pedido_sankhya);
-        if (local >= start && local <= end) out.push(row);
+        const local = YardexDash.toLocalDateStr(rows[i].data_pedido_sankhya);
+        if (local >= start && local <= end) out.push(rows[i]);
       }
       return out;
     }
 
-    function renderTable(rows) {
-      const tbody = document.getElementById("tableBody");
-      const empty = document.getElementById("tableEmpty");
-      const counts = new Map();
-      const descMap = new Map();
+    function applyUiFilters(rows) {
+      const marca = document.getElementById("fMarca").value;
+      const cat = document.getElementById("fCategoria").value;
+      const busca = document.getElementById("fBusca").value.trim().toLowerCase();
+      return rows.filter((r) => {
+        if (marca && r.marca !== marca) return false;
+        if (cat && r.categoria !== cat) return false;
+        if (busca) {
+          const blob = `${r.produto_requisitado_id} ${r.descricao} ${r.aparelho}`.toLowerCase();
+          if (!blob.includes(busca)) return false;
+        }
+        return true;
+      });
+    }
 
+    function fillSelect(id, values) {
+      const el = document.getElementById(id);
+      const cur = el.value;
+      const opts = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      el.innerHTML = `<option value="">Todas</option>` + opts.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+      if (opts.includes(cur)) el.value = cur;
+    }
+
+    function populateFilters(rows) {
+      fillSelect("fMarca", rows.map((r) => r.marca).filter((m) => m && m !== "—"));
+      fillSelect("fCategoria", rows.map((r) => r.categoria));
+    }
+
+    function kpis(rows) {
+      const ids = new Set();
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const id = row.produto_requisitado_id;
-        counts.set(id, (counts.get(id) || 0) + 1);
-        if (!descMap.has(id)) descMap.set(id, row.descricao);
+        if (rows[i].id != null && String(rows[i].id).trim() !== "") ids.add(String(rows[i].id).trim());
+      }
+      return { pecas: rows.length, aparelhos: ids.size };
+    }
+
+    function fmtDelta(curr, prev) {
+      if (prev == null) return { text: "—", cls: "neutral" };
+      const d = curr - prev;
+      if (d === 0) return { text: "0 vs base", cls: "neutral" };
+      const sign = d > 0 ? "+" : "";
+      return { text: `${sign}${d}`, cls: d > 0 ? "up" : "down" };
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) {
+        charts[key].destroy();
+        delete charts[key];
+      }
+    }
+
+    function renderCharts(periodRows) {
+      const topPecas = YardexDash.aggregateCount(periodRows, (r) => r.descricao).slice(0, 8);
+      destroyChart("topPecas");
+      charts.topPecas = new Chart(document.getElementById("chartTopPecas"), {
+        type: "bar",
+        data: {
+          labels: topPecas.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
+          datasets: [{
+            data: topPecas.map(([, v]) => v),
+            backgroundColor: SKY.accent,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+
+      const topAparelhos = YardexDash.aggregateCount(
+        periodRows,
+        (r) => String(r.aparelho || "").trim() || "—"
+      ).slice(0, 8);
+      destroyChart("aparelhos");
+      charts.aparelhos = new Chart(document.getElementById("chartAparelhos"), {
+        type: "bar",
+        data: {
+          labels: topAparelhos.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
+          datasets: [{
+            label: "Peças",
+            data: topAparelhos.map(([, v]) => v),
+            backgroundColor: SKY.primary,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderAlerts(periodRows, hojeRows) {
+      const alerts = [];
+      const top = YardexDash.aggregateCount(hojeRows, (r) => r.descricao);
+      if (top[0] && top[0][1] >= 3) {
+        alerts.push({
+          cls: "critical",
+          title: `Peça pedida ${top[0][1]}× hoje`,
+          body: top[0][0]
+        });
+      }
+      const marcas = YardexDash.aggregateCount(periodRows, (r) => r.marca);
+      if (marcas[0]) {
+        alerts.push({
+          cls: "warn",
+          title: `Marca mais acionada: ${marcas[0][0]}`,
+          body: `${marcas[0][1]} solicitação(ões) no período`
+        });
+      }
+      if (hojeRows.length) {
+        alerts.push({
+          cls: "ok",
+          title: `${hojeRows.length} pedido(s) únicos hoje`,
+          body: "Contagem diária deduplicada"
+        });
+      }
+      if (!alerts.length) {
+        alerts.push({ cls: "ok", title: "Sem alertas críticos", body: "Período sem anomalias evidentes" });
       }
 
-      const byProduto = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+      document.getElementById("alertsList").innerHTML = alerts.map((a) => `
+        <div class="gp-alert ${a.cls}">
+          <div class="title">${escapeHtml(a.title)}</div>
+          <div class="body">${escapeHtml(a.body)}</div>
+        </div>
+      `).join("");
+    }
 
-      if (!byProduto.length) {
+    function buildProductTable(rows) {
+      const counts = new Map();
+      const meta = new Map();
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const id = r.produto_requisitado_id;
+        counts.set(id, (counts.get(id) || 0) + 1);
+        if (!meta.has(id)) {
+          meta.set(id, {
+            descricao: r.descricao,
+            categoria: r.categoria,
+            marca: r.marca
+          });
+        }
+      }
+      return [...counts.entries()]
+        .map(([id, qtd]) => ({ id, qtd, ...meta.get(id) }))
+        .sort((a, b) => b.qtd - a.qtd);
+    }
+
+    function renderTable(rows) {
+      tableRowsCache = buildProductTable(rows);
+      const tbody = document.getElementById("tableBody");
+      const empty = document.getElementById("tableEmpty");
+      const list = tableRowsCache;
+
+      if (!list.length) {
         tbody.innerHTML = "";
         empty.hidden = false;
         return;
       }
       empty.hidden = true;
+      tbody.innerHTML = list.map((r) => `
+        <tr data-pid="${escapeHtml(r.id)}">
+          <td>${escapeHtml(r.id)}</td>
+          <td class="col-peca">${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.categoria)}</td>
+          <td>${escapeHtml(r.marca)}</td>
+          <td class="qtd">${r.qtd}</td>
+        </tr>
+      `).join("");
+    }
 
-      tbody.innerHTML = byProduto
-        .map(([produtoId, qtd]) => `
+    function openDrill(produtoId, periodRows) {
+      const rows = periodRows.filter((r) => r.produto_requisitado_id === produtoId);
+      const sample = rows[0];
+      document.getElementById("drillTitle").textContent =
+        `${produtoId} — ${sample?.descricao || "Peça"} (${rows.length})`;
+      document.getElementById("drillBody").innerHTML = rows
+        .slice()
+        .sort((a, b) => String(b.data_pedido_sankhya).localeCompare(String(a.data_pedido_sankhya)))
+        .map((r) => `
           <tr>
-            <td>${produtoId}</td>
-            <td>${descMap.get(produtoId) || "—"}</td>
-            <td style="font-weight:700;color:var(--bg)">${qtd}</td>
+            <td>${escapeHtml(YardexDash.formatDateBR(YardexDash.toLocalDateStr(r.data_pedido_sankhya)) || "—")}</td>
+            <td>${escapeHtml(r.id ?? "—")}</td>
+            <td>${escapeHtml(r.nr ?? "—")}</td>
+            <td>${escapeHtml(r.aparelho || "—")}</td>
+            <td>${escapeHtml(r.solicitante || "—")}</td>
           </tr>
-        `)
-        .join("");
+        `).join("");
+      document.getElementById("drillModal").classList.add("open");
     }
 
     function renderDashboard() {
@@ -201,78 +945,119 @@
         return;
       }
 
-      const period = computeGestaoKpis(allRows, start, end);
+      const hoje = YardexDash.todayISO();
+      const ontem = addDaysISO(hoje, -1);
       const month = getMonthRange(end);
-      const mes = computeGestaoKpis(allRows, month.start, month.end);
+      const prevMonthEnd = addDaysISO(month.start, -1);
+      const prevMonth = getMonthRange(prevMonthEnd);
 
-      document.getElementById("kpiTotal").textContent = period.pecas;
-      document.getElementById("kpiProdutos").textContent = period.aparelhos;
-      document.getElementById("kpiTotalMes").textContent = mes.pecas;
-      document.getElementById("kpiProdutosMes").textContent = mes.aparelhos;
-      const monthText = monthLabel(end);
-      document.getElementById("monthPecasLabel").textContent = `Peças pedidas no mês — ${monthText}`;
-      document.getElementById("monthAparelhosLabel").textContent = `Aparelhos no mês — ${monthText}`;
+      const basePeriod = applyUiFilters(rowsForPeriod(allRows, start, end));
+      const baseMes = applyUiFilters(rowsForPeriod(allRows, month.start, month.end));
+      const baseHoje = applyUiFilters(rowsForPeriod(allRows, hoje, hoje));
+      const baseOntem = applyUiFilters(rowsForPeriod(allRows, ontem, ontem));
+      const baseMesAnt = applyUiFilters(rowsForPeriod(allRows, prevMonth.start, prevMonth.end));
+
+      const kPeriod = kpis(basePeriod);
+      const kMes = kpis(baseMes);
+      const dOntem = fmtDelta(baseHoje.length, baseOntem.length);
+      const dMes = fmtDelta(baseMes.length, baseMesAnt.length);
+
+      document.getElementById("kpiPeriodo").textContent = kPeriod.pecas;
+      document.getElementById("kpiHoje").textContent = baseHoje.length;
+      document.getElementById("kpiMes").textContent = kMes.pecas;
+      document.getElementById("kpiAparelhos").textContent = kPeriod.aparelhos;
+      document.getElementById("kpiAparelhosMes").textContent = kMes.aparelhos;
+      document.getElementById("kpiMesLabel").textContent = `Peças no mês — ${monthLabel(end)}`;
+      document.getElementById("kpiAparelhosMesHint").textContent = monthLabel(end);
+
+      const elOntem = document.getElementById("kpiVsOntem");
+      elOntem.textContent = `vs ontem ${dOntem.text}`;
+      elOntem.className = `delta ${dOntem.cls}`;
+      const elMes = document.getElementById("kpiVsMesAnt");
+      elMes.textContent = `vs mês ant. ${dMes.text}`;
+      elMes.className = `delta ${dMes.cls}`;
+
+      const agora = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · 1 pedido/dia por OS+produto · operação reparo/gestao_pecas`;
+        `${YardexDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
 
-      const tableRows = rowsForPeriod(allRows, start, end);
-      if (typeof requestIdleCallback === "function") {
-        requestIdleCallback(() => renderTable(tableRows), { timeout: 500 });
-      } else {
-        setTimeout(() => renderTable(tableRows), 0);
-      }
-
-      YardexDash.showStatus(
-        statusEl,
-        `${period.pecas} peça(s) · ${period.aparelhos} aparelho(s) no período · ${mes.pecas} peça(s) · ${mes.aparelhos} aparelho(s) no mês.`,
-        false
-      );
+      populateFilters(allRows);
+      renderCharts(basePeriod);
+      renderAlerts(basePeriod, baseHoje);
+      renderTable(basePeriod);
+      YardexDash.markRefresh();
     }
 
-    function clearKpis() {
-      document.getElementById("kpiTotal").textContent = "0";
-      document.getElementById("kpiProdutos").textContent = "0";
-      document.getElementById("kpiTotalMes").textContent = "0";
-      document.getElementById("kpiProdutosMes").textContent = "0";
-      renderTable([]);
+    function clearFilters() {
+      document.getElementById("fMarca").value = "";
+      document.getElementById("fCategoria").value = "";
+      document.getElementById("fBusca").value = "";
+      document.getElementById("btnToday").click();
     }
 
     async function loadData() {
       const seq = ++loadSeq;
       const hadData = allRows.length > 0;
-
-      if (!hadData && !restoreSessionRows()) {
+      if (!hadData && !restoreSession()) {
         YardexDash.showStatus(statusEl, "Carregando dados…", false);
-      } else {
-        YardexDash.showStatus(statusEl, hadData ? "Atualizando dados…" : "Dados locais — atualizando…", false);
       }
 
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         if (seq !== loadSeq) return;
-
-        allRows = ingestGestaoRows(json);
-        saveSessionRows(allRows);
+        allRows = ingestPayload(json);
+        saveSession();
         renderDashboard();
         YardexDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
       } catch (err) {
         if (seq !== loadSeq) return;
-
         if (allRows.length) {
-          YardexDash.showStatus(statusEl, `Atualização falhou — exibindo últimos dados (${err.message})`, true);
+          YardexDash.showStatus(statusEl, `Atualização falhou — cache (${err.message})`, true);
           return;
         }
-        if (restoreSessionRows()) {
-          YardexDash.showStatus(statusEl, `API indisponível — exibindo cache local (${err.message})`, true);
+        if (restoreSession()) {
+          YardexDash.showStatus(statusEl, `API indisponível — cache (${err.message})`, true);
           return;
         }
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
-        clearKpis();
       }
     }
 
-    restoreSessionRows();
-    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    const btnToggleFilters = document.getElementById("btnToggleFilters");
+    btnToggleFilters.addEventListener("click", () => {
+      document.body.classList.toggle("show-filters");
+      btnToggleFilters.classList.toggle("primary", document.body.classList.contains("show-filters"));
+    });
+
+    document.getElementById("btnClear").addEventListener("click", clearFilters);
+    document.getElementById("fMarca").addEventListener("change", renderDashboard);
+    document.getElementById("fCategoria").addEventListener("change", renderDashboard);
+    document.getElementById("fBusca").addEventListener("input", () => {
+      clearTimeout(window.__gpBuscaT);
+      window.__gpBuscaT = setTimeout(renderDashboard, 200);
+    });
+
+    document.getElementById("tableBody").addEventListener("click", (e) => {
+      const tr = e.target.closest("tr[data-pid]");
+      if (!tr) return;
+      const { start, end } = YardexDash.getDateRange();
+      const periodRows = applyUiFilters(rowsForPeriod(allRows, start, end));
+      openDrill(tr.dataset.pid, periodRows);
+    });
+
+    document.getElementById("drillClose").addEventListener("click", () => {
+      document.getElementById("drillModal").classList.remove("open");
+    });
+    document.getElementById("drillModal").addEventListener("click", (e) => {
+      if (e.target.id === "drillModal") document.getElementById("drillModal").classList.remove("open");
+    });
+
+    restoreSession();
+    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   </script>
 </body>
 </html>
