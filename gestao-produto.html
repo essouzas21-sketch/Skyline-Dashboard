@@ -6,7 +6,7 @@
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="yardex-dash.css?v=11" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=49"></script>
+  <script src="yardex-dash.js?v=55"></script>
 </head>
 <body class="dash-page gestao-pecas-page">
   <div class="page">
@@ -74,7 +74,7 @@
     const ETAPAS_PERMITIDAS = YardexDash.ETAPAS_OPERACAO;
     const statusEl = document.getElementById("statusMsg");
 
-    const SESSION_KEY = "yardex_gestao_rows_v2";
+    const SESSION_KEY = "yardex_gestao_rows_v3";
     const SESSION_TTL_MS = 3600000;
 
     let allRows = [];
@@ -97,7 +97,7 @@
           descricao: raw.peca_requisitada || raw.PECA_REQUISITADA || "—"
         });
       }
-      return out;
+      return YardexDash.dedupeGestaoRows(out);
     }
 
     function saveSessionRows(rows) {
@@ -213,7 +213,7 @@
       document.getElementById("monthPecasLabel").textContent = `Peças pedidas no mês — ${monthText}`;
       document.getElementById("monthAparelhosLabel").textContent = `Aparelhos no mês — ${monthText}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · pedido Sankhya ou Iniciado_Reparo · operação reparo/gestao_pecas`;
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · 1 pedido/dia por OS+produto · operação reparo/gestao_pecas`;
 
       const tableRows = rowsForPeriod(allRows, start, end);
       if (typeof requestIdleCallback === "function") {

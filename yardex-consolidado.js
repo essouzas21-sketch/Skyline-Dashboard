@@ -72,10 +72,11 @@ const ConsolidadoDash = {
   },
 
   loadGestaoRows(json) {
-    return YardexDash.normalizeRows(json)
+    const mapped = YardexDash.normalizeRows(json)
       .filter((raw) => YardexDash.passesGestaoRaw(raw, this.ETAPAS_GESTAO))
       .map((raw) => this.mapGestao(raw))
       .filter((r) => this.passesGestao(r));
+    return YardexDash.dedupeGestaoRows(mapped);
   },
 
   kpiGestao(rows, start, end) {

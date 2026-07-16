@@ -243,6 +243,29 @@ const YardexDash = {
     return true;
   },
 
+  /**
+   * Pedido diário real: 1 linha por OS + produto + dia local.
+   * Remove duplicatas do webhook Sankhya (mesmo pedido repetido N vezes).
+   */
+  dedupeGestaoRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return [];
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      const os = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : `row:${i}`;
+      const produto = String(row.produto_requisitado_id || "").trim();
+      const dia = this.toLocalDateStr(row.data_pedido_sankhya) || "";
+      if (!produto || !dia) continue;
+      const key = `${os}|${produto}|${dia}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(row);
+    }
+    return out;
+  },
+
   isCqeMotivoTeste(motivo) {
     const norm = String(motivo || "")
       .trim()
