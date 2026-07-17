@@ -5,147 +5,684 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consolidado — Skyline</title>
   <link rel="stylesheet" href="yardex-dash.css?v=12" />
+  <script src="yardex-version.js?v=2"></script>
+  <script src="yardex-dash.js?v=55"></script>
+  <script src="yardex-producao.js?v=20"></script>
+  <script src="yardex-consolidado.js?v=24"></script>
+  <style>
+    :root {
+      --co-page: #694992;
+      --co-card: #ffffff;
+      --co-border: rgba(105, 73, 146, 0.18);
+      --co-text: #2d1f42;
+      --co-muted: #6b5b7a;
+      --co-primary: #694992;
+      --co-accent: #8b6bb8;
+      --co-green: #15803d;
+      --co-red: #dc2626;
+      --co-amber: #b45309;
+      --co-blue: #1d4ed8;
+      --co-surface: #faf8fc;
+      --co-shadow: 0 4px 18px rgba(45, 31, 66, 0.16);
+      --co-radius: 12px;
+    }
+
+    body.consolidado-page.dash-page {
+      background: var(--co-page);
+      color: var(--co-text);
+      padding: 10px 12px 12px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      border: none;
+    }
+
+    .consolidado-page .page {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: calc(100vh - 24px);
+    }
+
+    .co-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 12px;
+      background: var(--co-card);
+      border: 1px solid var(--co-border);
+      border-radius: var(--co-radius);
+      padding: 10px 14px;
+      box-shadow: var(--co-shadow);
+      flex: 0 0 auto;
+    }
+
+    .co-topbar .title-block { flex: 1 1 auto; min-width: 0; }
+    .co-topbar .back {
+      color: var(--co-primary);
+      text-decoration: none;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .co-topbar h1 {
+      margin: 2px 0 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .co-topbar .subtitle {
+      margin: 2px 0 0;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--co-muted);
+    }
+
+    .co-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      max-width: min(640px, 60vw);
+    }
+    body.consolidado-page.show-filters .co-filters { display: flex; }
+    body.consolidado-page.show-filters .co-topbar { flex-wrap: wrap; align-items: flex-end; }
+
+    .co-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--co-muted);
+    }
+    .co-filters input {
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--co-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--co-text);
+    }
+
+    .co-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+    .co-actions button {
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--co-border);
+      background: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--co-text);
+    }
+    .co-actions button.primary {
+      background: var(--co-primary);
+      border-color: var(--co-primary);
+      color: #fff;
+    }
+    .co-actions button#btnToggleFilters.primary {
+      background: var(--co-accent);
+      border-color: var(--co-accent);
+    }
+
+    .consolidado-page #statusMsg { display: none !important; }
+    .consolidado-page .last-refresh { display: none !important; }
+
+    /* Hero health */
+    .co-hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .co-hero-card {
+      background: var(--co-card);
+      border: 1px solid var(--co-border);
+      border-radius: var(--co-radius);
+      padding: 12px 14px;
+      box-shadow: var(--co-shadow);
+      min-width: 0;
+    }
+
+    .co-hero-card .eyebrow {
+      font-size: 0.62rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--co-muted);
+    }
+    .co-hero-card .big {
+      margin-top: 4px;
+      font-size: 1.85rem;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+    .co-hero-card .hint {
+      margin-top: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--co-muted);
+    }
+    .co-hero-card.health .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .co-hero-card.health .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .co-hero-card.health.ok .status-pill { background: #dcfce7; color: var(--co-green); }
+    .co-hero-card.health.ok .dot { background: #22c55e; }
+    .co-hero-card.health.warn .status-pill { background: #ffedd5; color: var(--co-amber); }
+    .co-hero-card.health.warn .dot { background: #f59e0b; }
+    .co-hero-card.health.bad .status-pill { background: #fee2e2; color: var(--co-red); }
+    .co-hero-card.health.bad .dot { background: #ef4444; }
+    .co-hero-card .big.green { color: var(--co-green); }
+    .co-hero-card .big.red { color: var(--co-red); }
+    .co-hero-card .big.blue { color: var(--co-blue); }
+
+    /* Pipeline */
+    .co-flow {
+      background: var(--co-card);
+      border: 1px solid var(--co-border);
+      border-radius: var(--co-radius);
+      padding: 10px 12px;
+      box-shadow: var(--co-shadow);
+      flex: 0 0 auto;
+    }
+    .co-flow h2 {
+      margin: 0 0 8px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--co-muted);
+    }
+    .co-flow-track {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+    }
+    .co-flow-step {
+      flex: 1 1 0;
+      min-width: 110px;
+      background: var(--co-surface);
+      border: 1px solid var(--co-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .co-flow-step .val {
+      font-size: 1.45rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--co-text);
+    }
+    .co-flow-step .lab {
+      margin-top: 2px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--co-muted);
+    }
+    .co-flow-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      color: var(--co-accent);
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+    .co-flow-arrow .conv {
+      font-size: 0.68rem;
+      color: var(--co-muted);
+      margin-top: 2px;
+    }
+
+    /* Modules grid */
+    .co-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .co-mod {
+      background: var(--co-card);
+      border: 1px solid var(--co-border);
+      border-radius: var(--co-radius);
+      padding: 12px 14px;
+      box-shadow: var(--co-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .co-mod:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(45, 31, 66, 0.18);
+    }
+    .co-mod-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .co-mod-head h2 {
+      margin: 0;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--co-text);
+    }
+    .co-mod-head a {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--co-primary);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .co-mod-head a:hover { text-decoration: underline; }
+
+    .co-mod-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .co-mod-kpis.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .co-mod-kpis.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .co-kpi {
+      background: var(--co-surface);
+      border: 1px solid var(--co-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-width: 0;
+    }
+    .co-kpi .label {
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--co-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .co-kpi .value {
+      margin-top: 2px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--co-text);
+    }
+    .co-kpi.finalizado .value { color: var(--co-green); }
+    .co-kpi.andamento .value { color: var(--co-blue); }
+    .co-kpi.pausado .value { color: var(--co-amber); }
+    .co-kpi.aprovado .value { color: var(--co-green); }
+    .co-kpi.reprovado .value { color: var(--co-red); }
+
+    .co-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #e9e2f2;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .co-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--co-primary), var(--co-accent));
+    }
+    .co-bar.ok > span { background: linear-gradient(90deg, #15803d, #22c55e); }
+    .co-bar.warn > span { background: linear-gradient(90deg, #b45309, #f59e0b); }
+    .co-bar.bad > span { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+    .co-mod-foot {
+      margin-top: auto;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--co-muted);
+    }
+
+    @media (max-width: 1200px) {
+      .co-hero { grid-template-columns: 1fr 1fr; }
+      .co-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 780px) {
+      .co-hero { grid-template-columns: 1fr; }
+      .co-grid { grid-template-columns: 1fr; }
+      .co-mod-kpis.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
 </head>
 <body class="dash-page consolidado-page">
-  <div id="app" class="page consolidado-app">
-    <div class="dash-toolbar">
-      <a class="back" href="menu.html">← Menu</a>
-      <div class="dash-title">
+  <div class="page">
+    <header class="co-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
         <h1>Relatório Consolidado</h1>
-        <p class="subtitle" id="periodLabel">Carregando período…</p>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
-      <div class="filter-row">
-        <label>Data inicial <input type="date" id="dateStart" /></label>
-        <label>Data final <input type="date" id="dateEnd" /></label>
+      <div class="co-filters" id="coFilters">
+        <label>Início <input type="date" id="dateStart" /></label>
+        <label>Fim <input type="date" id="dateEnd" /></label>
+      </div>
+      <div class="co-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
         <button type="button" id="btnReload">Recarregar</button>
       </div>
-    </div>
+    </header>
 
-    <div id="statusMsg" class="status" style="display:none"></div>
+    <div id="statusMsg" class="status" hidden></div>
 
-    <div class="consolidado-grid">
-      <section class="consolidado-section">
-        <h2>Recebimento</h2>
-        <p class="section-hint">data_recebimento · exc. 16/06/2026 · grupo 6151</p>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Recebida total</div>
-            <div class="value" id="kpiRecTotal">0</div>
-          </div>
+    <section class="co-hero">
+      <div class="co-hero-card health" id="heroHealth">
+        <div class="eyebrow">Saúde da operação</div>
+        <div class="big" id="heroTaxaCqe">—</div>
+        <div class="hint">Taxa de aprovação CQE · meta 90%</div>
+        <div class="status-pill"><span class="dot"></span><span id="heroStatusText">—</span></div>
+        <div class="co-bar" id="heroMetaBar"><span id="heroMetaFill" style="width:0%"></span></div>
+      </div>
+      <div class="co-hero-card">
+        <div class="eyebrow">Recebidos</div>
+        <div class="big blue" id="kpiRecTotal">0</div>
+        <div class="hint">Entrada no período</div>
+      </div>
+      <div class="co-hero-card">
+        <div class="eyebrow">Produção total</div>
+        <div class="big" id="heroProdTotal">0</div>
+        <div class="hint"><span id="heroProdHint">Android + iPhone</span></div>
+      </div>
+      <div class="co-hero-card">
+        <div class="eyebrow">Peças pedidas</div>
+        <div class="big" id="kpiGestaoTotal">0</div>
+        <div class="hint"><span id="kpiGestaoMonthLabel">Mês</span></div>
+      </div>
+    </section>
+
+    <section class="co-flow">
+      <h2>Fluxo operacional do período</h2>
+      <div class="co-flow-track" id="flowTrack"></div>
+    </section>
+
+    <section class="co-grid">
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Recebimento</h2>
+          <a href="recebimento.html">Abrir →</a>
         </div>
-      </section>
-
-      <section class="consolidado-section">
-        <h2>Triagem</h2>
-        <p class="section-hint">Data Triagem · operação reparo/gestao_pecas · distinct id</p>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Triagens no período</div>
+        <div class="co-mod-kpis">
+          <div class="co-kpi">
+            <div class="label">Recebida total</div>
+            <div class="value" id="kpiRecTotalCard">0</div>
+          </div>
+          <div class="co-kpi">
+            <div class="label">Triagens</div>
             <div class="value" id="kpiTriagemTotal">0</div>
           </div>
         </div>
-      </section>
+        <div class="co-mod-foot">Grupo 6151 · data recebimento / Data Triagem</div>
+      </article>
 
-      <section class="consolidado-section">
-        <h2>Gestão de Peças</h2>
-        <p class="section-hint">Sankhya ou Iniciado_Reparo · operação reparo/gestao_pecas</p>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Peças pedidas no período</div>
-            <div class="value" id="kpiGestaoTotal">0</div>
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Gestão de Peças</h2>
+          <a href="gestao-produto.html">Abrir →</a>
+        </div>
+        <div class="co-mod-kpis cols-4">
+          <div class="co-kpi">
+            <div class="label">Peças período</div>
+            <div class="value" id="kpiGestaoTotalCard">0</div>
           </div>
-          <div class="kpi-card">
-            <div class="label">Aparelhos no período</div>
+          <div class="co-kpi">
+            <div class="label">Aparelhos</div>
             <div class="value" id="kpiGestaoAparelhos">0</div>
           </div>
-        </div>
-        <p class="section-hint section-hint--month" id="kpiGestaoMonthLabel">Acumulado do mês</p>
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="label">Peças pedidas no mês</div>
+          <div class="co-kpi">
+            <div class="label">Peças mês</div>
             <div class="value" id="kpiGestaoTotalMes">0</div>
           </div>
-          <div class="kpi-card">
-            <div class="label">Aparelhos no mês</div>
+          <div class="co-kpi">
+            <div class="label">Ap. mês</div>
             <div class="value" id="kpiGestaoAparelhosMes">0</div>
           </div>
         </div>
-      </section>
+        <div class="co-mod-foot">1 pedido/dia por OS + produto · dedupe</div>
+      </article>
 
-      <section class="consolidado-section">
-        <h2>Produção Android</h2>
-        <p class="section-hint">Soma 7 colaboradores · Iniciado_Reparo ou Retorno 1/2/3 · distinct id</p>
-        <div class="kpi-row">
-          <div class="kpi-card finalizado">
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Produção Android</h2>
+          <a href="producao-diversas-1.html">TVs →</a>
+        </div>
+        <div class="co-mod-kpis cols-4">
+          <div class="co-kpi finalizado">
             <div class="label">Finalizados</div>
             <div class="value" id="kpiAndroidFinalizado">0</div>
           </div>
-          <div class="kpi-card andamento">
-            <div class="label">Em andamento</div>
+          <div class="co-kpi andamento">
+            <div class="label">Andamento</div>
             <div class="value" id="kpiAndroidAndamento">0</div>
           </div>
-          <div class="kpi-card pausado">
+          <div class="co-kpi pausado">
             <div class="label">Pausados</div>
             <div class="value" id="kpiAndroidPausado">0</div>
           </div>
-          <div class="kpi-card">
+          <div class="co-kpi">
             <div class="label">Total</div>
             <div class="value" id="kpiAndroidTotal">0</div>
           </div>
         </div>
-      </section>
+        <div class="co-mod-foot">Equipes Q1–Q5 · horário comercial</div>
+      </article>
 
-      <section class="consolidado-section">
-        <h2>Produção iPhone</h2>
-        <p class="section-hint">Iniciado_Reparo ou Retorno 1/2/3 · distinct id · filtro usuários</p>
-        <div class="kpi-row">
-          <div class="kpi-card finalizado">
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Produção iPhone</h2>
+          <a href="producao-iphone.html">Abrir →</a>
+        </div>
+        <div class="co-mod-kpis cols-4">
+          <div class="co-kpi finalizado">
             <div class="label">Finalizados</div>
             <div class="value" id="kpiIphFinalizado">0</div>
           </div>
-          <div class="kpi-card andamento">
-            <div class="label">Em andamento</div>
+          <div class="co-kpi andamento">
+            <div class="label">Andamento</div>
             <div class="value" id="kpiIphAndamento">0</div>
           </div>
-          <div class="kpi-card pausado">
+          <div class="co-kpi pausado">
             <div class="label">Pausados</div>
             <div class="value" id="kpiIphPausado">0</div>
           </div>
-          <div class="kpi-card">
+          <div class="co-kpi">
             <div class="label">Total</div>
             <div class="value" id="kpiIphTotal">0</div>
           </div>
         </div>
-      </section>
+        <div class="co-mod-foot">Noemi · Fran</div>
+      </article>
 
-      <section class="consolidado-section">
-        <h2>Qualidade — CQE</h2>
-        <p class="section-hint">Aprov: Sankhya · Reprov: Fim do Reparo · 1x id/dia · sem motivo teste</p>
-        <div class="kpi-row">
-          <div class="kpi-card aprovado">
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Qualidade — CQE</h2>
+          <a href="cqe-gestao.html">Gestão →</a>
+        </div>
+        <div class="co-mod-kpis cols-3">
+          <div class="co-kpi aprovado">
             <div class="label">Aprovados</div>
             <div class="value" id="kpiCqeAprovado">0</div>
           </div>
-          <div class="kpi-card reprovado">
+          <div class="co-kpi reprovado">
             <div class="label">Reprovados</div>
             <div class="value" id="kpiCqeReprovado">0</div>
           </div>
-          <div class="kpi-card">
+          <div class="co-kpi">
             <div class="label">Total</div>
             <div class="value" id="kpiCqeTotal">0</div>
           </div>
         </div>
-      </section>
-    </div>
+        <div class="co-mod-foot" id="cqeFoot">Meta 90%</div>
+      </article>
+
+      <article class="co-mod">
+        <div class="co-mod-head">
+          <h2>Resumo produção</h2>
+          <a href="menu.html">Menu →</a>
+        </div>
+        <div class="co-mod-kpis cols-3">
+          <div class="co-kpi finalizado">
+            <div class="label">Finalizados</div>
+            <div class="value" id="kpiProdFinalizado">0</div>
+          </div>
+          <div class="co-kpi andamento">
+            <div class="label">Andamento</div>
+            <div class="value" id="kpiProdAndamento">0</div>
+          </div>
+          <div class="co-kpi pausado">
+            <div class="label">Pausados</div>
+            <div class="value" id="kpiProdPausado">0</div>
+          </div>
+        </div>
+        <div class="co-mod-foot">Android + iPhone no mesmo período</div>
+      </article>
+    </section>
   </div>
 
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=55"></script>
-  <script src="yardex-producao.js?v=20"></script>
-  <script src="yardex-consolidado.js?v=23"></script>
   <script>
+    const META_CQE = 90;
+
+    function pct(part, total) {
+      if (!total) return "—";
+      return `${Math.round((part / total) * 100)}%`;
+    }
+
+    function renderFlow(data) {
+      const steps = [
+        { lab: "Recebimento", val: data.recebimento.total },
+        { lab: "Triagem", val: data.triagem.total },
+        { lab: "Peças", val: data.gestao.total },
+        { lab: "Produção", val: data.producaoAndroid.total + data.producaoIphone.total },
+        { lab: "CQE", val: data.cqe.total }
+      ];
+      const el = document.getElementById("flowTrack");
+      el.innerHTML = steps.map((s, i) => {
+        const arrow = i < steps.length - 1
+          ? `<div class="co-flow-arrow">→<span class="conv">${pct(steps[i + 1].val, s.val)}</span></div>`
+          : "";
+        return `
+          <div class="co-flow-step">
+            <div class="val">${s.val}</div>
+            <div class="lab">${s.lab}</div>
+          </div>${arrow}
+        `;
+      }).join("");
+    }
+
+    function renderHero(data) {
+      const taxa = data.cqe.total
+        ? (data.cqe.aprovado / data.cqe.total) * 100
+        : null;
+      const taxaTxt = taxa == null ? "—" : `${taxa.toFixed(1).replace(".", ",")}%`;
+      document.getElementById("heroTaxaCqe").textContent = taxaTxt;
+
+      const health = document.getElementById("heroHealth");
+      health.classList.remove("ok", "warn", "bad");
+      let cls = "warn";
+      let status = "Sem inspeções";
+      if (taxa != null) {
+        if (taxa >= META_CQE) { cls = "ok"; status = "Saudável"; }
+        else if (taxa >= META_CQE - 5) { cls = "warn"; status = "Atenção"; }
+        else { cls = "bad"; status = "Crítico"; }
+      }
+      health.classList.add(cls);
+      document.getElementById("heroStatusText").textContent = status;
+
+      const fill = document.getElementById("heroMetaFill");
+      const bar = document.getElementById("heroMetaBar");
+      bar.classList.remove("ok", "warn", "bad");
+      bar.classList.add(cls);
+      fill.style.width = taxa == null ? "0%" : `${Math.min(100, (taxa / META_CQE) * 100)}%`;
+
+      const prodTotal = data.producaoAndroid.total + data.producaoIphone.total;
+      document.getElementById("heroProdTotal").textContent = prodTotal;
+      document.getElementById("heroProdHint").textContent =
+        `Android ${data.producaoAndroid.total} · iPhone ${data.producaoIphone.total}`;
+
+      document.getElementById("kpiRecTotalCard").textContent = data.recebimento.total;
+      document.getElementById("kpiGestaoTotalCard").textContent = data.gestao.total;
+
+      document.getElementById("kpiProdFinalizado").textContent =
+        data.producaoAndroid.finalizado + data.producaoIphone.finalizado;
+      document.getElementById("kpiProdAndamento").textContent =
+        data.producaoAndroid.andamento + data.producaoIphone.andamento;
+      document.getElementById("kpiProdPausado").textContent =
+        data.producaoAndroid.pausado + data.producaoIphone.pausado;
+
+      document.getElementById("cqeFoot").textContent = taxa == null
+        ? "Meta 90%"
+        : `Taxa ${taxaTxt} · meta 90%`;
+    }
+
+    const _origRender = ConsolidadoDash.renderKpis.bind(ConsolidadoDash);
+    ConsolidadoDash.renderKpis = function (data) {
+      _origRender(data);
+      renderHero(data);
+      renderFlow(data);
+    };
+
+    const _origLoad = ConsolidadoDash.loadAndRender.bind(ConsolidadoDash);
+    ConsolidadoDash.loadAndRender = async function () {
+      await _origLoad();
+      const { start, end } = YardexDash.getDateRange();
+      const periodLabel = document.getElementById("periodLabel");
+      if (periodLabel && start && end) {
+        const agora = new Date().toLocaleTimeString("pt-BR", {
+          hour: "2-digit", minute: "2-digit", second: "2-digit"
+        });
+        periodLabel.textContent =
+          `${YardexDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
+      }
+    };
+
+    document.getElementById("btnToggleFilters").addEventListener("click", () => {
+      document.body.classList.toggle("show-filters");
+      document.getElementById("btnToggleFilters").classList.toggle(
+        "primary",
+        document.body.classList.contains("show-filters")
+      );
+    });
+
     ConsolidadoDash.init();
   </script>
 </body>
