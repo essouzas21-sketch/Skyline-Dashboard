@@ -225,7 +225,7 @@
       grid-template-columns: 1fr 1fr minmax(220px, 240px);
       gap: 8px;
       flex: 1 1 0;
-      min-height: 200px;
+      min-height: 280px;
     }
 
     .gp-panel {
@@ -498,50 +498,6 @@
         <div id="alertsList"></div>
       </aside>
     </section>
-
-    <section class="gp-bottom">
-      <div class="gp-panel">
-        <h2>Peças do período</h2>
-        <div class="gp-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th class="col-peca">Peça</th>
-                <th>Categoria</th>
-                <th>Marca</th>
-                <th>Qtd</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-          <div id="tableEmpty" class="gp-empty" hidden>Nenhuma peça no período.</div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="gp-modal-backdrop" id="drillModal">
-    <div class="gp-modal">
-      <div class="gp-modal-head">
-        <h3 id="drillTitle">Detalhe da peça</h3>
-        <button type="button" id="drillClose">Fechar</button>
-      </div>
-      <div class="gp-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>OS</th>
-              <th>NR</th>
-              <th>Aparelho</th>
-              <th>Solicitante</th>
-            </tr>
-          </thead>
-          <tbody id="drillBody"></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -565,7 +521,6 @@
     };
 
     let allRows = [];
-    let tableRowsCache = [];
     let loadSeq = 0;
     const charts = {};
 
@@ -814,69 +769,6 @@
       `).join("");
     }
 
-    function buildProductTable(rows) {
-      const counts = new Map();
-      const meta = new Map();
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        const id = r.produto_requisitado_id;
-        counts.set(id, (counts.get(id) || 0) + 1);
-        if (!meta.has(id)) {
-          meta.set(id, {
-            descricao: r.descricao,
-            categoria: r.categoria,
-            marca: r.marca
-          });
-        }
-      }
-      return [...counts.entries()]
-        .map(([id, qtd]) => ({ id, qtd, ...meta.get(id) }))
-        .sort((a, b) => b.qtd - a.qtd);
-    }
-
-    function renderTable(rows) {
-      tableRowsCache = buildProductTable(rows);
-      const tbody = document.getElementById("tableBody");
-      const empty = document.getElementById("tableEmpty");
-      const list = tableRowsCache;
-
-      if (!list.length) {
-        tbody.innerHTML = "";
-        empty.hidden = false;
-        return;
-      }
-      empty.hidden = true;
-      tbody.innerHTML = list.map((r) => `
-        <tr data-pid="${escapeHtml(r.id)}">
-          <td>${escapeHtml(r.id)}</td>
-          <td class="col-peca">${escapeHtml(r.descricao)}</td>
-          <td>${escapeHtml(r.categoria)}</td>
-          <td>${escapeHtml(r.marca)}</td>
-          <td class="qtd">${r.qtd}</td>
-        </tr>
-      `).join("");
-    }
-
-    function openDrill(produtoId, periodRows) {
-      const rows = periodRows.filter((r) => r.produto_requisitado_id === produtoId);
-      const sample = rows[0];
-      document.getElementById("drillTitle").textContent =
-        `${produtoId} — ${sample?.descricao || "Peça"} (${rows.length})`;
-      document.getElementById("drillBody").innerHTML = rows
-        .slice()
-        .sort((a, b) => String(b.data_pedido_sankhya).localeCompare(String(a.data_pedido_sankhya)))
-        .map((r) => `
-          <tr>
-            <td>${escapeHtml(YardexDash.formatDateBR(YardexDash.toLocalDateStr(r.data_pedido_sankhya)) || "—")}</td>
-            <td>${escapeHtml(r.id ?? "—")}</td>
-            <td>${escapeHtml(r.nr ?? "—")}</td>
-            <td>${escapeHtml(r.aparelho || "—")}</td>
-            <td>${escapeHtml(r.solicitante || "—")}</td>
-          </tr>
-        `).join("");
-      document.getElementById("drillModal").classList.add("open");
-    }
-
     function renderDashboard() {
       const { start, end } = YardexDash.getDateRange();
       if (!start || !end) return;
@@ -928,7 +820,6 @@
       populateFilters(allRows);
       renderCharts(basePeriod);
       renderAlerts(basePeriod, baseHoje);
-      renderTable(basePeriod);
       YardexDash.markRefresh();
     }
 
@@ -979,21 +870,6 @@
     document.getElementById("fBusca").addEventListener("input", () => {
       clearTimeout(window.__gpBuscaT);
       window.__gpBuscaT = setTimeout(renderDashboard, 200);
-    });
-
-    document.getElementById("tableBody").addEventListener("click", (e) => {
-      const tr = e.target.closest("tr[data-pid]");
-      if (!tr) return;
-      const { start, end } = YardexDash.getDateRange();
-      const periodRows = applyUiFilters(rowsForPeriod(allRows, start, end));
-      openDrill(tr.dataset.pid, periodRows);
-    });
-
-    document.getElementById("drillClose").addEventListener("click", () => {
-      document.getElementById("drillModal").classList.remove("open");
-    });
-    document.getElementById("drillModal").addEventListener("click", (e) => {
-      if (e.target.id === "drillModal") document.getElementById("drillModal").classList.remove("open");
     });
 
     restoreSession();
