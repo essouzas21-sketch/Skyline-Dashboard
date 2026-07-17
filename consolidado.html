@@ -252,15 +252,11 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 44px;
+      min-width: 28px;
       color: var(--co-accent);
       font-weight: 800;
-      font-size: 0.85rem;
-    }
-    .co-flow-arrow .conv {
-      font-size: 0.68rem;
-      color: var(--co-muted);
-      margin-top: 2px;
+      font-size: 1.1rem;
+      opacity: 0.55;
     }
 
     /* Modules grid */
@@ -427,12 +423,12 @@
       <div class="co-hero-card">
         <div class="eyebrow">Peças pedidas</div>
         <div class="big" id="kpiGestaoTotal">0</div>
-        <div class="hint"><span id="kpiGestaoMonthLabel">Mês</span></div>
+        <div class="hint"><span id="heroPecasHint">No período</span></div>
       </div>
     </section>
 
     <section class="co-flow">
-      <h2>Fluxo operacional do período</h2>
+      <h2>Volumes do período · etapas independentes (não é conversão)</h2>
       <div class="co-flow-track" id="flowTrack"></div>
     </section>
 
@@ -478,7 +474,7 @@
             <div class="value" id="kpiGestaoAparelhosMes">0</div>
           </div>
         </div>
-        <div class="co-mod-foot">1 pedido/dia por OS + produto · dedupe</div>
+        <div class="co-mod-foot" id="kpiGestaoMonthLabel">Acumulado do mês</div>
       </article>
 
       <article class="co-mod">
@@ -582,26 +578,22 @@
   <script>
     const META_CQE = 90;
 
-    function pct(part, total) {
-      if (!total) return "—";
-      return `${Math.round((part / total) * 100)}%`;
-    }
-
     function renderFlow(data) {
+      /* Volumes independentes do período — NÃO é funil de conversão. */
       const steps = [
-        { lab: "Recebimento", val: data.recebimento.total },
-        { lab: "Triagem", val: data.triagem.total },
-        { lab: "Peças", val: data.gestao.total },
-        { lab: "Produção", val: data.producaoAndroid.total + data.producaoIphone.total },
-        { lab: "CQE", val: data.cqe.total }
+        { lab: "Recebimento", val: data.recebimento.total, tip: "HUs recebidas" },
+        { lab: "Triagem", val: data.triagem.total, tip: "OS distintas" },
+        { lab: "Peças", val: data.gestao.total, tip: "Pedidos únicos" },
+        { lab: "Produção", val: data.producaoAndroid.total + data.producaoIphone.total, tip: "OS em reparo" },
+        { lab: "CQE", val: data.cqe.total, tip: "Inspeções" }
       ];
       const el = document.getElementById("flowTrack");
       el.innerHTML = steps.map((s, i) => {
         const arrow = i < steps.length - 1
-          ? `<div class="co-flow-arrow">→<span class="conv">${pct(steps[i + 1].val, s.val)}</span></div>`
+          ? `<div class="co-flow-arrow" title="Etapas paralelas — não é conversão">·</div>`
           : "";
         return `
-          <div class="co-flow-step">
+          <div class="co-flow-step" title="${s.tip}">
             <div class="val">${s.val}</div>
             <div class="lab">${s.lab}</div>
           </div>${arrow}
@@ -632,12 +624,18 @@
       const bar = document.getElementById("heroMetaBar");
       bar.classList.remove("ok", "warn", "bad");
       bar.classList.add(cls);
-      fill.style.width = taxa == null ? "0%" : `${Math.min(100, (taxa / META_CQE) * 100)}%`;
+      fill.style.width = taxa == null ? "0%" : `${Math.min(100, Math.max(0, (taxa / META_CQE) * 100))}%`;
 
       const prodTotal = data.producaoAndroid.total + data.producaoIphone.total;
       document.getElementById("heroProdTotal").textContent = prodTotal;
       document.getElementById("heroProdHint").textContent =
         `Android ${data.producaoAndroid.total} · iPhone ${data.producaoIphone.total}`;
+
+      /* Hero peças = período; mês fica só no card do módulo */
+      const heroPecasHint = document.getElementById("heroPecasHint");
+      if (heroPecasHint) {
+        heroPecasHint.textContent = `No período · mês ${data.gestaoMes.total}`;
+      }
 
       document.getElementById("kpiRecTotalCard").textContent = data.recebimento.total;
       document.getElementById("kpiGestaoTotalCard").textContent = data.gestao.total;
@@ -651,7 +649,7 @@
 
       document.getElementById("cqeFoot").textContent = taxa == null
         ? "Meta 90%"
-        : `Taxa ${taxaTxt} · meta 90%`;
+        : `Taxa ${taxaTxt} · meta 90% · ${data.cqe.aprovado}/${data.cqe.total}`;
     }
 
     const _origRender = ConsolidadoDash.renderKpis.bind(ConsolidadoDash);
