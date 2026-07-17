@@ -214,11 +214,11 @@ Cada etapa possui dashboard dedicado e regras de KPI documentadas nas seções 7
 
 | Painel | Colaboradores |
 |--------|---------------|
-| Android 1 | Karoline, Francisco |
+| Android 1 | Karoline, Thaís |
 | Android 2 | Viviane, Michele |
 | Android 3 | Keytman, Fernanda |
 | Android 4 | Reservado (sem usuários) |
-| Android 5 | Claudia, Thaís |
+| Android 5 | Claudia |
 | iPhone | Noemi, Fran |
 
 ### 8.5 CQE (qualidade)

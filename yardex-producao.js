@@ -7,7 +7,6 @@ const ProducaoDash = {
       "claudia paz",
       "thaís mazoline",
       "fernanda maria",
-      "Francisco Chagas",
       "Karoline Alexandre",
       "keytman janaína",
       "Michelle Alves",
@@ -24,10 +23,10 @@ const ProducaoDash = {
     {
       id: "q1",
       title: "Quadro 1",
-      subtitle: "Karoline · Francisco",
+      subtitle: "Karoline · Thaís",
       users: [
         { match: "Karoline Alexandre", label: "Karoline" },
-        { match: "Francisco Chagas", label: "Francisco" }
+        { match: "thaís mazoline", label: "Thaís" }
       ]
     },
     {
@@ -57,10 +56,9 @@ const ProducaoDash = {
     {
       id: "q5",
       title: "Quadro 5",
-      subtitle: "Claudia · Thaís",
+      subtitle: "Claudia",
       users: [
-        { match: "claudia paz", label: "Claudia" },
-        { match: "thaís mazoline", label: "Thaís" }
+        { match: "claudia paz", label: "Claudia" }
       ]
     }
   ],
