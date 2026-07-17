@@ -702,17 +702,26 @@
         }
       });
 
-      const topAparelhos = YardexDash.aggregateCount(
-        periodRows,
-        (r) => String(r.aparelho || "").trim() || "—"
-      ).slice(0, 8);
+      const byAparelho = new Map();
+      for (let i = 0; i < periodRows.length; i++) {
+        const r = periodRows[i];
+        const modelo = String(r.aparelho || "").trim() || "—";
+        const os = r.id != null && String(r.id).trim() !== "" ? String(r.id).trim() : null;
+        if (!os) continue;
+        if (!byAparelho.has(modelo)) byAparelho.set(modelo, new Set());
+        byAparelho.get(modelo).add(os);
+      }
+      const topAparelhos = [...byAparelho.entries()]
+        .map(([nome, ids]) => [nome, ids.size])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
       destroyChart("aparelhos");
       charts.aparelhos = new Chart(document.getElementById("chartAparelhos"), {
         type: "bar",
         data: {
           labels: topAparelhos.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
           datasets: [{
-            label: "Peças",
+            label: "Aparelhos",
             data: topAparelhos.map(([, v]) => v),
             backgroundColor: SKY.primary,
             borderRadius: 4
