@@ -4,67 +4,482 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Triagem</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
+  <link rel="stylesheet" href="yardex-dash.css?v=12" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=54"></script>
+  <script src="yardex-dash.js?v=56"></script>
+  <style>
+    :root {
+      --tr-page: #694992;
+      --tr-card: #ffffff;
+      --tr-border: rgba(105, 73, 146, 0.18);
+      --tr-text: #2d1f42;
+      --tr-muted: #6b5b7a;
+      --tr-primary: #694992;
+      --tr-accent: #8b6bb8;
+      --tr-green: #15803d;
+      --tr-red: #dc2626;
+      --tr-amber: #b45309;
+      --tr-surface: #faf8fc;
+      --tr-shadow: 0 4px 16px rgba(45, 31, 66, 0.16);
+      --tr-radius: 12px;
+    }
+
+    html, body.triagem-page.dash-page {
+      height: 100%;
+    }
+
+    body.triagem-page.dash-page {
+      background: var(--tr-page);
+      color: var(--tr-text);
+      padding: 6px 8px 8px;
+      box-sizing: border-box;
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      border: none;
+      margin: 0;
+    }
+
+    .triagem-page .page {
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .tr-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 10px;
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: var(--tr-radius);
+      padding: 6px 10px;
+      box-shadow: var(--tr-shadow);
+      flex: 0 0 auto;
+    }
+
+    .tr-topbar .title-block { flex: 1 1 auto; min-width: 0; }
+    .tr-topbar .back {
+      color: var(--tr-primary);
+      text-decoration: none;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+    .tr-topbar h1 {
+      margin: 1px 0 0;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .tr-topbar .subtitle {
+      margin: 1px 0 0;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tr-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      max-width: min(520px, 55vw);
+    }
+    body.triagem-page.show-filters .tr-filters { display: flex; }
+    body.triagem-page.show-filters .tr-topbar { flex-wrap: wrap; align-items: flex-end; }
+
+    .tr-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+    }
+    .tr-filters input {
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--tr-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--tr-text);
+    }
+
+    .tr-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+    .tr-actions button {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--tr-border);
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--tr-text);
+    }
+    .tr-actions button#btnFullscreen {
+      min-width: 36px;
+      padding: 0 10px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .tr-actions button.primary {
+      background: var(--tr-primary);
+      border-color: var(--tr-primary);
+      color: #fff;
+    }
+    .tr-actions button#btnToggleFilters.primary {
+      background: var(--tr-accent);
+      border-color: var(--tr-accent);
+    }
+
+    .triagem-page #statusMsg { display: none !important; }
+    .triagem-page .last-refresh { display: none !important; }
+
+    .tr-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .tr-kpi {
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      box-shadow: var(--tr-shadow);
+      min-width: 0;
+    }
+    .tr-kpi .label {
+      font-size: 0.55rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tr-kpi .value {
+      margin-top: 1px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--tr-text);
+    }
+    .tr-kpi .hint {
+      margin-top: 1px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tr-kpi .delta { font-weight: 800; }
+    .tr-kpi .delta.up { color: var(--tr-green); }
+    .tr-kpi .delta.down { color: var(--tr-red); }
+    .tr-kpi .delta.neutral { color: var(--tr-muted); }
+
+    .tr-mid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr minmax(200px, 22%);
+      gap: 6px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .tr-panel {
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: var(--tr-radius);
+      padding: 8px 10px;
+      box-shadow: var(--tr-shadow);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .tr-panel h2 {
+      margin: 0 0 4px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--tr-muted);
+      flex: 0 0 auto;
+    }
+    .tr-panel .chart-box {
+      flex: 1 1 0;
+      min-height: 0;
+      position: relative;
+      cursor: default;
+    }
+
+    .tr-alerts {
+      gap: 6px;
+      overflow: auto;
+    }
+    .tr-alert {
+      border-radius: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--tr-border);
+      background: var(--tr-surface);
+      margin-bottom: 6px;
+    }
+    .tr-alert.critical { border-color: rgba(220, 38, 38, 0.35); background: #fef2f2; }
+    .tr-alert.warn { border-color: rgba(180, 83, 9, 0.35); background: #fff7ed; }
+    .tr-alert.ok { border-color: rgba(21, 128, 61, 0.3); background: #f0fdf4; }
+    .tr-alert .title {
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--tr-text);
+    }
+    .tr-alert .body {
+      margin-top: 2px;
+      font-size: 0.68rem;
+      color: var(--tr-muted);
+      font-weight: 600;
+    }
+
+    .tr-bottom {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      flex: 0 0 26vh;
+      min-height: 140px;
+      max-height: 28vh;
+    }
+    .tr-bottom .tr-panel { min-height: 0; }
+    .tr-bottom .chart-box { min-height: 0; }
+
+    /* TV 50" / Full HD kiosk */
+    @media (min-width: 1400px) and (min-height: 800px) {
+      body.triagem-page.dash-page {
+        padding: 8px 10px 10px;
+      }
+      .triagem-page .page { gap: 8px; }
+      .tr-topbar { padding: 8px 12px; }
+      .tr-topbar .back { display: none; }
+      .tr-topbar h1 { font-size: 1.2rem; }
+      .tr-topbar .subtitle { font-size: 0.82rem; font-weight: 700; color: var(--tr-text); opacity: 0.78; }
+      .tr-actions button { height: 36px; font-size: 0.88rem; font-weight: 800; padding: 0 14px; }
+      .tr-kpi-row { gap: 8px; }
+      .tr-kpi { padding: 8px 12px; }
+      .tr-kpi .label { font-size: 0.62rem; }
+      .tr-kpi .value { font-size: 1.7rem; }
+      .tr-kpi .hint { font-size: 0.7rem; }
+      .tr-mid { gap: 8px; grid-template-columns: 1.25fr 1fr minmax(220px, 20%); }
+      .tr-panel { padding: 10px 12px; }
+      .tr-panel h2 { font-size: 0.78rem; margin-bottom: 6px; }
+      .tr-bottom { flex-basis: 24vh; max-height: 26vh; }
+      .tr-alert .title { font-size: 0.82rem; }
+      .tr-alert .body { font-size: 0.74rem; }
+    }
+
+    @media (min-width: 1100px) {
+      .tr-kpi-row { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+    }
+    @media (max-width: 1099px) {
+      body.triagem-page.dash-page { height: auto; max-height: none; overflow: auto; }
+      .triagem-page .page { height: auto; overflow: visible; }
+      .tr-mid { grid-template-columns: 1fr 1fr; min-height: 240px; }
+      .tr-mid .tr-alerts { grid-column: 1 / -1; max-height: 140px; }
+      .tr-bottom { flex: none; height: 200px; max-height: none; }
+      .tr-panel .chart-box { min-height: 180px; }
+    }
+    @media (max-width: 720px) {
+      .tr-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tr-mid { grid-template-columns: 1fr; }
+    }
+
+    .tr-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.55);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .tr-modal-backdrop.open { display: flex; }
+    .tr-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: min(720px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    .tr-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--tr-border);
+    }
+    .tr-modal-head h3 {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--tr-text);
+    }
+    .tr-modal-head button {
+      border: none;
+      background: var(--tr-surface);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--tr-text);
+    }
+    .tr-modal-body { overflow: auto; padding: 0; }
+    .tr-modal-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+    }
+    .tr-modal-body th,
+    .tr-modal-body td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--tr-border);
+      text-align: left;
+      color: var(--tr-text);
+    }
+    .tr-modal-body th {
+      background: var(--tr-surface);
+      position: sticky;
+      top: 0;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+    }
+    .tr-modal-body td.mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .tr-modal-empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--tr-muted);
+      font-weight: 600;
+    }
+  </style>
 </head>
-<body class="dash-page">
+<body class="dash-page triagem-page">
   <div class="page">
-    <div class="dash-toolbar">
-      <a class="back" href="menu.html">← Menu</a>
-      <div class="dash-title">
+    <header class="tr-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
         <h1>Triagem</h1>
-        <p class="subtitle" id="periodLabel">Carregando período…</p>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
-      <div class="filter-row">
-        <label>Data inicial <input type="date" id="dateStart" /></label>
-        <label>Data final <input type="date" id="dateEnd" /></label>
+      <div class="tr-filters">
+        <label>Início <input type="date" id="dateStart" /></label>
+        <label>Fim <input type="date" id="dateEnd" /></label>
+      </div>
+      <div class="tr-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
         <button type="button" class="primary" id="btnApply">Atualizar</button>
         <button type="button" id="btnToday">Hoje</button>
         <button type="button" id="btnReload">Recarregar</button>
+        <button type="button" id="btnFullscreen" title="Tela cheia (F11)">⛶</button>
       </div>
-    </div>
+    </header>
 
     <div id="statusMsg" class="status" hidden></div>
 
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="label">Aparelhos triados no período</div>
+    <section class="tr-kpi-row">
+      <div class="tr-kpi">
+        <div class="label">Triados no período</div>
         <div class="value" id="kpiTotal">0</div>
+        <div class="hint">OS distintas</div>
       </div>
-      <div class="kpi-card">
-        <div class="label" id="monthRowLabel">Aparelhos triados no mês</div>
+      <div class="tr-kpi">
+        <div class="label">Triados hoje</div>
+        <div class="value" id="kpiHoje">0</div>
+        <div class="hint"><span class="delta neutral" id="kpiVsOntem">vs ontem —</span></div>
+      </div>
+      <div class="tr-kpi">
+        <div class="label" id="kpiMesLabel">Triados no mês</div>
         <div class="value" id="kpiTotalMes">0</div>
+        <div class="hint"><span class="delta neutral" id="kpiVsMesAnt">vs mês ant. —</span></div>
       </div>
-    </div>
-
-    <div class="dash-main dash-main--triagem">
-      <div class="panel">
-        <h2>Triagens por usuário</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Usuário</th>
-                <th>Qtd</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-        </div>
-        <div id="tableEmpty" class="empty" hidden>Nenhuma triagem no período.</div>
+      <div class="tr-kpi">
+        <div class="label">Ritmo / hora</div>
+        <div class="value" id="kpiRitmo">0</div>
+        <div class="hint" id="kpiRitmoHint">Média no expediente</div>
       </div>
+      <div class="tr-kpi">
+        <div class="label">Colaboradores</div>
+        <div class="value" id="kpiUsers">0</div>
+        <div class="hint">Com triagem no período</div>
+      </div>
+    </section>
 
-      <div class="panel">
-        <h2>Principais marcas triadas</h2>
+    <section class="tr-mid">
+      <div class="tr-panel">
+        <h2>Top colaboradores</h2>
+        <div class="chart-box"><canvas id="chartUsers"></canvas></div>
+      </div>
+      <div class="tr-panel">
+        <h2>Principais marcas</h2>
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
+      <aside class="tr-panel tr-alerts">
+        <h2>Alertas</h2>
+        <div id="alertsList"></div>
+      </aside>
+    </section>
 
-      <div class="panel panel--hour">
-        <h2>Triagens por hora — Data Triagem (08h–17h · horário local)</h2>
-        <div class="chart-box chart-box--hour"><canvas id="chartHora"></canvas></div>
+    <section class="tr-bottom">
+      <div class="tr-panel">
+        <h2>Triagens por hora · 08h–17h (horário local)</h2>
+        <div class="chart-box"><canvas id="chartHora"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tr-modal-backdrop" id="drillModal" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
+    <div class="tr-modal">
+      <div class="tr-modal-head">
+        <h3 id="drillTitle">IMEIs</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="tr-modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>IMEI</th>
+              <th>OS</th>
+              <th>Modelo</th>
+              <th>Data triagem</th>
+              <th>HU</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -74,15 +489,105 @@
 
     const API_URL = YardexDash.API_REPARO;
     const DATE_FIELD = "data_triagem";
-    const ETAPAS_PERMITIDAS = YardexDash.ETAPAS_OPERACAO;
-    const TOP_MARCAS = 12;
-    const statusEl = document.getElementById("statusMsg");
-
+    const ETAPAS = YardexDash.ETAPAS_OPERACAO;
+    const TOP_N = 8;
     const HOUR_FROM = 8;
     const HOUR_TO = 17;
+    const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
+    const statusEl = document.getElementById("statusMsg");
+
     let allRows = [];
+    let chartUsers = null;
     let chartMarca = null;
     let chartHora = null;
+    let lastUserKeys = [];
+    let lastPeriodRows = [];
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function fmtDateTime(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function closeDrill() {
+      document.getElementById("drillModal").classList.remove("open");
+    }
+
+    function openImeiDrill(userName, rows) {
+      document.getElementById("drillTitle").textContent =
+        `${userName} · ${rows.length} IMEI(s)`;
+      const tbody = document.getElementById("drillBody");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="tr-modal-empty">Nenhum IMEI neste período.</td></tr>`;
+      } else {
+        const sorted = [...rows].sort((a, b) => String(b.data_triagem).localeCompare(String(a.data_triagem)));
+        tbody.innerHTML = sorted.map((r) => `
+          <tr>
+            <td class="mono">${escapeHtml(r.serial && r.serial !== "—" ? r.serial : "—")}</td>
+            <td class="mono">${escapeHtml(r.id ?? "—")}</td>
+            <td>${escapeHtml(r.descricao || "—")}</td>
+            <td>${escapeHtml(fmtDateTime(r.data_triagem))}</td>
+            <td class="mono">${escapeHtml(r.hu && r.hu !== "—" ? r.hu : "—")}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("drillModal").classList.add("open");
+    }
+
+    const isTv = () => window.matchMedia("(min-width: 1400px) and (min-height: 800px)").matches;
+    const tickFont = () => ({ size: isTv() ? 12 : 10, weight: "600" });
+    const dataLabelCount = {
+      anchor: "end",
+      align: "end",
+      offset: 4,
+      color: SKY.primary,
+      font: { weight: "700", size: isTv() ? 13 : 11 },
+      clamp: true,
+      display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+      formatter: (v) => v
+    };
+
+    function addDaysISO(iso, delta) {
+      const [y, m, d] = iso.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + delta);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    }
+
+    function getMonthRange(refISO) {
+      const [y, m] = refISO.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
+    }
+
+    function monthLabel(refISO) {
+      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      const [y, m] = refISO.split("-");
+      return `${names[Number(m) - 1]}/${y}`;
+    }
+
+    function fmtDelta(curr, prev) {
+      if (prev == null) return { text: "—", cls: "neutral" };
+      const d = curr - prev;
+      if (d === 0) return { text: "0", cls: "neutral" };
+      const sign = d > 0 ? "+" : "";
+      return { text: `${sign}${d}`, cls: d > 0 ? "up" : "down" };
+    }
 
     function mapRow(raw) {
       return {
@@ -102,45 +607,165 @@
       };
     }
 
-    function passesTriagemRules(row) {
-      return !!row.data_triagem && ETAPAS_PERMITIDAS.has(row.operacao);
+    function rowsForPeriod(rows, start, end) {
+      return YardexDash.distinctById(
+        YardexDash.filterByDateField(rows, start, end, DATE_FIELD),
+        "id"
+      );
     }
 
-    function getMonthRange(refISO) {
-      const [y, m] = refISO.split("-");
-      const lastDay = new Date(Number(y), Number(m), 0).getDate();
-      return {
-        start: `${y}-${m}-01`,
-        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
-      };
+    function destroyChart(ref) {
+      if (ref) ref.destroy();
+      return null;
     }
 
-    function monthLabel(refISO) {
-      const [y, m] = refISO.split("-");
-      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-      return `${names[Number(m) - 1]}/${y}`;
+    function renderUserChart(rows) {
+      const byUser = YardexDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
+      lastUserKeys = byUser.map(([n]) => n);
+      lastPeriodRows = rows;
+      chartUsers = destroyChart(chartUsers);
+      chartUsers = new Chart(document.getElementById("chartUsers"), {
+        type: "bar",
+        data: {
+          labels: byUser.map(([n]) => (n.length > 18 ? `${n.slice(0, 17)}…` : n)),
+          datasets: [{
+            data: byUser.map(([, v]) => v),
+            backgroundColor: SKY.accent,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: dataLabelCount,
+            tooltip: {
+              callbacks: {
+                title: (items) => lastUserKeys[items[0]?.dataIndex] || "",
+                afterBody: () => "Clique para ver IMEIs"
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: tickFont() } },
+            y: { ticks: { font: tickFont() } }
+          },
+          onHover: (ev, elems) => {
+            const canvas = ev?.native?.target;
+            if (canvas) canvas.style.cursor = elems.length ? "pointer" : "default";
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const user = lastUserKeys[elems[0].index];
+            if (!user) return;
+            openImeiDrill(
+              user,
+              lastPeriodRows.filter((r) => r.usuario === user)
+            );
+          }
+        }
+      });
+      return byUser;
     }
 
-    function renderUserTable(rows) {
-      const tbody = document.getElementById("tableBody");
-      const empty = document.getElementById("tableEmpty");
-      const byUser = YardexDash.aggregateCount(rows, (r) => r.usuario);
+    function renderMarcaChart(rows) {
+      const byBrand = YardexDash.aggregateCount(rows, (r) => YardexDash.extractFirstWord(r.descricao))
+        .slice(0, TOP_N);
+      chartMarca = destroyChart(chartMarca);
+      chartMarca = new Chart(document.getElementById("chartMarca"), {
+        type: "bar",
+        data: {
+          labels: byBrand.map(([n]) => n),
+          datasets: [{
+            data: byBrand.map(([, v]) => v),
+            backgroundColor: SKY.primary,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: tickFont() } },
+            y: { ticks: { font: tickFont() } }
+          }
+        }
+      });
+      return byBrand;
+    }
 
-      if (!byUser.length) {
-        tbody.innerHTML = "";
-        empty.hidden = false;
-        return;
+    function renderHoraChart(rows, end) {
+      const byHour = YardexDash.aggregateHourBuckets(rows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
+      chartHora = destroyChart(chartHora);
+      chartHora = YardexDash.createLineChart(
+        "chartHora",
+        null,
+        byHour.map((x) => x[0]),
+        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
+        SKY.primary
+      );
+      return byHour;
+    }
+
+    function renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour) {
+      const alerts = [];
+      if (byUser[0] && periodRows.length) {
+        const pct = Math.round((byUser[0][1] / periodRows.length) * 100);
+        if (pct >= 35) {
+          alerts.push({
+            cls: "warn",
+            title: `${byUser[0][0]} · ${byUser[0][1]} (${pct}%)`,
+            body: "Maior volume de triagem no período"
+          });
+        }
       }
-      empty.hidden = true;
+      if (byBrand[0]) {
+        alerts.push({
+          cls: "warn",
+          title: `Marca dominante: ${byBrand[0][0]}`,
+          body: `${byBrand[0][1]} aparelho(s) no período`
+        });
+      }
+      const hourPeak = [...byHour].sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      if (hourPeak && Number(hourPeak[1]) > 0) {
+        alerts.push({
+          cls: "ok",
+          title: `Pico horário: ${hourPeak[0]}`,
+          body: `${hourPeak[1]} triagem(ns) nesse bloco`
+        });
+      }
+      if (hojeRows.length) {
+        alerts.push({
+          cls: "ok",
+          title: `${hojeRows.length} triado(s) hoje`,
+          body: "Contagem distinct por OS"
+        });
+      }
+      if (!alerts.length) {
+        alerts.push({ cls: "ok", title: "Sem alertas", body: "Período sem anomalias evidentes" });
+      }
+      document.getElementById("alertsList").innerHTML = alerts.map((a) => `
+        <div class="tr-alert ${a.cls}">
+          <div class="title">${a.title}</div>
+          <div class="body">${a.body}</div>
+        </div>
+      `).join("");
+    }
 
-      tbody.innerHTML = byUser
-        .map(([usuario, qtd]) => `
-          <tr>
-            <td>${usuario}</td>
-            <td style="font-weight:700;color:var(--bg)">${qtd}</td>
-          </tr>
-        `)
-        .join("");
+    function expedienteHoursTouched(byHour, end) {
+      const values = YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true });
+      const valid = values.filter((v) => v != null);
+      const sum = valid.reduce((a, b) => a + Number(b || 0), 0);
+      const hours = Math.max(1, valid.length);
+      return { media: sum / hours, hours, sum };
     }
 
     function renderDashboard() {
@@ -151,70 +776,107 @@
         return;
       }
 
-      const filtered = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
-      const dashRows = YardexDash.distinctById(filtered, "id");
-
+      const hoje = YardexDash.todayISO();
+      const ontem = addDaysISO(hoje, -1);
       const month = getMonthRange(end);
-      const inMonth = YardexDash.filterByDateField(allRows, month.start, month.end, DATE_FIELD);
-      const dashRowsMes = YardexDash.distinctById(inMonth, "id");
+      const prevMonth = getMonthRange(addDaysISO(month.start, -1));
 
-      const byBrand = YardexDash.aggregateCount(dashRows, (r) => YardexDash.extractFirstWord(r.descricao))
-        .slice(0, TOP_MARCAS);
-      const byHour = YardexDash.aggregateHourBuckets(dashRows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
-        useLocal: true
+      const periodRows = rowsForPeriod(allRows, start, end);
+      const mesRows = rowsForPeriod(allRows, month.start, month.end);
+      const hojeRows = rowsForPeriod(allRows, hoje, hoje);
+      const ontemRows = rowsForPeriod(allRows, ontem, ontem);
+      const mesAntRows = rowsForPeriod(allRows, prevMonth.start, prevMonth.end);
+
+      const dOntem = fmtDelta(hojeRows.length, ontemRows.length);
+      const dMes = fmtDelta(mesRows.length, mesAntRows.length);
+
+      document.getElementById("kpiTotal").textContent = periodRows.length;
+      document.getElementById("kpiHoje").textContent = hojeRows.length;
+      document.getElementById("kpiTotalMes").textContent = mesRows.length;
+      document.getElementById("kpiMesLabel").textContent = `Triados no mês — ${monthLabel(end)}`;
+
+      const elOntem = document.getElementById("kpiVsOntem");
+      elOntem.textContent = `vs ontem ${dOntem.text}`;
+      elOntem.className = `delta ${dOntem.cls}`;
+      const elMes = document.getElementById("kpiVsMesAnt");
+      elMes.textContent = `vs mês ant. ${dMes.text}`;
+      elMes.className = `delta ${dMes.cls}`;
+
+      const byUser = renderUserChart(periodRows);
+      const byBrand = renderMarcaChart(periodRows);
+      const byHour = renderHoraChart(periodRows, end);
+      const ritmo = expedienteHoursTouched(byHour, end);
+      document.getElementById("kpiRitmo").textContent = ritmo.media
+        ? ritmo.media.toFixed(1).replace(".", ",")
+        : "0";
+      document.getElementById("kpiRitmoHint").textContent = `${ritmo.hours}h no expediente`;
+      document.getElementById("kpiUsers").textContent = byUser.length
+        ? YardexDash.aggregateCount(periodRows, (r) => r.usuario).length
+        : 0;
+
+      renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour);
+
+      const agora = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
       });
-
-      document.getElementById("kpiTotal").textContent = dashRows.length;
-      document.getElementById("kpiTotalMes").textContent = dashRowsMes.length;
-      document.getElementById("monthRowLabel").textContent = `Aparelhos triados no mês — ${monthLabel(end)}`;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · Data Triagem · operação reparo/gestao_pecas`;
+        `${YardexDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
 
-      chartMarca = YardexDash.createBarChart(
-        "chartMarca",
-        chartMarca,
-        byBrand.map((x) => x[0]),
-        byBrand.map((x) => x[1]),
-        "#8b6bb8"
-      );
-
-      chartHora = YardexDash.createLineChart(
-        "chartHora",
-        chartHora,
-        byHour.map((x) => x[0]),
-        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
-        "#694992"
-      );
-
-      renderUserTable(dashRows);
-      YardexDash.showStatus(
-        statusEl,
-        `${dashRows.length} aparelho(s) no período · ${dashRowsMes.length} no mês · distinct por id.`,
-        false
-      );
+      YardexDash.markRefresh();
+      YardexDash.showStatus(statusEl, `${periodRows.length} aparelho(s) no período.`, false);
     }
 
     async function loadData() {
       YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        const mapped = YardexDash.normalizeRows(json)
-          .filter((raw) => YardexDash.passesTriagemRaw(raw))
-          .map(mapRow);
-        allRows = mapped;
-        YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
+        allRows = YardexDash.normalizeRows(json)
+          .filter((raw) => YardexDash.passesTriagemRaw(raw, ETAPAS))
+          .map(mapRow)
+          .filter((r) => r.data_triagem);
         renderDashboard();
+        YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
+        document.getElementById("kpiHoje").textContent = "0";
         document.getElementById("kpiTotalMes").textContent = "0";
-        chartMarca = YardexDash.createBarChart("chartMarca", chartMarca, [], []);
-        chartHora = YardexDash.createLineChart("chartHora", chartHora, [], []);
-        renderUserTable([]);
+        document.getElementById("kpiRitmo").textContent = "0";
+        document.getElementById("kpiUsers").textContent = "0";
+        chartUsers = destroyChart(chartUsers);
+        chartMarca = destroyChart(chartMarca);
+        chartHora = destroyChart(chartHora);
+        document.getElementById("alertsList").innerHTML = "";
       }
     }
 
-    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    document.getElementById("btnToggleFilters").addEventListener("click", () => {
+      document.body.classList.toggle("show-filters");
+      document.getElementById("btnToggleFilters").classList.toggle(
+        "primary",
+        document.body.classList.contains("show-filters")
+      );
+    });
+
+    document.getElementById("drillClose").addEventListener("click", closeDrill);
+    document.getElementById("drillModal").addEventListener("click", (e) => {
+      if (e.target.id === "drillModal") closeDrill();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDrill();
+    });
+
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) { /* TV sem Fullscreen API: use F11 */ }
+      });
+    }
+
+    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   </script>
 </body>
 </html>
