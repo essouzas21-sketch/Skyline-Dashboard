@@ -271,7 +271,14 @@
       min-height: 140px;
       max-height: 28vh;
     }
-    .tr-bottom .tr-panel { min-height: 0; }
+    .tr-bottom .tr-panel {
+      min-height: 0;
+      background: var(--tr-primary);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+    .tr-bottom .tr-panel h2 {
+      color: rgba(255, 255, 255, 0.88);
+    }
     .tr-bottom .chart-box { min-height: 0; }
 
     /* TV 50" / Full HD kiosk */
@@ -704,14 +711,69 @@
       const byHour = YardexDash.aggregateHourBuckets(rows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
+      const labels = byHour.map((x) => x[0]);
+      const values = YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
+      const hasData = values.some((v) => v != null && v > 0);
       chartHora = destroyChart(chartHora);
-      chartHora = YardexDash.createLineChart(
-        "chartHora",
-        null,
-        byHour.map((x) => x[0]),
-        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
-        SKY.primary
-      );
+      chartHora = new Chart(document.getElementById("chartHora"), {
+        type: "line",
+        data: {
+          labels: labels.length ? labels : ["Nenhum registro"],
+          datasets: [{
+            label: "Quantidade",
+            data: values.length ? values : [0],
+            borderColor: "#ffffff",
+            backgroundColor: "#ffffff",
+            pointBackgroundColor: "#ffffff",
+            pointBorderColor: SKY.primary,
+            pointBorderWidth: 2,
+            pointRadius: (ctx) => (ctx.raw == null ? 0 : 5),
+            pointHoverRadius: (ctx) => (ctx.raw == null ? 0 : 6),
+            borderWidth: 2,
+            tension: 0.25,
+            spanGaps: false,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 24 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              display: (ctx) => {
+                const value = ctx.dataset.data[ctx.dataIndex];
+                return hasData && value != null && Number(value) > 0;
+              },
+              anchor: "end",
+              align: "top",
+              offset: 4,
+              color: "#ffffff",
+              font: { weight: "700", size: isTv() ? 13 : 12 },
+              formatter: (value) => value
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, precision: 0, color: "rgba(255,255,255,0.75)" },
+              grid: { color: "rgba(255,255,255,0.18)" }
+            },
+            x: {
+              ticks: {
+                maxRotation: 0,
+                minRotation: 0,
+                font: { size: isTv() ? 13 : 11, weight: "700" },
+                color: "#ffffff"
+              },
+              grid: { display: false }
+            }
+          }
+        }
+      });
       return byHour;
     }
 
