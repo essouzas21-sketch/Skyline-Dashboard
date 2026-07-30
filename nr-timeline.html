@@ -1362,7 +1362,7 @@
         "Triagem 1", "Triagem 2", "Triagem 3", "Triagem 4",
         "Triagem 5", "Triagem 6", "Triagem 7"
       ]);
-      add("gestao", ["Gestao Pecas", "Pecas Casadas"]);
+      add("gestao", ["Gestao Pecas", "Pecas Casadas", "Ag. Pecas"]);
       add("reparo", [
         "RB.1", "RB.2", "RB.3", "RB.4", "RB.5", "RB.6", "RB.7", "RB.8", "RB.9",
         "RB.10", "RB.11", "RB.12", "RB.13", "RB.14", "RB.15", "RB.16", "RB.17",
@@ -1389,7 +1389,7 @@
       if (/^rb\.?\s*\d{1,2}$/.test(key)) return "reparo";
       if (/^q\.?\s*[1-3]$/.test(key)) return "cqe";
       if (/^[cd]\.\s*\d+\.\s*\d+$/.test(key)) return "cofre";
-      if (key === "gestao pecas" || key === "pecas casadas") return "gestao";
+      if (key === "gestao pecas" || key === "pecas casadas" || key === "ag. pecas" || key === "ag pecas") return "gestao";
       if (key === "sala recebimento") return "recebimento";
       if (key === "carregamento") return "carregamento";
       return null;
@@ -1412,40 +1412,54 @@
       return null;
     }
 
+    function locationRecencyTs(loc) {
+      const raw = loc?.data_alt || loc?.data_recebimento || loc?.data_add || null;
+      if (!raw) return 0;
+      const t = new Date(raw).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    }
+
+    /** Endereço atual = registro mais recente da HU (data_alt → data_recebimento → data_add; empate = última ocorrência). */
+    function pickLatestLocation(locations, { allowUnmapped = true } = {}) {
+      const list = (locations || []).filter((l) => l && (allowUnmapped || l.step));
+      if (!list.length) return null;
+      return [...list].sort((a, b) => {
+        const tb = locationRecencyTs(b) - locationRecencyTs(a);
+        if (tb !== 0) return tb;
+        return (b.rowIndex ?? 0) - (a.rowIndex ?? 0);
+      })[0];
+    }
+
     function resolveCurrentFromLocals(locations, decisao) {
-      const mapped = (locations || []).filter((l) => l.step);
-      if (!mapped.length) return { step: null, local: "—", user: null, at: null };
       const isReprov = norm(decisao).includes("reprov");
+      let latest = pickLatestLocation(locations, { allowUnmapped: true });
+      if (!latest) return { step: null, local: "—", user: null, at: null };
 
-      let pool = [...mapped];
-      const latestAlt = pool.reduce((max, l) => {
-        if (!l.data_alt) return max;
-        if (!max || l.data_alt > max) return l.data_alt;
-        return max;
-      }, null);
-
-      if (latestAlt) {
-        const sameAlt = pool.filter((l) => l.data_alt === latestAlt);
-        if (sameAlt.length) pool = sameAlt;
+      // Reprovado ainda apontando Q.*: tenta o mais recente que não seja Qualidade
+      if (isReprov && latest.step === "cqe") {
+        const nonCqe = pickLatestLocation(
+          (locations || []).filter((l) => l.step && l.step !== "cqe"),
+          { allowUnmapped: false }
+        );
+        if (nonCqe) latest = nonCqe;
       }
 
-      // Reprovado na Qualidade: usa o local real (não fica preso em Q.*)
-      if (isReprov) {
-        const nonCqe = pool.filter((l) => l.step !== "cqe");
-        if (nonCqe.length) pool = nonCqe;
-        else {
-          const anyNonCqe = mapped.filter((l) => l.step !== "cqe");
-          if (anyNonCqe.length) pool = anyNonCqe;
-        }
+      let step = latest.step || mapEnderecoToStep(latest.endereco);
+      // Endereço mais recente pode não estar na lista oficial — usa o mapped mais recente só p/ etapa
+      if (!step) {
+        const mappedLatest = pickLatestLocation(
+          (locations || []).filter((l) => l.step),
+          { allowUnmapped: false }
+        );
+        step = mappedLatest?.step || null;
       }
 
-      pool.sort((a, b) => (STEP_INDEX[b.step] ?? -1) - (STEP_INDEX[a.step] ?? -1));
-      const best = pool[0];
       return {
-        step: best.step,
-        local: best.endereco || "—",
-        user: best.usuario_alocacao || null,
-        at: best.data_alt || null
+        step,
+        local: latest.endereco || "—",
+        user: latest.usuario_alocacao || null,
+        at: latest.data_alt || latest.data_recebimento || latest.data_add || null,
+        rowIndex: latest.rowIndex ?? null
       };
     }
 
@@ -1536,7 +1550,7 @@
 
     function buildDevices(rows, reparoByHu) {
       const map = new Map();
-      rows.forEach((raw) => {
+      rows.forEach((raw, rowIndex) => {
         const hu = raw.hu_id ?? raw.serial;
         if (hu == null) return;
         const key = String(hu);
@@ -1567,8 +1581,10 @@
           step: mapEnderecoToStep(raw.endereco),
           data_alt: raw.data_alt,
           data_recebimento: raw.data_recebimento,
+          data_add: raw.data_add,
           usuario_alocacao: raw.usuario_alocacao || null,
-          recebido: raw.recebido
+          recebido: raw.recebido,
+          rowIndex
         });
       });
 
@@ -1580,15 +1596,29 @@
         let latestAlt = null;
         const stepDates = {};
 
+        // Endereço/etapa atual = SOMA o mais recente (não o "mais avançado" entre duplicatas)
+        const latestLoc = pickLatestLocation(device.locations, { allowUnmapped: true });
+        if (latestLoc) {
+          latestAlt = latestLoc.data_alt || latestLoc.data_recebimento || latestLoc.data_add || null;
+        }
+
+        // Histórico de locais: só registros até o mais recente (por data + ordem)
+        const latestRank = latestLoc
+          ? { ts: locationRecencyTs(latestLoc), idx: latestLoc.rowIndex ?? 0 }
+          : { ts: Infinity, idx: Infinity };
         device.locations.forEach((loc) => {
+          const ts = locationRecencyTs(loc);
+          const idx = loc.rowIndex ?? 0;
+          const isPastOrCurrent =
+            ts < latestRank.ts || (ts === latestRank.ts && idx <= latestRank.idx);
+          if (!isPastOrCurrent) return;
           if (loc.step) {
             touched.add(loc.step);
             localVisited.add(loc.step);
-            if (!stepDates[loc.step] || (loc.data_alt && loc.data_alt > stepDates[loc.step])) {
+            if (!stepDates[loc.step] || (loc.data_alt && loc.data_alt > (stepDates[loc.step] || ""))) {
               stepDates[loc.step] = loc.data_alt || device.data_recebimento;
             }
           }
-          if (loc.data_alt && (!latestAlt || loc.data_alt > latestAlt)) latestAlt = loc.data_alt;
         });
 
         if (device.data_recebimento || device.locations.some((l) => /receb/i.test(l.endereco))) {
@@ -1611,17 +1641,24 @@
           });
         }
 
+        // Eventos de local: um por etapa, priorizando o registro mais recente daquela etapa
         const byStepLoc = new Map();
         device.locations.forEach((loc) => {
           if (!loc.step || loc.step === "recebimento") return;
-          if (!byStepLoc.has(loc.step) || (loc.data_alt && loc.data_alt > (byStepLoc.get(loc.step).data_alt || ""))) {
+          const prev = byStepLoc.get(loc.step);
+          if (!prev) {
             byStepLoc.set(loc.step, loc);
+            return;
           }
+          const newer =
+            locationRecencyTs(loc) > locationRecencyTs(prev) ||
+            (locationRecencyTs(loc) === locationRecencyTs(prev) && (loc.rowIndex ?? 0) > (prev.rowIndex ?? 0));
+          if (newer) byStepLoc.set(loc.step, loc);
         });
         byStepLoc.forEach((loc, step) => {
           const meta = stepMeta(step);
           events.push({
-            at: loc.data_alt || device.data_recebimento,
+            at: loc.data_alt || loc.data_recebimento || device.data_recebimento,
             step,
             title: `Local: ${loc.endereco}${loc.usuario_alocacao ? ` · ${loc.usuario_alocacao}` : ""}`,
             tag: meta.label,
