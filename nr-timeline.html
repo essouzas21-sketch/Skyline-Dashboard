@@ -1,0 +1,2376 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NR Timeline — Skyline Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="yardex-version.js?v=2"></script>
+  <script src="yardex-dash.js?v=56"></script>
+  <style>
+    :root {
+      --bg: #070b12;
+      --bg-2: #0c121c;
+      --panel: #101822;
+      --panel-2: #141e2b;
+      --line: rgba(120, 170, 220, 0.16);
+      --text: #e8f0fa;
+      --muted: #8fa3bc;
+      --cyan: #3ec6ff;
+      --cyan-dim: rgba(62, 198, 255, 0.18);
+      --green: #2ee59d;
+      --green-dim: rgba(46, 229, 157, 0.16);
+      --gold: #f0b429;
+      --gold-dim: rgba(240, 180, 41, 0.16);
+      --blue: #4d7cff;
+      --blue-dim: rgba(77, 124, 255, 0.18);
+      --orange: #ff8a3d;
+      --orange-dim: rgba(255, 138, 61, 0.16);
+      --violet: #9b7bff;
+      --violet-dim: rgba(155, 123, 255, 0.16);
+      --red: #ff5d6c;
+      --grey: #5b6b7f;
+      --radius: 14px;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+      --font-display: "Orbitron", sans-serif;
+      --font-body: "Exo 2", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(62, 198, 255, 0.08), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgba(77, 124, 255, 0.08), transparent 50%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    .side {
+      border-right: 1px solid var(--line);
+      background: rgba(8, 12, 20, 0.92);
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 6px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #1a2a40, #0d1624);
+      border: 1px solid rgba(62, 198, 255, 0.35);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 18px rgba(62, 198, 255, 0.25);
+    }
+
+    .brand-mark svg { width: 18px; height: 18px; fill: var(--cyan); }
+
+    .brand strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 0.92rem;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+    }
+
+    .brand span {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav a, .nav button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      text-decoration: none;
+      text-align: left;
+      font: inherit;
+      font-size: 0.84rem;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: 0.18s ease;
+    }
+
+    .nav a:hover, .nav button:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .nav a.active, .nav button.active {
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      box-shadow: inset 0 0 0 1px rgba(62, 198, 255, 0.25);
+    }
+
+    .side-foot {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+    }
+
+    .side-foot label {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .side-foot select,
+    .side-foot input {
+      width: 100%;
+      height: 36px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 0.82rem;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .back {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .back:hover { color: var(--text); border-color: rgba(62,198,255,0.35); }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .search-box input {
+      flex: 1;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: rgba(62, 198, 255, 0.55);
+      box-shadow: 0 0 0 3px rgba(62, 198, 255, 0.12);
+    }
+
+    .btn {
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #2aa8e0, #3ec6ff);
+      color: #041018;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .meta-right {
+      margin-left: auto;
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .meta-right strong {
+      display: block;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .status-pill.ok { background: var(--green-dim); color: var(--green); }
+    .status-pill.warn { background: var(--gold-dim); color: var(--gold); }
+    .status-pill.info { background: var(--cyan-dim); color: var(--cyan); }
+    .status-pill.idle { background: rgba(91,107,127,0.25); color: var(--muted); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.35fr 0.9fr 0.75fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(20, 30, 43, 0.95), rgba(16, 24, 34, 0.95));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      min-width: 0;
+    }
+
+    .card h2, .card h3 {
+      margin: 0 0 10px;
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .device-head {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .phone {
+      width: 88px;
+      height: 118px;
+      border-radius: 16px;
+      background:
+        linear-gradient(160deg, rgba(62,198,255,0.15), transparent 40%),
+        linear-gradient(180deg, #182433, #0d141e);
+      border: 1px solid rgba(62,198,255,0.25);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .phone::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    }
+
+    .phone svg { width: 36px; height: 36px; fill: var(--cyan); opacity: 0.9; z-index: 1; }
+
+    .device-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      margin: 0 0 8px;
+      line-height: 1.25;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 14px;
+      font-size: 0.78rem;
+    }
+
+    .kv div span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .kv div strong {
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .stat .lab {
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat .val {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      letter-spacing: 0.03em;
+    }
+
+    .stat .sub { margin-top: 4px; font-size: 0.72rem; color: var(--muted); }
+
+    .progress-wrap {
+      display: grid;
+      place-items: center;
+      gap: 8px;
+      height: 100%;
+    }
+
+    .ring {
+      width: 148px;
+      height: 148px;
+      position: relative;
+    }
+
+    .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+    .ring .track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 10; }
+    .ring .bar {
+      fill: none;
+      stroke: url(#ringGrad);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 408;
+      stroke-dashoffset: 408;
+      transition: stroke-dashoffset 0.8s ease;
+      filter: drop-shadow(0 0 8px rgba(62, 198, 255, 0.45));
+    }
+
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      text-align: center;
+    }
+
+    .ring-center strong {
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      letter-spacing: 0.04em;
+    }
+
+    .ring-center span {
+      color: var(--muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .pipeline {
+      padding: 18px 18px 14px;
+      overflow: hidden;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0;
+      position: relative;
+      padding: 8px 4px 0;
+    }
+
+    .steps::before {
+      content: "";
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 28px;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 99px;
+      z-index: 0;
+    }
+
+    .step {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .step .node {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #121a26;
+      border: 2px solid rgba(255,255,255,0.1);
+      color: var(--muted);
+      transition: 0.25s ease;
+    }
+
+    .step .node svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .step .name {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      line-height: 1.2;
+      max-width: 100%;
+    }
+
+    .step .when {
+      font-size: 0.68rem;
+      color: var(--muted);
+      min-height: 1.1em;
+    }
+
+    .step.done .node {
+      color: #041018;
+      border-color: transparent;
+    }
+    .step.done .name { color: var(--text); }
+    .step.done[data-tone="green"] .node { background: var(--green); box-shadow: 0 0 16px rgba(46,229,157,0.35); }
+    .step.done[data-tone="cyan"] .node { background: var(--cyan); box-shadow: 0 0 16px rgba(62,198,255,0.35); }
+    .step.done[data-tone="gold"] .node { background: var(--gold); box-shadow: 0 0 16px rgba(240,180,41,0.35); }
+    .step.done[data-tone="blue"] .node { background: var(--blue); box-shadow: 0 0 16px rgba(77,124,255,0.35); }
+    .step.done[data-tone="orange"] .node { background: var(--orange); box-shadow: 0 0 16px rgba(255,138,61,0.35); }
+    .step.done[data-tone="violet"] .node { background: var(--violet); box-shadow: 0 0 16px rgba(155,123,255,0.35); }
+
+    .step.current .node {
+      background: transparent;
+      color: var(--orange);
+      border-color: var(--orange);
+      box-shadow: 0 0 0 4px rgba(255,138,61,0.15), 0 0 22px rgba(255,138,61,0.35);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    .step.current .name { color: var(--orange); }
+
+    .step.pending .node {
+      border-style: dashed;
+      color: var(--grey);
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .grid-mid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.2fr 0.9fr;
+      gap: 12px;
+    }
+
+    .grid-mid-nr {
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .view-timeline[hidden] { display: none !important; }
+    #viewOverview[hidden] { display: none !important; }
+
+    .mission-timeline-card {
+      padding: 22px 20px 26px;
+    }
+
+    .mission-timeline {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0;
+      position: relative;
+      padding: 12px 4px 8px;
+    }
+
+    .mission-timeline::before {
+      content: "";
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      top: 52px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.07);
+      z-index: 0;
+    }
+
+    .mt-step {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 0 4px;
+    }
+
+    .mt-node {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #121a26;
+      border: 2px solid rgba(255,255,255,0.12);
+      color: var(--muted);
+      transition: 0.25s ease;
+    }
+
+    .mt-node svg { width: 22px; height: 22px; fill: currentColor; }
+
+    .mt-step.has .mt-node {
+      color: #041018;
+      border-color: transparent;
+    }
+
+    .mt-step[data-tone="green"].has .mt-node { background: var(--green); box-shadow: 0 0 18px rgba(46,229,157,0.35); }
+    .mt-step[data-tone="cyan"].has .mt-node { background: var(--cyan); box-shadow: 0 0 18px rgba(62,198,255,0.35); }
+    .mt-step[data-tone="gold"].has .mt-node { background: var(--gold); box-shadow: 0 0 18px rgba(240,180,41,0.35); }
+    .mt-step[data-tone="blue"].has .mt-node { background: var(--blue); box-shadow: 0 0 18px rgba(77,124,255,0.35); }
+    .mt-step[data-tone="orange"].has .mt-node { background: var(--orange); box-shadow: 0 0 18px rgba(255,138,61,0.35); }
+    .mt-step[data-tone="violet"].has .mt-node { background: var(--violet); box-shadow: 0 0 18px rgba(155,123,255,0.35); }
+
+    .mt-name {
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      line-height: 1.2;
+    }
+
+    .mt-step.has .mt-name { color: var(--text); }
+
+    .mt-count {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      letter-spacing: 0.04em;
+      line-height: 1;
+    }
+
+    .mt-pct {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .mt-bar {
+      width: 100%;
+      max-width: 88px;
+      height: 6px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .mt-bar > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 99px;
+      transition: width 0.7s ease;
+    }
+
+    .mt-reprov {
+      margin-top: 2px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--orange);
+      min-height: 1em;
+    }
+
+    .mission-timeline-legend {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .mission-timeline-legend strong { color: var(--text); }
+
+    .mission-done-block {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+    }
+
+    .mission-done-block h3 {
+      margin: 0 0 4px;
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+
+    .mission-timeline-done::before {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .mission-timeline-done::after {
+      content: "";
+      position: absolute;
+      left: 6%;
+      top: 52px;
+      height: 4px;
+      border-radius: 99px;
+      width: calc((100% - 12%) * var(--done-progress, 0));
+      background: var(--green);
+      box-shadow: 0 0 12px rgba(46, 229, 157, 0.35);
+      z-index: 0;
+      transition: width 0.6s ease;
+    }
+
+    .mission-timeline-done .mt-step.done-full .mt-node {
+      background: var(--green) !important;
+      color: #041018 !important;
+      border-color: transparent !important;
+      box-shadow: 0 0 20px rgba(46, 229, 157, 0.45) !important;
+    }
+
+    .mission-timeline-done .mt-step.done-full .mt-name,
+    .mission-timeline-done .mt-step.done-full .mt-count,
+    .mission-timeline-done .mt-step.done-full .mt-pct,
+    .mission-timeline-done .mt-step.done-full .mt-reprov {
+      color: var(--green) !important;
+    }
+
+    .mission-timeline-done .mt-step.done-full .mt-bar > i {
+      background: var(--green) !important;
+      width: 100% !important;
+    }
+
+    .mission-timeline-done .mt-step:not(.done-full) .mt-node {
+      border-style: dashed;
+      background: #121a26;
+      color: var(--muted);
+    }
+
+    .mission-timeline-done .mt-step:not(.done-full) .mt-count,
+    .mission-timeline-done .mt-step:not(.done-full) .mt-name,
+    .mission-timeline-done .mt-step:not(.done-full) .mt-pct {
+      color: var(--muted);
+    }
+
+    @media (max-width: 1180px) {
+      .mission-timeline-done::after { display: none; }
+    }
+
+    @media (max-width: 1180px) {
+      .mission-timeline {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px 8px;
+      }
+      .mission-timeline::before { display: none; }
+    }
+
+    .device-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      animation: fadeIn 0.25s ease;
+    }
+
+    .device-detail[hidden] { display: none !important; }
+
+    .device-detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .device-detail-head h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .kv-nr {
+      margin-top: 10px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .timeline {
+      max-height: 340px;
+      overflow: auto;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .tl-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      position: relative;
+      padding: 0 0 16px;
+    }
+
+    .tl-item:last-child { padding-bottom: 0; }
+
+    .tl-item::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 16px;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .tl-item:last-child::before { display: none; }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-top: 3px;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .tl-body {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .tl-body .time {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tl-body .msg {
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .tl-body .tag {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .stage-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stage-card {
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      min-height: 78px;
+    }
+
+    .stage-card .lab {
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 6px;
+      opacity: 0.9;
+    }
+
+    .stage-card .num {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+    }
+
+    .stage-card .hint {
+      margin-top: 4px;
+      font-size: 0.68rem;
+      opacity: 0.8;
+    }
+
+    .bars {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bar-row .lab {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .bar-row .lab strong { color: var(--text); }
+
+    .bar-track {
+      height: 8px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      width: 0;
+      transition: width 0.7s ease;
+    }
+
+    .grid-bot {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .stage-times {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stage-time {
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .stage-time .lab {
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .stage-time .val {
+      font-family: var(--font-display);
+      font-size: 0.92rem;
+      letter-spacing: 0.03em;
+    }
+
+    .stage-time .hint {
+      margin-top: 3px;
+      font-size: 0.66rem;
+      color: var(--muted);
+    }
+
+    .device-table-wrap {
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      position: sticky;
+      top: 0;
+      background: var(--panel-2);
+      z-index: 1;
+    }
+
+    tr { cursor: pointer; transition: background 0.15s ease; }
+    tr:hover td { background: rgba(62, 198, 255, 0.05); }
+    tr.active td { background: rgba(62, 198, 255, 0.1); }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .info-list {
+      display: grid;
+      gap: 8px;
+      font-size: 0.84rem;
+    }
+
+    .info-list div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .info-list span { color: var(--muted); }
+    .info-list strong { text-align: right; }
+
+    .empty, .loading, .error {
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .error { color: var(--red); }
+
+    @media (max-width: 1180px) {
+      body { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .hero, .grid-mid, .grid-mid-nr, .grid-bot { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
+      .steps::before { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.8H22l-5.6 4.2 2.2 6.8L12 15.8 5.4 19.8l2.2-6.8L2 8.8h7.6z"/></svg>
+      </div>
+      <div>
+        <strong>skyline</strong>
+        <span>mission control</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button type="button" class="active" data-view="overview">Visão Geral</button>
+      <button type="button" data-view="timeline">Timeline</button>
+    </nav>
+
+    <div class="side-foot">
+      <div>
+        <label for="filterStage">Etapa atual</label>
+        <select id="filterStage">
+          <option value="all">Todas as etapas</option>
+        </select>
+      </div>
+      <div>
+        <label for="filterModel">Modelo</label>
+        <select id="filterModel">
+          <option value="all">Todos os modelos</option>
+        </select>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <form class="search-box" id="nrForm">
+        <input id="nrInput" type="search" inputmode="numeric" placeholder="Buscar NR…" value="64561" autocomplete="off" />
+        <button class="btn" type="submit">Rastrear</button>
+        <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
+      </form>
+      <div class="meta-right">
+        <strong>MISSION NR</strong>
+        <div id="lastUpdate">Carregando…</div>
+      </div>
+    </div>
+
+    <div id="appState" class="loading card">Conectando ao webhook de recebimento…</div>
+
+    <section id="dash" hidden>
+      <div id="viewOverview">
+      <div class="hero hero-nr">
+        <article class="card">
+          <h2>Missão · NR <span id="nrLabel">—</span></h2>
+          <h1 class="device-title" id="nrTitle">Visão geral da NR</h1>
+          <div class="kv kv-nr">
+            <div><span>Aparelhos</span><strong id="nrTotal">0</strong></div>
+            <div><span>Com join reparo</span><strong id="nrJoin">0</strong></div>
+            <div><span>Modelos</span><strong id="nrModels">0</strong></div>
+            <div><span>Etapa dominante</span><strong id="nrDominant">—</strong></div>
+            <div><span>1º recebimento</span><strong id="nrFirst">—</strong></div>
+            <div><span>Último recebimento</span><strong id="nrLast">—</strong></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Status da missão</h2>
+          <div class="hero-stats">
+            <div class="stat">
+              <div class="lab">Etapa dominante</div>
+              <div class="val" id="statStatus">—</div>
+              <div class="sub" id="statStatusSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="lab">Aparelhos na NR</div>
+              <div class="val" id="statCount">0</div>
+              <div class="sub" id="statCountSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="lab">Janela de recebimento</div>
+              <div class="val" id="statTempo">—</div>
+              <div class="sub" id="statTempoSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="lab">SLA NR</div>
+              <div class="val"><span class="status-pill info" id="statSla">—</span></div>
+              <div class="sub" id="statSlaSub">Pipeline operacional</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Progresso médio da NR</h2>
+          <div class="progress-wrap">
+            <div class="ring">
+              <svg viewBox="0 0 140 140">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#2ee59d" />
+                    <stop offset="55%" stop-color="#3ec6ff" />
+                    <stop offset="100%" stop-color="#4d7cff" />
+                  </linearGradient>
+                </defs>
+                <circle class="track" cx="70" cy="70" r="65" />
+                <circle class="bar" id="ringBar" cx="70" cy="70" r="65" />
+              </svg>
+              <div class="ring-center">
+                <strong id="ringPct">0%</strong>
+                <span id="ringSub">no cofre</span>
+              </div>
+            </div>
+            <div class="section-note" id="ringHint" style="margin-top:8px;font-size:0.68rem;color:var(--muted);text-align:center">
+              Concluído = aparelhos no Cofre
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="grid-mid grid-mid-nr">
+        <article class="card">
+          <h3>Histórico · já passaram pela etapa</h3>
+          <p class="section-note" style="margin:-4px 0 10px;font-size:0.68rem;color:var(--muted)">Por local (endereço) + funil: quem chegou ou passou da etapa</p>
+          <div class="stage-cards" id="stageCards"></div>
+        </article>
+
+        <article class="card">
+          <h3>Agora · estão na etapa</h3>
+          <p class="section-note" style="margin:-4px 0 10px;font-size:0.68rem;color:var(--muted)">Posição atual de cada aparelho na NR</p>
+          <div class="bars" id="bars"></div>
+        </article>
+      </div>
+
+      <div class="grid-bot">
+        <article class="card" style="grid-column: 1 / -1">
+          <h3>Aparelhos da NR <span id="tableHint" style="font-weight:500;color:var(--muted);letter-spacing:0;text-transform:none;font-family:var(--font-body);font-size:0.78rem;margin-left:8px">· clique numa linha para abrir o detalhe</span></h3>
+          <div class="device-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>HU</th>
+                  <th>Serial</th>
+                  <th>Modelo</th>
+                  <th>Etapa</th>
+                  <th>Técnico</th>
+                  <th>Qualidade</th>
+                  <th>Local</th>
+                  <th>Recebido</th>
+                </tr>
+              </thead>
+              <tbody id="deviceRows"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      </div><!-- /viewOverview -->
+
+      <section id="viewTimeline" class="view-timeline" hidden>
+        <article class="card mission-timeline-card">
+          <h2>Timeline da NR · posição atual</h2>
+          <p class="section-note" style="margin:-2px 0 18px;font-size:0.72rem;color:var(--muted)">
+            Quantidade e % de aparelhos em cada etapa · reprovados na Qualidade ficam na etapa real do local atual
+          </p>
+          <div class="mission-timeline" id="missionTimeline"></div>
+          <div class="mission-timeline-legend" id="missionTimelineLegend"></div>
+
+          <div class="mission-done-block">
+            <h3>Linha de conclusão da NR</h3>
+            <p class="section-note" style="margin:0 0 14px;font-size:0.72rem;color:var(--muted)">
+              Aqui não é “quem está agora”. É “quanto % da NR já passou por cada etapa”.
+              Só fica <span style="color:var(--green);font-weight:700">verde</span> quando bater 100% (todos já passaram).
+            </p>
+            <div class="mission-timeline mission-timeline-done" id="missionTimelineDone"></div>
+          </div>
+        </article>
+      </section>
+
+      <section id="deviceDetail" class="device-detail" hidden>
+        <div class="device-detail-head">
+          <h2>Detalhe do aparelho</h2>
+          <button type="button" class="btn ghost" id="btnCloseDevice">Fechar</button>
+        </div>
+
+        <div class="hero">
+          <article class="card">
+            <h2>Dispositivo · NR <span id="nrLabelDevice">—</span></h2>
+            <div class="device-head">
+              <div class="phone" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 2v14h8V4H8zm4 16.2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
+              </div>
+              <div>
+                <h1 class="device-title" id="deviceTitle">—</h1>
+                <div class="kv">
+                  <div><span>IMEI / Serial</span><strong id="kvSerial">—</strong></div>
+                  <div><span>HU</span><strong id="kvHu">—</strong></div>
+                  <div><span>SKU</span><strong id="kvSku">—</strong></div>
+                  <div><span>Local atual</span><strong id="kvLocal">—</strong></div>
+                  <div><span>Recebido por</span><strong id="kvUser">—</strong></div>
+                  <div><span>Técnico</span><strong id="kvAlloc">—</strong></div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Status do aparelho</h2>
+            <div class="hero-stats">
+              <div class="stat">
+                <div class="lab">Status atual</div>
+                <div class="val" id="devStatStatus">—</div>
+                <div class="sub" id="devStatStatusSub">—</div>
+              </div>
+              <div class="stat">
+                <div class="lab">Progresso</div>
+                <div class="val" id="devStatProgress">—</div>
+                <div class="sub" id="devStatProgressSub">etapas do funil</div>
+              </div>
+              <div class="stat">
+                <div class="lab">Tempo desde recebimento</div>
+                <div class="val" id="devStatTempo">—</div>
+                <div class="sub" id="devStatTempoSub">—</div>
+              </div>
+              <div class="stat">
+                <div class="lab">CQE / SLA</div>
+                <div class="val"><span class="status-pill info" id="devStatSla">—</span></div>
+                <div class="sub" id="devStatSlaSub">aparelho</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Progresso do aparelho</h2>
+            <div class="progress-wrap">
+              <div class="ring">
+                <svg viewBox="0 0 140 140">
+                  <circle class="track" cx="70" cy="70" r="65" />
+                  <circle class="bar" id="devRingBar" cx="70" cy="70" r="65" style="stroke:url(#ringGrad)" />
+                </svg>
+                <div class="ring-center">
+                  <strong id="devRingPct">0%</strong>
+                  <span>concluído</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <article class="card pipeline">
+          <h2>Linha do tempo · etapas</h2>
+          <div class="steps" id="steps"></div>
+        </article>
+
+        <div class="grid-mid">
+          <article class="card">
+            <h3>Linha do tempo completa</h3>
+            <div class="timeline" id="timeline"></div>
+          </article>
+          <article class="card" style="grid-column: span 2">
+            <h3>Informações do aparelho</h3>
+            <div class="info-list" id="infoList"></div>
+          </article>
+        </div>
+
+        <div class="grid-mid">
+          <article class="card" style="grid-column: 1 / -1">
+            <h3>Tempos por etapa</h3>
+            <div class="stage-times" id="stageTimes"></div>
+          </article>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const STEPS = [
+      { id: "recebimento", label: "Recebimento", tone: "green", icon: "box" },
+      { id: "carregamento", label: "Carregamento", tone: "cyan", icon: "bolt" },
+      { id: "triagem", label: "Triagem", tone: "green", icon: "search" },
+      { id: "gestao", label: "Gestão de Peças", tone: "gold", icon: "gear" },
+      { id: "reparo", label: "Reparo", tone: "blue", icon: "wrench" },
+      { id: "cqe", label: "Qualidade", tone: "orange", icon: "flask" },
+      { id: "cofre", label: "Cofre", tone: "violet", icon: "lock" }
+    ];
+
+    const STEP_INDEX = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
+    const CIRC = 2 * Math.PI * 65;
+
+    const ICONS = {
+      box: '<path d="M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4M3 17l9 4 9-4"/>',
+      bolt: '<path d="M13 2L4 14h7l-1 8 10-14h-7l1-6z"/>',
+      search: '<path d="M10 3a7 7 0 105.2 11.8l4 4 1.4-1.4-4-4A7 7 0 0010 3zm0 2a5 5 0 110 10 5 5 0 010-10z"/>',
+      gear: '<path d="M19.4 13a7.8 7.8 0 000-2l2-1.5-2-3.4-2.4 1a7.6 7.6 0 00-1.7-1L15 3h-4l-.3 2.6a7.6 7.6 0 00-1.7 1l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 000 2l-2 1.5 2 3.4 2.4-1a7.6 7.6 0 001.7 1L11 21h4l.3-2.6a7.6 7.6 0 001.7-1l2.4 1 2-3.4-2-1.5zM13 15a3 3 0 110-6 3 3 0 010 6z"/>',
+      wrench: '<path d="M21 7a5 5 0 01-6.7 4.7L8 18.9 5.1 16l6.3-6.3A5 5 0 1117 3l-2.1 2.1A2 2 0 0017.9 8L20 5.9c.3.3.6.7.9 1.1z"/>',
+      flask: '<path d="M9 3h6v2h-1v5.3l5 8.2A2 2 0 0117.3 21H6.7A2 2 0 015 18.5l5-8.2V5H9V3zm2 7.8L7.4 17h9.2L13 10.8V5h-2v5.8z"/>',
+      lock: '<path d="M17 9V7a5 5 0 10-10 0v2H5v12h14V9h-2zm-8 0V7a3 3 0 116 0v2H9zm3 5a2 2 0 110 4 2 2 0 010-4z"/>'
+    };
+
+    const state = {
+      rows: [],
+      reparoRows: [],
+      devices: [],
+      filtered: [],
+      selectedHu: null,
+      nr: "64561",
+      loadedAt: null,
+      joinHits: 0
+    };
+
+    function norm(s) {
+      return String(s || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function resolveHuCerta(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const v = raw.HU_certa ?? raw.HU_certo ?? raw.hu_certa ?? raw.hu_certo ?? raw.hu ?? null;
+      if (v == null || String(v).trim() === "") return null;
+      return String(v).trim();
+    }
+
+    /** Mapa oficial endereço → etapa (lista operacional). */
+    const ENDERECO_ETAPA = (() => {
+      const map = new Map();
+      const add = (step, list) => list.forEach((e) => map.set(norm(e), step));
+
+      add("recebimento", ["Sala Recebimento"]);
+      add("carregamento", ["Carregamento"]);
+      add("triagem", [
+        "Triagem 1", "Triagem 2", "Triagem 3", "Triagem 4",
+        "Triagem 5", "Triagem 6", "Triagem 7"
+      ]);
+      add("gestao", ["Gestao Pecas", "Pecas Casadas"]);
+      add("reparo", [
+        "RB.1", "RB.2", "RB.3", "RB.4", "RB.5", "RB.6", "RB.7", "RB.8", "RB.9",
+        "RB.10", "RB.11", "RB.12", "RB.13", "RB.14", "RB.15", "RB.16", "RB.17",
+        "RB.18", "RB.19", "RB.20", "RB.21", "RB.22"
+      ]);
+      add("cqe", ["Q.1", "Q.2", "Q.3", "Carregamento Q.4"]);
+
+      const cofre = [];
+      for (let i = 1; i <= 7; i++) for (let j = 1; j <= 6; j++) cofre.push(`C.${i}.${j}`);
+      for (let i = 1; i <= 3; i++) for (let j = 1; j <= 6; j++) cofre.push(`D.${i}.${j}`);
+      add("cofre", cofre);
+
+      return map;
+    })();
+
+    function mapEnderecoToStep(endereco) {
+      const key = norm(endereco);
+      if (!key) return null;
+      // Match exato da lista oficial
+      if (ENDERECO_ETAPA.has(key)) return ENDERECO_ETAPA.get(key);
+      // Fallbacks leves só para variações de escrita da mesma lista
+      if (key === "carregamento q.4" || key === "carregamento q4") return "cqe";
+      if (/^triagem\s*[1-7]$/.test(key)) return "triagem";
+      if (/^rb\.?\s*\d{1,2}$/.test(key)) return "reparo";
+      if (/^q\.?\s*[1-3]$/.test(key)) return "cqe";
+      if (/^[cd]\.\s*\d+\.\s*\d+$/.test(key)) return "cofre";
+      if (key === "gestao pecas" || key === "pecas casadas") return "gestao";
+      if (key === "sala recebimento") return "recebimento";
+      if (key === "carregamento") return "carregamento";
+      return null;
+    }
+
+    function mapReparoStatusToStep(raw) {
+      const status = norm(raw.status);
+      const op = norm(raw["operação"] || raw.operacao);
+      const etapa = norm(raw.etapa_origem);
+      const decisao = norm(raw.decisao);
+      if (status === "em_triagem" || etapa === "triagem") return "triagem";
+      if (status === "em_gestao_pecas" || etapa === "gestao_pecas") return "gestao";
+      if (["aguardando_inicio", "em_execucao", "pausado"].includes(status)) return "reparo";
+      // Reprovado: não prende em Qualidade — etapa atual vem do local
+      if (decisao.includes("reprov")) return null;
+      if (decisao.includes("aprov") && (raw.Data_qualidade || raw.decisao)) return "cqe";
+      if (raw["Fim do Reparo"] || status === "finalizado") return "reparo";
+      if (raw["Iniciado_Reparo"]) return "reparo";
+      if (raw["Data Triagem"] || op === "reparo" || op === "limpeza") return "triagem";
+      return null;
+    }
+
+    function resolveCurrentFromLocals(locations, decisao) {
+      const mapped = (locations || []).filter((l) => l.step);
+      if (!mapped.length) return { step: null, local: "—", user: null, at: null };
+      const isReprov = norm(decisao).includes("reprov");
+
+      let pool = [...mapped];
+      const latestAlt = pool.reduce((max, l) => {
+        if (!l.data_alt) return max;
+        if (!max || l.data_alt > max) return l.data_alt;
+        return max;
+      }, null);
+
+      if (latestAlt) {
+        const sameAlt = pool.filter((l) => l.data_alt === latestAlt);
+        if (sameAlt.length) pool = sameAlt;
+      }
+
+      // Reprovado na Qualidade: usa o local real (não fica preso em Q.*)
+      if (isReprov) {
+        const nonCqe = pool.filter((l) => l.step !== "cqe");
+        if (nonCqe.length) pool = nonCqe;
+        else {
+          const anyNonCqe = mapped.filter((l) => l.step !== "cqe");
+          if (anyNonCqe.length) pool = anyNonCqe;
+        }
+      }
+
+      pool.sort((a, b) => (STEP_INDEX[b.step] ?? -1) - (STEP_INDEX[a.step] ?? -1));
+      const best = pool[0];
+      return {
+        step: best.step,
+        local: best.endereco || "—",
+        user: best.usuario_alocacao || null,
+        at: best.data_alt || null
+      };
+    }
+
+    function stepMeta(id) {
+      return STEPS.find((s) => s.id === id) || STEPS[0];
+    }
+
+    function formatDT(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}/${mm} ${hh}:${mi}`;
+    }
+
+    function formatFull(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString("pt-BR");
+    }
+
+    function formatDuration(ms) {
+      if (ms == null || ms < 0 || !Number.isFinite(ms)) return "—";
+      const total = Math.floor(ms / 1000);
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function diffMs(a, b) {
+      if (!a || !b) return null;
+      const da = new Date(a).getTime();
+      const db = new Date(b).getTime();
+      if (Number.isNaN(da) || Number.isNaN(db)) return null;
+      return Math.max(0, db - da);
+    }
+
+    function toneColor(tone) {
+      return ({
+        green: "var(--green)",
+        cyan: "var(--cyan)",
+        gold: "var(--gold)",
+        blue: "var(--blue)",
+        orange: "var(--orange)",
+        violet: "var(--violet)"
+      })[tone] || "var(--cyan)";
+    }
+
+    function indexReparoByHu(reparoRows) {
+      const map = new Map();
+      reparoRows.forEach((raw) => {
+        const hu = resolveHuCerta(raw);
+        if (!hu) return;
+        if (!map.has(hu)) map.set(hu, []);
+        map.get(hu).push(raw);
+      });
+      return map;
+    }
+
+    function pickPrimaryReparo(rows) {
+      if (!rows || !rows.length) return null;
+      const score = (r) => {
+        let s = 0;
+        if (r["Data_qualidade"] || r.decisao) s += 50;
+        if (r["Fim do Reparo"]) s += 40;
+        if (r["Iniciado_Reparo"]) s += 30;
+        if (r.produto_requisitado_id || r.peca_requisitada) s += 20;
+        if (r["Data Triagem"]) s += 10;
+        if (norm(r.status) === "finalizado") s += 5;
+        if (norm(r.status) === "cancelado") s -= 20;
+        const t = r["Fim do Reparo"] || r["Iniciado_Reparo"] || r["Data Triagem"] || r.Data_qualidade || "";
+        return s * 1e15 + new Date(t || 0).getTime();
+      };
+      return [...rows].sort((a, b) => score(b) - score(a))[0];
+    }
+
+    function advanceStep(current, next) {
+      if (!next) return current;
+      const curIdx = STEP_INDEX[current] ?? -1;
+      const nextIdx = STEP_INDEX[next] ?? -1;
+      return nextIdx > curIdx ? next : current;
+    }
+
+    function buildDevices(rows, reparoByHu) {
+      const map = new Map();
+      rows.forEach((raw) => {
+        const hu = raw.hu_id ?? raw.serial;
+        if (hu == null) return;
+        const key = String(hu);
+        if (!map.has(key)) {
+          map.set(key, {
+            hu_id: raw.hu_id,
+            serial: raw.serial,
+            descricao: raw.descricao,
+            prod_cprod: raw.prod_cprod,
+            produto_id: raw.produto_id,
+            grupo: raw.grupo,
+            numero: String(raw.numero || ""),
+            data_recebimento: raw.data_recebimento,
+            data_add: raw.data_add,
+            usuario_recebimento: raw.usuario_recebimento,
+            locations: []
+          });
+        }
+        const device = map.get(key);
+        if (raw.data_recebimento && (!device.data_recebimento || raw.data_recebimento < device.data_recebimento)) {
+          device.data_recebimento = raw.data_recebimento;
+        }
+        if (raw.usuario_recebimento) device.usuario_recebimento = raw.usuario_recebimento;
+        if (raw.descricao) device.descricao = raw.descricao;
+        if (raw.prod_cprod) device.prod_cprod = raw.prod_cprod;
+        device.locations.push({
+          endereco: raw.endereco || "—",
+          step: mapEnderecoToStep(raw.endereco),
+          data_alt: raw.data_alt,
+          data_recebimento: raw.data_recebimento,
+          usuario_alocacao: raw.usuario_alocacao || null,
+          recebido: raw.recebido
+        });
+      });
+
+      let joinHits = 0;
+
+      const devices = [...map.values()].map((device) => {
+        const touched = new Set();
+        const localVisited = new Set();
+        let latestAlt = null;
+        const stepDates = {};
+
+        device.locations.forEach((loc) => {
+          if (loc.step) {
+            touched.add(loc.step);
+            localVisited.add(loc.step);
+            if (!stepDates[loc.step] || (loc.data_alt && loc.data_alt > stepDates[loc.step])) {
+              stepDates[loc.step] = loc.data_alt || device.data_recebimento;
+            }
+          }
+          if (loc.data_alt && (!latestAlt || loc.data_alt > latestAlt)) latestAlt = loc.data_alt;
+        });
+
+        if (device.data_recebimento || device.locations.some((l) => /receb/i.test(l.endereco))) {
+          touched.add("recebimento");
+          localVisited.add("recebimento");
+          stepDates.recebimento = device.data_recebimento;
+        }
+
+        const reparoRows = reparoByHu.get(String(device.hu_id)) || [];
+        const reparo = pickPrimaryReparo(reparoRows);
+        if (reparo) joinHits += 1;
+
+        const events = [];
+        if (device.data_recebimento) {
+          events.push({
+            at: device.data_recebimento,
+            step: "recebimento",
+            title: `Produto recebido por ${device.usuario_recebimento || "—"}`,
+            tag: "Recebimento"
+          });
+        }
+
+        const byStepLoc = new Map();
+        device.locations.forEach((loc) => {
+          if (!loc.step || loc.step === "recebimento") return;
+          if (!byStepLoc.has(loc.step) || (loc.data_alt && loc.data_alt > (byStepLoc.get(loc.step).data_alt || ""))) {
+            byStepLoc.set(loc.step, loc);
+          }
+        });
+        byStepLoc.forEach((loc, step) => {
+          const meta = stepMeta(step);
+          events.push({
+            at: loc.data_alt || device.data_recebimento,
+            step,
+            title: `Local: ${loc.endereco}${loc.usuario_alocacao ? ` · ${loc.usuario_alocacao}` : ""}`,
+            tag: meta.label,
+            source: "endereco"
+          });
+        });
+
+        let tecnico = reparo?.["Usuário reparo"] || reparo?.["Usuario inicio"] || reparo?.["Usuario final"] || null;
+        let cqeUser = reparo?.["Usuario qualidade"] || null;
+        let decisao = reparo?.decisao || null;
+        let statusReparo = reparo?.status || null;
+        let peca = reparo?.peca_requisitada || null;
+        let solicitante = reparo?.Nome_solicitante_peca || null;
+        const isReprov = norm(decisao).includes("reprov");
+
+        if (reparo) {
+          if (reparo["Data Triagem"]) {
+            touched.add("triagem");
+            stepDates.triagem = reparo["Data Triagem"];
+            events.push({
+              at: reparo["Data Triagem"],
+              step: "triagem",
+              title: `Triagem iniciada${tecnico ? ` por ${tecnico}` : ""}`,
+              tag: "Triagem",
+              source: "reparo"
+            });
+          }
+
+          if (reparo.produto_requisitado_id || reparo.peca_requisitada || reparo.DATA_PEDIDO_SANKHYA || solicitante) {
+            touched.add("gestao");
+            const atGestao = reparo.DATA_PEDIDO_SANKHYA || reparo["Iniciado_Reparo"] || reparo["Data Triagem"];
+            stepDates.gestao = atGestao;
+            events.push({
+              at: atGestao,
+              step: "gestao",
+              title: peca
+                ? `Peça solicitada: ${peca}${solicitante ? ` · ${solicitante}` : ""}`
+                : `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`,
+              tag: "Gestão de Peças",
+              source: "reparo"
+            });
+          }
+
+          if (reparo["Iniciado_Reparo"]) {
+            touched.add("reparo");
+            stepDates.reparo = reparo["Iniciado_Reparo"];
+            events.push({
+              at: reparo["Iniciado_Reparo"],
+              step: "reparo",
+              title: `Reparo iniciado${tecnico ? ` por ${tecnico}` : ""}`,
+              tag: "Reparo",
+              source: "reparo"
+            });
+          }
+
+          ["1", "2", "3"].forEach((n) => {
+            const pausa = reparo[`${n} Pausa`];
+            const retorno = reparo[`${n} Retorno`];
+            if (pausa) {
+              events.push({
+                at: pausa,
+                step: "reparo",
+                title: `Pausa ${n}${reparo[`Usuario ${n} pausa`] ? ` · ${reparo[`Usuario ${n} pausa`]}` : ""}`,
+                tag: "Pausa",
+                source: "reparo"
+              });
+            }
+            if (retorno) {
+              events.push({
+                at: retorno,
+                step: "reparo",
+                title: `Retorno ${n}${reparo[`Usuario ${n} retorno`] ? ` · ${reparo[`Usuario ${n} retorno`]}` : ""}`,
+                tag: "Retorno",
+                source: "reparo"
+              });
+            }
+          });
+
+          if (reparo["Fim do Reparo"]) {
+            touched.add("reparo");
+            events.push({
+              at: reparo["Fim do Reparo"],
+              step: "reparo",
+              title: `Reparo finalizado${reparo["Usuario final"] ? ` por ${reparo["Usuario final"]}` : ""}`,
+              tag: "Fim do Reparo",
+              source: "reparo"
+            });
+          }
+
+          if (reparo.Data_qualidade || reparo.decisao) {
+            touched.add("cqe");
+            stepDates.cqe = reparo.Data_qualidade || reparo["Fim do Reparo"];
+            const dec = String(reparo.decisao || "inspecionado");
+            events.push({
+              at: reparo.Data_qualidade || reparo["Fim do Reparo"],
+              step: "cqe",
+              title: `Qualidade: ${dec}${cqeUser ? ` · ${cqeUser}` : ""}${reparo.motivo_reprovacao ? ` (${reparo.motivo_reprovacao})` : ""}`,
+              tag: isReprov ? "Reprovado" : "Qualidade",
+              source: "reparo"
+            });
+          }
+
+          const fromStatus = mapReparoStatusToStep(reparo);
+          if (fromStatus) touched.add(fromStatus);
+        }
+
+        // Etapa atual = LOCAL real (endereço). Reprovado não fica preso em Qualidade.
+        const fromLocal = resolveCurrentFromLocals(device.locations, decisao);
+        let currentStep = fromLocal.step || "recebimento";
+        let currentLocal = fromLocal.local || "—";
+        let currentUser = fromLocal.user || device.usuario_recebimento || "—";
+
+        if (!fromLocal.step && reparo) {
+          const fallback = mapReparoStatusToStep(reparo);
+          if (fallback) currentStep = fallback;
+          else if (reparo["Iniciado_Reparo"] || reparo["Fim do Reparo"]) currentStep = "reparo";
+          else if (reparo["Data Triagem"]) currentStep = "triagem";
+        }
+
+        if (tecnico && !fromLocal.user) currentUser = tecnico;
+
+        // Pipeline cumulativo (local): etapas anteriores à atual
+        const currentIdx = STEP_INDEX[currentStep] ?? 0;
+        for (let i = 0; i < currentIdx; i++) {
+          const prev = STEPS[i];
+          touched.add(prev.id);
+          localVisited.add(prev.id);
+          if (!stepDates[prev.id]) {
+            stepDates[prev.id] =
+              (prev.id === "recebimento" ? device.data_recebimento : null) ||
+              stepDates[STEPS[Math.max(0, i - 1)]?.id] ||
+              device.data_recebimento ||
+              latestAlt;
+          }
+          const hasEvent = events.some((e) => e.step === prev.id);
+          if (!hasEvent) {
+            events.push({
+              at: stepDates[prev.id] || device.data_recebimento,
+              step: prev.id,
+              title: `${prev.label} concluído (etapa anterior ao status atual)`,
+              tag: prev.label,
+              source: "pipeline"
+            });
+          }
+        }
+        touched.add(currentStep);
+        localVisited.add(currentStep);
+
+        // Qualidade no histórico local: só se esteve em Q.* / Carregamento Q.4
+        // (reprovado que voltou ao reparo continua contando se o local Q.* existir)
+        if (isReprov && device.locations.some((l) => l.step === "cqe")) {
+          localVisited.add("cqe");
+          touched.add("cqe");
+        }
+
+        events.sort((a, b) => {
+          const ta = a.at ? new Date(a.at).getTime() : 0;
+          const tb = b.at ? new Date(b.at).getTime() : 0;
+          if (ta !== tb) return ta - tb;
+          return (STEP_INDEX[a.step] ?? 0) - (STEP_INDEX[b.step] ?? 0);
+        });
+
+        const seenEv = new Set();
+        const uniqueEvents = [];
+        events.forEach((ev) => {
+          const key = `${ev.step}|${ev.tag}|${String(ev.at || "").slice(0, 16)}|${ev.title}`;
+          if (seenEv.has(key)) return;
+          seenEv.add(key);
+          uniqueEvents.push(ev);
+        });
+
+        const tempos = {
+          triagem: diffMs(device.data_recebimento, stepDates.triagem || reparo?.["Data Triagem"]),
+          gestao: diffMs(reparo?.["Data Triagem"], stepDates.gestao || reparo?.DATA_PEDIDO_SANKHYA),
+          reparo: diffMs(reparo?.["Iniciado_Reparo"], reparo?.["Fim do Reparo"]),
+          cqe: diffMs(reparo?.["Fim do Reparo"], reparo?.Data_qualidade),
+          total: diffMs(device.data_recebimento, reparo?.Data_qualidade || reparo?.["Fim do Reparo"] || latestAlt)
+        };
+
+        return {
+          ...device,
+          touchedSteps: touched,
+          localVisited,
+          currentStep,
+          currentIdx,
+          currentLocal,
+          currentUser,
+          latestAlt,
+          stepDates,
+          reparo,
+          reparoRows,
+          hasReparoJoin: !!reparo,
+          tecnico: tecnico || currentUser,
+          cqeUser,
+          decisao,
+          isReprov,
+          statusReparo,
+          peca,
+          tempos,
+          progress: Math.round(((currentIdx + 1) / STEPS.length) * 100),
+          events: uniqueEvents
+        };
+      }).sort((a, b) => String(a.data_recebimento || "").localeCompare(String(b.data_recebimento || "")));
+
+      state.joinHits = joinHits;
+      return devices;
+    }
+
+    function setStateMessage(html, kind = "loading") {
+      const el = document.getElementById("appState");
+      el.hidden = false;
+      el.className = `${kind} card`;
+      el.innerHTML = html;
+      document.getElementById("dash").hidden = true;
+    }
+
+    function showDash() {
+      document.getElementById("appState").hidden = true;
+      document.getElementById("dash").hidden = false;
+    }
+
+    function selectedDevice() {
+      if (state.selectedHu == null) return null;
+      return state.devices.find((d) => String(d.hu_id) === String(state.selectedHu))
+        || state.filtered.find((d) => String(d.hu_id) === String(state.selectedHu))
+        || null;
+    }
+
+    function dominantStep() {
+      const counts = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+      state.devices.forEach((d) => {
+        if (d.currentStep) counts[d.currentStep] = (counts[d.currentStep] || 0) + 1;
+      });
+      let best = STEPS[0];
+      let bestN = -1;
+      STEPS.forEach((s) => {
+        if ((counts[s.id] || 0) > bestN) {
+          bestN = counts[s.id] || 0;
+          best = s;
+        }
+      });
+      return { step: best, count: bestN };
+    }
+
+    function closeDeviceDetail() {
+      state.selectedHu = null;
+      document.getElementById("deviceDetail").hidden = true;
+      renderTable();
+    }
+
+    function openDeviceDetail(hu) {
+      state.selectedHu = hu;
+      const device = selectedDevice();
+      if (!device) return;
+      renderDeviceDetail(device);
+      const panel = document.getElementById("deviceDetail");
+      panel.hidden = false;
+      renderTable();
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function fillFilters() {
+      const stageSel = document.getElementById("filterStage");
+      const modelSel = document.getElementById("filterModel");
+      const stageVal = stageSel.value;
+      const modelVal = modelSel.value;
+
+      stageSel.innerHTML = `<option value="all">Todas as etapas</option>` +
+        STEPS.map((s) => `<option value="${s.id}">${s.label}</option>`).join("");
+
+      const models = [...new Set(state.devices.map((d) => d.descricao || "—"))].sort();
+      modelSel.innerHTML = `<option value="all">Todos os modelos</option>` +
+        models.map((m) => `<option value="${m.replace(/"/g, "&quot;")}">${m}</option>`).join("");
+
+      stageSel.value = [...stageSel.options].some((o) => o.value === stageVal) ? stageVal : "all";
+      modelSel.value = [...modelSel.options].some((o) => o.value === modelVal) ? modelVal : "all";
+    }
+
+    function applyFilters() {
+      const stage = document.getElementById("filterStage").value;
+      const model = document.getElementById("filterModel").value;
+      state.filtered = state.devices.filter((d) => {
+        if (stage !== "all" && d.currentStep !== stage) return false;
+        if (model !== "all" && d.descricao !== model) return false;
+        return true;
+      });
+      if (state.selectedHu != null && !state.devices.some((d) => String(d.hu_id) === String(state.selectedHu))) {
+        closeDeviceDetail();
+      }
+      render();
+    }
+
+    function renderSteps(device) {
+      const root = document.getElementById("steps");
+      const currentIdx = device ? device.currentIdx : -1;
+      const lastIdx = STEPS.length - 1;
+      const finished = device && currentIdx === lastIdx && (
+        device.currentStep === "cofre" ||
+        norm(device.decisao || "").includes("aprov") ||
+        /^[cd]\.\d+\.\d+$/i.test(device.currentLocal || "")
+      );
+
+      root.innerHTML = STEPS.map((step, idx) => {
+        let cls = "pending";
+        let when = "Aguardando";
+        if (device) {
+          const ev = device.events.find((e) => e.step === step.id && e.source !== "pipeline")
+            || device.events.find((e) => e.step === step.id);
+          const stamp = formatDT(
+            device.stepDates?.[step.id] ||
+              ev?.at ||
+              (step.id === "recebimento" ? device.data_recebimento : null)
+          );
+
+          // Regra do funil: idx < atual = já passou; idx === atual = está agora (ou done se final).
+          if (idx < currentIdx || (idx === currentIdx && finished)) {
+            cls = "done";
+            when = stamp !== "—" ? stamp : "Concluído";
+          } else if (idx === currentIdx) {
+            cls = "current";
+            when = stamp !== "—" ? stamp : "Em andamento";
+          }
+        }
+        return `
+          <div class="step ${cls}" data-tone="${step.tone}">
+            <div class="node"><svg viewBox="0 0 24 24">${ICONS[step.icon]}</svg></div>
+            <div class="name">${step.label}</div>
+            <div class="when">${when}</div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderTimeline(device) {
+      const root = document.getElementById("timeline");
+      if (!device || !device.events.length) {
+        root.innerHTML = `<div class="empty">Sem eventos para este aparelho.</div>`;
+        return;
+      }
+      root.innerHTML = device.events.map((ev) => {
+        const meta = stepMeta(ev.step);
+        return `
+          <div class="tl-item">
+            <div class="dot" style="background:${toneColor(meta.tone)};color:${toneColor(meta.tone)}"></div>
+            <div class="tl-body">
+              <div class="time">${formatFull(ev.at)}</div>
+              <div class="msg">${ev.title}</div>
+              <span class="tag" style="background:${toneColor(meta.tone)}22;color:${toneColor(meta.tone)}">${ev.tag}</span>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderStageCards() {
+      const total = state.devices.length || 1;
+      const passed = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+      const current = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+
+      state.devices.forEach((d) => {
+        const idx = d.currentIdx ?? STEP_INDEX[d.currentStep] ?? 0;
+        const visited = d.localVisited || d.touchedSteps;
+        STEPS.forEach((s, i) => {
+          // Histórico só por LOCAL (endereço) + funil cumulativo da etapa atual
+          // Não usa eventos do webhook de reparo (Data Triagem etc.)
+          if (idx >= i || visited?.has(s.id)) passed[s.id] += 1;
+        });
+        if (d.currentStep && current[d.currentStep] != null) current[d.currentStep] += 1;
+      });
+
+      document.getElementById("stageCards").innerHTML = STEPS.map((s) => {
+        const n = passed[s.id] || 0;
+        const pct = Math.round((n / total) * 100);
+        return `
+        <div class="stage-card" style="background:${toneColor(s.tone)}18;border-color:${toneColor(s.tone)}33;color:${toneColor(s.tone)}">
+          <div class="lab">${s.label}</div>
+          <div class="num">${n}</div>
+          <div class="hint">${pct}% já passaram</div>
+        </div>`;
+      }).join("");
+
+      document.getElementById("bars").innerHTML = STEPS.map((s) => {
+        const n = current[s.id] || 0;
+        const pct = Math.round((n / total) * 100);
+        return `
+          <div class="bar-row">
+            <div class="lab"><span>${s.label}</span><strong>${n} · ${pct}%</strong></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${toneColor(s.tone)}"></div></div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderMissionTimeline() {
+      const root = document.getElementById("missionTimeline");
+      const doneRoot = document.getElementById("missionTimelineDone");
+      const legend = document.getElementById("missionTimelineLegend");
+      if (!root) return;
+      const total = state.devices.length || 1;
+      const current = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+      const passed = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+      const reprovNow = Object.fromEntries(STEPS.map((s) => [s.id, 0]));
+      let reprovTotal = 0;
+
+      state.devices.forEach((d) => {
+        const idx = d.currentIdx ?? STEP_INDEX[d.currentStep] ?? 0;
+        const visited = d.localVisited || d.touchedSteps;
+        if (d.currentStep && current[d.currentStep] != null) current[d.currentStep] += 1;
+        STEPS.forEach((s, i) => {
+          if (idx >= i || visited?.has(s.id)) passed[s.id] += 1;
+        });
+        if (d.isReprov || norm(d.decisao).includes("reprov")) {
+          reprovTotal += 1;
+          if (d.currentStep) reprovNow[d.currentStep] += 1;
+        }
+      });
+
+      root.innerHTML = STEPS.map((s) => {
+        const n = current[s.id] || 0;
+        const pct = Math.round((n / total) * 100);
+        const r = reprovNow[s.id] || 0;
+        return `
+          <div class="mt-step ${n ? "has" : ""}" data-tone="${s.tone}">
+            <div class="mt-node"><svg viewBox="0 0 24 24">${ICONS[s.icon]}</svg></div>
+            <div class="mt-name">${s.label}</div>
+            <div class="mt-count" style="color:${n ? toneColor(s.tone) : "var(--muted)"}">${n}</div>
+            <div class="mt-pct">${pct}%</div>
+            <div class="mt-bar"><i style="width:${pct}%;background:${toneColor(s.tone)}"></i></div>
+            <div class="mt-reprov">${r ? `${r} reprov. aqui` : ""}</div>
+          </div>`;
+      }).join("");
+
+      const doneCount = STEPS.filter((s) => (passed[s.id] || 0) >= total && total > 0).length;
+      // Linha verde só avança nas etapas 100% em sequência desde o início
+      let consecutiveDone = 0;
+      for (const s of STEPS) {
+        if ((passed[s.id] || 0) >= total && total > 0) consecutiveDone += 1;
+        else break;
+      }
+      if (doneRoot) {
+        doneRoot.style.setProperty(
+          "--done-progress",
+          STEPS.length > 1 ? String(Math.max(0, (consecutiveDone - 1) / (STEPS.length - 1))) : consecutiveDone ? "1" : "0"
+        );
+        doneRoot.innerHTML = STEPS.map((s) => {
+          const n = passed[s.id] || 0;
+          const pct = Math.round((n / total) * 100);
+          const full = pct >= 100 && total > 0;
+          return `
+            <div class="mt-step ${full ? "done-full has" : ""}" data-tone="green">
+              <div class="mt-node"><svg viewBox="0 0 24 24">${ICONS[s.icon]}</svg></div>
+              <div class="mt-name">${s.label}</div>
+              <div class="mt-count">${full ? "100%" : `${pct}%`}</div>
+              <div class="mt-pct">${n}/${total} já passaram</div>
+              <div class="mt-bar"><i style="width:${pct}%;background:${full ? "var(--green)" : "rgba(143,163,188,0.45)"}"></i></div>
+              <div class="mt-reprov">${full ? "✓ 100% concluída" : "ainda não fechou"}</div>
+            </div>`;
+        }).join("");
+      }
+
+      legend.innerHTML = `
+        <span><strong>${state.devices.length}</strong> aparelhos na NR</span>
+        <span><strong>${reprovTotal}</strong> já reprovados na Qualidade (etapa = local atual)</span>
+        <span><strong>${doneCount}</strong> etapa(s) 100% concluída(s)</span>
+        <span>Etapa dominante: <strong>${dominantStep().step.label}</strong></span>
+      `;
+    }
+
+    function renderTable() {
+      const body = document.getElementById("deviceRows");
+      if (!state.filtered.length) {
+        body.innerHTML = `<tr><td colspan="8">Nenhum aparelho com os filtros atuais.</td></tr>`;
+        return;
+      }
+      body.innerHTML = state.filtered.map((d) => {
+        const meta = stepMeta(d.currentStep);
+        const active = String(d.hu_id) === String(state.selectedHu) ? "active" : "";
+        const cqe = d.decisao
+          ? `<span class="chip" style="background:${norm(d.decisao).includes("aprov") ? "var(--green-dim)" : "var(--orange-dim)"};color:${norm(d.decisao).includes("aprov") ? "var(--green)" : "var(--orange)"}">${d.decisao}</span>`
+          : (d.hasReparoJoin ? "—" : `<span class="chip" style="background:rgba(91,107,127,0.25);color:var(--muted)">sem join</span>`);
+        return `
+          <tr class="${active}" data-hu="${d.hu_id}">
+            <td>${d.hu_id ?? "—"}</td>
+            <td>${d.serial || "—"}</td>
+            <td title="${d.descricao || ""}">${(d.descricao || "—").slice(0, 26)}${(d.descricao || "").length > 26 ? "…" : ""}</td>
+            <td><span class="chip" style="background:${toneColor(meta.tone)}22;color:${toneColor(meta.tone)}">${meta.label}</span></td>
+            <td>${d.tecnico || "—"}</td>
+            <td>${cqe}</td>
+            <td>${d.currentLocal}</td>
+            <td>${formatDT(d.data_recebimento)}</td>
+          </tr>`;
+      }).join("");
+    }
+
+    function renderStageTimes(device) {
+      const root = document.getElementById("stageTimes");
+      const items = [
+        { lab: "Triagem", val: device?.tempos?.triagem, hint: "Recebimento → Triagem" },
+        { lab: "Gestão de Peças", val: device?.tempos?.gestao, hint: "Triagem → Pedido peça" },
+        { lab: "Reparo", val: device?.tempos?.reparo, hint: "Início → Fim do reparo" },
+        { lab: "Qualidade", val: device?.tempos?.cqe, hint: "Fim reparo → Qualidade" },
+        { lab: "Ciclo total", val: device?.tempos?.total, hint: "Recebimento → último marco" },
+        { lab: "OS reparo", val: null, hint: device?.reparo?.id ? `id ${device.reparo.id}` : "sem OS", raw: device?.statusReparo || "—" }
+      ];
+      root.innerHTML = items.map((it) => `
+        <div class="stage-time">
+          <div class="lab">${it.lab}</div>
+          <div class="val">${it.raw != null ? it.raw : formatDuration(it.val)}</div>
+          <div class="hint">${it.hint}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderInfo(device) {
+      const rows = [
+        ["NR", state.nr],
+        ["HU", device ? String(device.hu_id) : "—"],
+        ["Serial", device?.serial || "—"],
+        ["Técnico atual", device?.tecnico || "—"],
+        ["CQE / decisão", device?.decisao || "—"],
+        ["Peça requisitada", device?.peca || "—"],
+        ["Status reparo", device?.statusReparo || "—"],
+        ["Local atual", device?.currentLocal || "—"],
+        ["JOIN HU_certa", device?.hasReparoJoin ? "sim" : "não"],
+        ["Recebido em", formatFull(device?.data_recebimento)]
+      ];
+      document.getElementById("infoList").innerHTML = rows.map(([k, v]) => `
+        <div><span>${k}</span><strong>${v}</strong></div>
+      `).join("");
+    }
+
+    function renderNrOverview() {
+      const total = state.devices.length;
+      const models = new Set(state.devices.map((d) => d.descricao)).size;
+      const first = [...state.devices].sort((a, b) => String(a.data_recebimento || "").localeCompare(String(b.data_recebimento || "")))[0];
+      const last = [...state.devices].sort((a, b) => String(b.data_recebimento || "").localeCompare(String(a.data_recebimento || "")))[0];
+      const dom = dominantStep();
+
+      document.getElementById("nrLabel").textContent = state.nr;
+      document.getElementById("nrTitle").textContent = `NR ${state.nr} · ${total} aparelhos`;
+      document.getElementById("nrTotal").textContent = String(total);
+      document.getElementById("nrJoin").textContent = String(state.joinHits);
+      document.getElementById("nrModels").textContent = String(models);
+      document.getElementById("nrDominant").textContent = dom.step.label;
+      document.getElementById("nrFirst").textContent = formatDT(first?.data_recebimento);
+      document.getElementById("nrLast").textContent = formatDT(last?.data_recebimento);
+
+      document.getElementById("statStatus").textContent = dom.step.label.toUpperCase();
+      document.getElementById("statStatusSub").textContent = `${dom.count} aparelho(s) nessa etapa`;
+      document.getElementById("statCount").textContent = String(total);
+      document.getElementById("statCountSub").textContent = `JOIN reparo: ${state.joinHits} · filtros: ${state.filtered.length}`;
+
+      const span = diffMs(first?.data_recebimento, last?.data_recebimento);
+      document.getElementById("statTempo").textContent = span != null ? formatDuration(span) : "—";
+      document.getElementById("statTempoSub").textContent = first?.data_recebimento
+        ? `${formatDT(first.data_recebimento)} → ${formatDT(last?.data_recebimento)}`
+        : "—";
+
+      const avgIdx = total ? state.devices.reduce((acc, d) => acc + d.currentIdx, 0) / total : 0;
+      // Concluído = só quem está no Cofre
+      const noCofre = state.devices.filter((d) => d.currentStep === "cofre").length;
+      const avgPct = total ? Math.round((noCofre / total) * 100) : 0;
+      const sla = document.getElementById("statSla");
+      if (avgPct >= 100) {
+        sla.className = "status-pill ok";
+        sla.textContent = "CONCLUÍDA";
+      } else if (avgIdx >= 2 || noCofre > 0) {
+        sla.className = "status-pill warn";
+        sla.textContent = "EM CURSO";
+      } else {
+        sla.className = "status-pill info";
+        sla.textContent = "INÍCIO";
+      }
+
+      document.getElementById("ringPct").textContent = `${avgPct}%`;
+      const ringHint = document.getElementById("ringHint");
+      if (ringHint) ringHint.textContent = `${noCofre}/${total} no Cofre`;
+      const bar = document.getElementById("ringBar");
+      bar.style.strokeDasharray = String(CIRC);
+      bar.style.strokeDashoffset = String(CIRC * (1 - avgPct / 100));
+    }
+
+    function renderDeviceDetail(device) {
+      document.getElementById("nrLabelDevice").textContent = state.nr;
+      document.getElementById("deviceTitle").textContent = device?.descricao || `HU ${device?.hu_id}`;
+      document.getElementById("kvSerial").textContent = device?.serial || "—";
+      document.getElementById("kvHu").textContent = device?.hu_id ?? "—";
+      document.getElementById("kvSku").textContent = device?.prod_cprod || "—";
+      document.getElementById("kvLocal").textContent = device?.currentLocal || "—";
+      document.getElementById("kvUser").textContent = device?.usuario_recebimento || "—";
+      document.getElementById("kvAlloc").textContent = device?.tecnico || device?.currentUser || "—";
+
+      const meta = device ? stepMeta(device.currentStep) : null;
+      document.getElementById("devStatStatus").textContent = meta ? meta.label.toUpperCase() : "—";
+      document.getElementById("devStatStatusSub").textContent = device?.hasReparoJoin
+        ? `${device.currentLocal} · OS ${device.reparo?.id || "—"}`
+        : (device?.currentLocal || "Sem local");
+      document.getElementById("devStatProgress").textContent = `${device?.currentIdx + 1 || 0}/${STEPS.length}`;
+      document.getElementById("devStatProgressSub").textContent = meta ? meta.label : "—";
+
+      const start = device?.data_recebimento ? new Date(device.data_recebimento).getTime() : null;
+      const endIso = device?.reparo?.Data_qualidade || device?.reparo?.["Fim do Reparo"] || null;
+      const end = endIso ? new Date(endIso).getTime() : Date.now();
+      const tempo = start ? end - start : null;
+      document.getElementById("devStatTempo").textContent = formatDuration(tempo);
+      document.getElementById("devStatTempoSub").textContent = start
+        ? (endIso ? `ciclo até ${formatFull(endIso)}` : `desde ${formatFull(device.data_recebimento)}`)
+        : "—";
+
+      const sla = document.getElementById("devStatSla");
+      if (device?.decisao && norm(device.decisao).includes("aprov")) {
+        sla.className = "status-pill ok";
+        sla.textContent = "CQE OK";
+      } else if (device?.decisao && norm(device.decisao).includes("reprov")) {
+        sla.className = "status-pill warn";
+        sla.textContent = "REPROVADO";
+      } else {
+        sla.className = "status-pill info";
+        sla.textContent = meta ? meta.label.toUpperCase() : "—";
+      }
+
+      const pct = device?.progress ?? 0;
+      document.getElementById("devRingPct").textContent = `${pct}%`;
+      const bar = document.getElementById("devRingBar");
+      bar.style.strokeDasharray = String(CIRC);
+      bar.style.strokeDashoffset = String(CIRC * (1 - pct / 100));
+
+      renderSteps(device);
+      renderTimeline(device);
+      renderStageTimes(device);
+      renderInfo(device);
+    }
+
+    function render() {
+      renderNrOverview();
+      renderStageCards();
+      renderMissionTimeline();
+      renderTable();
+      const device = selectedDevice();
+      if (device) {
+        document.getElementById("deviceDetail").hidden = false;
+        renderDeviceDetail(device);
+      } else {
+        document.getElementById("deviceDetail").hidden = true;
+      }
+      document.getElementById("lastUpdate").textContent = state.loadedAt
+        ? `Última atualização: ${state.loadedAt.toLocaleString("pt-BR")} · join HU_certa`
+        : "—";
+    }
+
+    function setView(view) {
+      const overview = document.getElementById("viewOverview");
+      const timeline = document.getElementById("viewTimeline");
+      document.querySelectorAll(".nav button[data-view]").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-view") === view);
+      });
+      if (view === "timeline") {
+        overview.hidden = true;
+        timeline.hidden = false;
+        renderMissionTimeline();
+        timeline.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        overview.hidden = false;
+        timeline.hidden = true;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    async function loadNr(nr) {
+      const target = String(nr || "").trim();
+      if (!target) {
+        setStateMessage("Informe uma NR para rastrear.", "error");
+        return;
+      }
+      state.nr = target;
+      document.getElementById("nrInput").value = target;
+      const url = new URL(location.href);
+      url.searchParams.set("nr", target);
+      if (!url.searchParams.has("prod") && !url.searchParams.has("homolog")) {
+        url.searchParams.set("prod", "1");
+      }
+      history.replaceState({}, "", url);
+
+      setStateMessage("Rastreando NR · recebimento + reparo (JOIN HU_certa)…");
+      try {
+        const [payloadRec, payloadRep] = await Promise.all([
+          YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
+          YardexDash.fetchWebhook(YardexDash.API_REPARO)
+        ]);
+        const rows = YardexDash.normalizeRows(payloadRec).filter((r) => String(r.numero || "").trim() === target);
+        if (!rows.length) {
+          setStateMessage(`NR <strong>${target}</strong> não encontrada no webhook de recebimento.`, "error");
+          return;
+        }
+        const reparoRows = YardexDash.normalizeRows(payloadRep);
+        const reparoByHu = indexReparoByHu(reparoRows);
+        state.rows = rows;
+        state.reparoRows = reparoRows;
+        state.devices = buildDevices(rows, reparoByHu);
+        state.selectedHu = null;
+        state.loadedAt = new Date();
+        fillFilters();
+        applyFilters();
+        showDash();
+      } catch (err) {
+        console.error(err);
+        setStateMessage(`Falha ao carregar webhooks: ${err.message || err}`, "error");
+      }
+    }
+
+    document.getElementById("nrForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      loadNr(document.getElementById("nrInput").value);
+    });
+
+    document.getElementById("btnRefresh").addEventListener("click", () => loadNr(state.nr));
+    document.getElementById("filterStage").addEventListener("change", applyFilters);
+    document.getElementById("filterModel").addEventListener("change", applyFilters);
+
+    document.getElementById("deviceRows").addEventListener("click", (e) => {
+      const tr = e.target.closest("tr[data-hu]");
+      if (!tr) return;
+      const hu = tr.getAttribute("data-hu");
+      if (String(state.selectedHu) === String(hu)) {
+        closeDeviceDetail();
+        return;
+      }
+      openDeviceDetail(hu);
+    });
+
+    document.getElementById("btnCloseDevice").addEventListener("click", closeDeviceDetail);
+
+    document.querySelectorAll(".nav button[data-view]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setView(btn.getAttribute("data-view") || "overview");
+      });
+    });
+
+    // Mission control rastreia NR ao vivo — API real por padrão (homolog=1 força fixture).
+    const _useHomolog = YardexDash.useHomologData.bind(YardexDash);
+    YardexDash.useHomologData = function useHomologForNrTimeline() {
+      const params = new URLSearchParams(location.search);
+      if (params.get("homolog") === "1") return true;
+      if (params.get("prod") === "1") return false;
+      return false;
+    };
+    if (_useHomolog() && new URLSearchParams(location.search).get("homolog") === "1") {
+      YardexDash.initHomologBanner?.();
+    }
+
+    const params = new URLSearchParams(location.search);
+    loadNr(params.get("nr") || "64561");
+  </script>
+</body>
+</html>
