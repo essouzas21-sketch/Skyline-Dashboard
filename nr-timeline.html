@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=56"></script>
+  <script src="yardex-dash.js?v=57"></script>
   <style>
     :root {
       --bg: #070b12;
@@ -1058,6 +1058,10 @@
           <option value="all">Todos os modelos</option>
         </select>
       </div>
+      <div>
+        <label for="filterSearch">HU / IMEI</label>
+        <input id="filterSearch" type="search" placeholder="Ex: 354991558223998" autocomplete="off" />
+      </div>
     </div>
   </aside>
 
@@ -1075,7 +1079,7 @@
       </div>
     </div>
 
-    <div id="appState" class="loading card">Conectando ao webhook de recebimento…</div>
+    <div id="appState" class="loading card">Conectando aos webhooks (recebimento + movimentações + reparo)…</div>
 
     <section id="dash" hidden>
       <div id="viewOverview">
@@ -1328,12 +1332,14 @@
     const state = {
       rows: [],
       reparoRows: [],
+      moveRows: [],
       devices: [],
       filtered: [],
       selectedHu: null,
       nr: "64561",
       loadedAt: null,
-      joinHits: 0
+      joinHits: 0,
+      moveHits: 0
     };
 
     function norm(s) {
@@ -1413,19 +1419,26 @@
     }
 
     function locationRecencyTs(loc) {
-      const raw = loc?.data_alt || loc?.data_recebimento || loc?.data_add || null;
+      const raw = loc?.created_at || loc?.data_alt || loc?.data_recebimento || loc?.data_add || null;
       if (!raw) return 0;
       const t = new Date(raw).getTime();
       return Number.isNaN(t) ? 0 : t;
     }
 
-    /** Endereço atual = registro mais recente da HU (data_alt → data_recebimento → data_add; empate = última ocorrência). */
+    function locationMoveId(loc) {
+      const n = Number(loc?.move_id);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    /** Endereço atual = movimentação mais recente (created_at / id; empate = última ocorrência). */
     function pickLatestLocation(locations, { allowUnmapped = true } = {}) {
       const list = (locations || []).filter((l) => l && (allowUnmapped || l.step));
       if (!list.length) return null;
       return [...list].sort((a, b) => {
         const tb = locationRecencyTs(b) - locationRecencyTs(a);
         if (tb !== 0) return tb;
+        const idDiff = locationMoveId(b) - locationMoveId(a);
+        if (idDiff !== 0) return idDiff;
         return (b.rowIndex ?? 0) - (a.rowIndex ?? 0);
       })[0];
     }
@@ -1458,9 +1471,40 @@
         step,
         local: latest.endereco || "—",
         user: latest.usuario_alocacao || null,
-        at: latest.data_alt || latest.data_recebimento || latest.data_add || null,
+        at: latest.created_at || latest.data_alt || latest.data_recebimento || latest.data_add || null,
         rowIndex: latest.rowIndex ?? null
       };
+    }
+
+    function indexMovesByHu(moveRows) {
+      const map = new Map();
+      (moveRows || []).forEach((raw, rowIndex) => {
+        const hu = raw.hu_id ?? raw.serial;
+        if (hu == null) return;
+        const key = String(hu);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push({
+          endereco: raw.endereco || "—",
+          step: mapEnderecoToStep(raw.endereco),
+          created_at: raw.created_at || null,
+          data_alt: raw.created_at || null,
+          move_id: raw.id ?? null,
+          serial: raw.serial || null,
+          descricao: raw.descricao || null,
+          usuario_alocacao: null,
+          rowIndex,
+          source: "movimentacao"
+        });
+      });
+      map.forEach((list, key) => {
+        list.sort((a, b) => {
+          const t = locationRecencyTs(a) - locationRecencyTs(b);
+          if (t !== 0) return t;
+          return locationMoveId(a) - locationMoveId(b);
+        });
+        map.set(key, list);
+      });
+      return map;
     }
 
     function stepMeta(id) {
@@ -1548,7 +1592,7 @@
       return nextIdx > curIdx ? next : current;
     }
 
-    function buildDevices(rows, reparoByHu) {
+    function buildDevices(rows, reparoByHu, moveByHu = new Map()) {
       const map = new Map();
       rows.forEach((raw, rowIndex) => {
         const hu = raw.hu_id ?? raw.serial;
@@ -1566,7 +1610,8 @@
             data_recebimento: raw.data_recebimento,
             data_add: raw.data_add,
             usuario_recebimento: raw.usuario_recebimento,
-            locations: []
+            locations: [],
+            locationSource: "recebimento"
           });
         }
         const device = map.get(key);
@@ -1576,6 +1621,8 @@
         if (raw.usuario_recebimento) device.usuario_recebimento = raw.usuario_recebimento;
         if (raw.descricao) device.descricao = raw.descricao;
         if (raw.prod_cprod) device.prod_cprod = raw.prod_cprod;
+        if (raw.serial) device.serial = raw.serial;
+        // Fallback só se não houver trilha de movimentações para a HU
         device.locations.push({
           endereco: raw.endereco || "—",
           step: mapEnderecoToStep(raw.endereco),
@@ -1584,39 +1631,67 @@
           data_add: raw.data_add,
           usuario_alocacao: raw.usuario_alocacao || null,
           recebido: raw.recebido,
-          rowIndex
+          rowIndex,
+          source: "recebimento"
         });
       });
 
+      // Fonte oficial de endereço: webhook de movimentações (created_at)
+      map.forEach((device, key) => {
+        const moves = moveByHu.get(key) || moveByHu.get(String(device.hu_id)) || [];
+        if (moves.length) {
+          device.locations = moves;
+          device.locationSource = "movimentacao";
+          const last = moves[moves.length - 1];
+          if (last?.serial) device.serial = last.serial;
+          if (last?.descricao) device.descricao = last.descricao;
+        }
+      });
+
       let joinHits = 0;
+      let moveHits = 0;
 
       const devices = [...map.values()].map((device) => {
+        if (device.locationSource === "movimentacao") moveHits += 1;
         const touched = new Set();
         const localVisited = new Set();
         let latestAlt = null;
         const stepDates = {};
 
-        // Endereço/etapa atual = SOMA o mais recente (não o "mais avançado" entre duplicatas)
+        // Endereço/etapa atual = última movimentação (created_at)
         const latestLoc = pickLatestLocation(device.locations, { allowUnmapped: true });
         if (latestLoc) {
-          latestAlt = latestLoc.data_alt || latestLoc.data_recebimento || latestLoc.data_add || null;
+          latestAlt =
+            latestLoc.created_at ||
+            latestLoc.data_alt ||
+            latestLoc.data_recebimento ||
+            latestLoc.data_add ||
+            null;
         }
 
-        // Histórico de locais: só registros até o mais recente (por data + ordem)
+        // Histórico de locais: toda a trilha até o mais recente
         const latestRank = latestLoc
-          ? { ts: locationRecencyTs(latestLoc), idx: latestLoc.rowIndex ?? 0 }
-          : { ts: Infinity, idx: Infinity };
+          ? {
+              ts: locationRecencyTs(latestLoc),
+              mid: locationMoveId(latestLoc),
+              idx: latestLoc.rowIndex ?? 0
+            }
+          : { ts: Infinity, mid: Infinity, idx: Infinity };
         device.locations.forEach((loc) => {
           const ts = locationRecencyTs(loc);
+          const mid = locationMoveId(loc);
           const idx = loc.rowIndex ?? 0;
           const isPastOrCurrent =
-            ts < latestRank.ts || (ts === latestRank.ts && idx <= latestRank.idx);
+            ts < latestRank.ts ||
+            (ts === latestRank.ts && mid < latestRank.mid) ||
+            (ts === latestRank.ts && mid === latestRank.mid && idx <= latestRank.idx);
           if (!isPastOrCurrent) return;
           if (loc.step) {
             touched.add(loc.step);
             localVisited.add(loc.step);
-            if (!stepDates[loc.step] || (loc.data_alt && loc.data_alt > (stepDates[loc.step] || ""))) {
-              stepDates[loc.step] = loc.data_alt || device.data_recebimento;
+            const at = loc.created_at || loc.data_alt || device.data_recebimento;
+            if (!stepDates[loc.step] || (at && at > (stepDates[loc.step] || ""))) {
+              stepDates[loc.step] = at;
             }
           }
         });
@@ -1641,30 +1716,44 @@
           });
         }
 
-        // Eventos de local: um por etapa, priorizando o registro mais recente daquela etapa
-        const byStepLoc = new Map();
-        device.locations.forEach((loc) => {
-          if (!loc.step || loc.step === "recebimento") return;
-          const prev = byStepLoc.get(loc.step);
-          if (!prev) {
-            byStepLoc.set(loc.step, loc);
-            return;
-          }
-          const newer =
-            locationRecencyTs(loc) > locationRecencyTs(prev) ||
-            (locationRecencyTs(loc) === locationRecencyTs(prev) && (loc.rowIndex ?? 0) > (prev.rowIndex ?? 0));
-          if (newer) byStepLoc.set(loc.step, loc);
-        });
-        byStepLoc.forEach((loc, step) => {
-          const meta = stepMeta(step);
-          events.push({
-            at: loc.data_alt || loc.data_recebimento || device.data_recebimento,
-            step,
-            title: `Local: ${loc.endereco}${loc.usuario_alocacao ? ` · ${loc.usuario_alocacao}` : ""}`,
-            tag: meta.label,
-            source: "endereco"
+        // Eventos de endereço: cada movimentação da trilha (ou 1 por etapa no fallback recebimento)
+        if (device.locationSource === "movimentacao") {
+          device.locations.forEach((loc) => {
+            const step = loc.step || null;
+            const meta = step ? stepMeta(step) : null;
+            events.push({
+              at: loc.created_at || loc.data_alt,
+              step: step || "recebimento",
+              title: `Endereço: ${loc.endereco}`,
+              tag: meta?.label || "Local",
+              source: "movimentacao"
+            });
           });
-        });
+        } else {
+          const byStepLoc = new Map();
+          device.locations.forEach((loc) => {
+            if (!loc.step || loc.step === "recebimento") return;
+            const prev = byStepLoc.get(loc.step);
+            if (!prev) {
+              byStepLoc.set(loc.step, loc);
+              return;
+            }
+            const newer =
+              locationRecencyTs(loc) > locationRecencyTs(prev) ||
+              (locationRecencyTs(loc) === locationRecencyTs(prev) && (loc.rowIndex ?? 0) > (prev.rowIndex ?? 0));
+            if (newer) byStepLoc.set(loc.step, loc);
+          });
+          byStepLoc.forEach((loc, step) => {
+            const meta = stepMeta(step);
+            events.push({
+              at: loc.data_alt || loc.data_recebimento || device.data_recebimento,
+              step,
+              title: `Local: ${loc.endereco}${loc.usuario_alocacao ? ` · ${loc.usuario_alocacao}` : ""}`,
+              tag: meta.label,
+              source: "endereco"
+            });
+          });
+        }
 
         let tecnico = reparo?.["Usuário reparo"] || reparo?.["Usuario inicio"] || reparo?.["Usuario final"] || null;
         let cqeUser = reparo?.["Usuario qualidade"] || null;
@@ -1864,6 +1953,7 @@
       }).sort((a, b) => String(a.data_recebimento || "").localeCompare(String(b.data_recebimento || "")));
 
       state.joinHits = joinHits;
+      state.moveHits = moveHits;
       return devices;
     }
 
@@ -1940,9 +2030,14 @@
     function applyFilters() {
       const stage = document.getElementById("filterStage").value;
       const model = document.getElementById("filterModel").value;
+      const q = norm(document.getElementById("filterSearch")?.value || "");
       state.filtered = state.devices.filter((d) => {
         if (stage !== "all" && d.currentStep !== stage) return false;
         if (model !== "all" && d.descricao !== model) return false;
+        if (q) {
+          const blob = norm(`${d.hu_id || ""} ${d.serial || ""} ${d.prod_cprod || ""} ${d.currentLocal || ""}`);
+          if (!blob.includes(q)) return false;
+        }
         return true;
       });
       if (state.selectedHu != null && !state.devices.some((d) => String(d.hu_id) === String(state.selectedHu))) {
@@ -2206,7 +2301,8 @@
       document.getElementById("statStatus").textContent = dom.step.label.toUpperCase();
       document.getElementById("statStatusSub").textContent = `${dom.count} aparelho(s) nessa etapa`;
       document.getElementById("statCount").textContent = String(total);
-      document.getElementById("statCountSub").textContent = `JOIN reparo: ${state.joinHits} · filtros: ${state.filtered.length}`;
+      document.getElementById("statCountSub").textContent =
+        `Movimentações: ${state.moveHits}/${total} · JOIN reparo: ${state.joinHits} · filtros: ${state.filtered.length}`;
 
       const span = diffMs(first?.data_recebimento, last?.data_recebimento);
       document.getElementById("statTempo").textContent = span != null ? formatDuration(span) : "—";
@@ -2339,11 +2435,15 @@
       }
       history.replaceState({}, "", url);
 
-      setStateMessage("Rastreando NR · recebimento + reparo (JOIN HU_certa)…");
+      setStateMessage("Rastreando NR · recebimento + movimentações + reparo…");
       try {
-        const [payloadRec, payloadRep] = await Promise.all([
+        const apiMov =
+          YardexDash.API_MOVIMENTACOES ||
+          "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9";
+        const [payloadRec, payloadRep, payloadMov] = await Promise.all([
           YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
-          YardexDash.fetchWebhook(YardexDash.API_REPARO)
+          YardexDash.fetchWebhook(YardexDash.API_REPARO),
+          YardexDash.fetchWebhook(apiMov)
         ]);
         const rows = YardexDash.normalizeRows(payloadRec).filter((r) => String(r.numero || "").trim() === target);
         if (!rows.length) {
@@ -2351,10 +2451,13 @@
           return;
         }
         const reparoRows = YardexDash.normalizeRows(payloadRep);
+        const moveRows = YardexDash.normalizeRows(payloadMov);
         const reparoByHu = indexReparoByHu(reparoRows);
+        const moveByHu = indexMovesByHu(moveRows);
         state.rows = rows;
         state.reparoRows = reparoRows;
-        state.devices = buildDevices(rows, reparoByHu);
+        state.moveRows = moveRows;
+        state.devices = buildDevices(rows, reparoByHu, moveByHu);
         state.selectedHu = null;
         state.loadedAt = new Date();
         fillFilters();
@@ -2374,6 +2477,7 @@
     document.getElementById("btnRefresh").addEventListener("click", () => loadNr(state.nr));
     document.getElementById("filterStage").addEventListener("change", applyFilters);
     document.getElementById("filterModel").addEventListener("change", applyFilters);
+    document.getElementById("filterSearch").addEventListener("input", applyFilters);
 
     document.getElementById("deviceRows").addEventListener("click", (e) => {
       const tr = e.target.closest("tr[data-hu]");

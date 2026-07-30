@@ -6,6 +6,8 @@ const YardexDash = {
   API_REPARO: "https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf",
   /** Recebimento (campos hu_id, data_recebimento, grupo, descricao…) */
   API_RECEBIMENTO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
+  /** Movimentações de endereço (hu_id, endereco, serial, created_at) — trilha completa + último local */
+  API_MOVIMENTACOES: "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9",
 
   HOMOLOG_FIXTURES: {
     "8d085005-6279-410a-882c-051ad2a189cf": "data/homolog/reparo.json",
@@ -13,7 +15,8 @@ const YardexDash = {
     "f16be280-a545-440c-80f4-9481b1dd06f6": "data/homolog/recebimento.json",
     "661802e8-eef7-4ca5-981b-645706f5afda": "data/homolog/recebimento.json",
     "30e00080-9b5d-4db8-9d2a-e40d71b8cd5d": "data/homolog/reparo.json",
-    "78441d8b-4c63-4299-be48-6017e086e474": "data/homolog/recebimento.json"
+    "78441d8b-4c63-4299-be48-6017e086e474": "data/homolog/recebimento.json",
+    "480761e2-45b0-45d4-a849-82a991ebe7a9": "data/homolog/movimentacoes.json"
   },
 
   /** Intervalo entre slots do ciclo global de refresh (1 dashboard por slot). */
@@ -59,8 +62,10 @@ const YardexDash = {
   },
 
   homologFixtureFor(url) {
+    const u = String(url || "");
+    if (!u) return null;
     for (const [id, path] of Object.entries(this.HOMOLOG_FIXTURES)) {
-      if (url.includes(id)) return path;
+      if (u.includes(id)) return path;
     }
     return null;
   },
@@ -664,7 +669,7 @@ const YardexDash = {
   _getJsonWorker() {
     if (this._jsonWorker) return this._jsonWorker;
     try {
-      this._jsonWorker = new Worker("yardex-json-worker.js");
+      this._jsonWorker = new Worker("yardex-json-worker.js?v=2");
     } catch {
       this._jsonWorker = null;
     }
@@ -680,12 +685,17 @@ const YardexDash = {
     if (!worker) {
       return Promise.resolve(JSON.parse(payload));
     }
+    // ID por request: vários fetchWebhook em paralelo compartilham o mesmo Worker
+    if (this._jsonReqId == null) this._jsonReqId = 0;
+    const reqId = ++this._jsonReqId;
     return new Promise((resolve, reject) => {
       const onMsg = (event) => {
+        const data = event.data;
+        if (!data || data.id !== reqId) return;
         worker.removeEventListener("message", onMsg);
         worker.removeEventListener("error", onErr);
-        if (event.data?.ok) resolve(event.data.data);
-        else reject(new Error(event.data?.error || "Resposta inválida (não é JSON)"));
+        if (data.ok) resolve(data.data);
+        else reject(new Error(data.error || "Resposta inválida (não é JSON)"));
       };
       const onErr = () => {
         worker.removeEventListener("message", onMsg);
@@ -698,14 +708,14 @@ const YardexDash = {
       };
       worker.addEventListener("message", onMsg);
       worker.addEventListener("error", onErr);
-      worker.postMessage(payload);
+      worker.postMessage({ id: reqId, text: payload });
     });
   },
 
   /** Pré-carrega APIs em background (ex.: menu antes de abrir um dashboard). */
   warmCaches() {
     if (this.useHomologData()) return;
-    [this.API_REPARO, this.API_RECEBIMENTO].forEach((url) => {
+    [this.API_REPARO, this.API_RECEBIMENTO, this.API_MOVIMENTACOES].forEach((url) => {
       const key = this._fetchCacheKey(url);
       this._readFetchCache(key, this.getFetchCacheTtl(url)).then((cached) => {
         if (cached || this._fetchInflight[key]) return;
