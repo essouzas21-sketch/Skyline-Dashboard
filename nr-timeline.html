@@ -1456,14 +1456,65 @@
       return map;
     }
 
-    function pickPecaRow(rows) {
-      if (!rows || !rows.length) return null;
-      return [...rows].sort((a, b) => {
-        const vb = parseMoney(b.valor_total) ?? -1;
-        const va = parseMoney(a.valor_total) ?? -1;
-        if (vb !== va) return vb - va;
-        return Number(b.id || 0) - Number(a.id || 0);
-      })[0];
+    /** Peças.id = OS/reparo.id — permite N solicitações no mesmo IMEI. */
+    function indexPecasById(pecaRows) {
+      const map = new Map();
+      (pecaRows || []).forEach((raw) => {
+        if (raw?.id == null || String(raw.id).trim() === "") return;
+        map.set(String(raw.id), raw);
+      });
+      return map;
+    }
+
+    /**
+     * Todas as solicitações de peça do IMEI (1 por ciclo/OS com join).
+     * Preferência: peças.id === reparo.id; fallback: todas as linhas do serial.
+     */
+    function resolvePecaSolicitacoes(reparoRows, pecasById, pecasBySerial, serial) {
+      const out = [];
+      const seen = new Set();
+      sortReparoChrono(reparoRows || [])
+        .filter((r) => !isReparoCancelado(r))
+        .forEach((r) => {
+          const p = pecasById.get(String(r.id));
+          if (!p) return;
+          const key = String(p.id);
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push({
+            id: p.id,
+            reparoId: r.id,
+            descricoes: formatPecaDescricoes(p.descricoes),
+            codigos: String(p.pecas || "").trim(),
+            valor: parseMoney(p.valor_total),
+            at: r.DATA_PEDIDO_SANKHYA || r["Iniciado_Reparo"] || r["Data Triagem"] || null
+          });
+        });
+
+      if (!out.length) {
+        (pecasBySerial.get(String(serial || "").trim()) || []).forEach((p) => {
+          const key = String(p.id);
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push({
+            id: p.id,
+            reparoId: p.id,
+            descricoes: formatPecaDescricoes(p.descricoes),
+            codigos: String(p.pecas || "").trim(),
+            valor: parseMoney(p.valor_total),
+            at: null
+          });
+        });
+      }
+      return out;
+    }
+
+    function sumPecaValores(solicitacoes) {
+      const vals = (solicitacoes || [])
+        .map((s) => Number(s.valor))
+        .filter((n) => Number.isFinite(n));
+      if (!vals.length) return null;
+      return vals.reduce((a, b) => a + b, 0);
     }
 
     function resolveHuCerta(raw) {
@@ -1738,11 +1789,12 @@
     }
 
     /** Emite eventos de todos os ciclos (sem número de OS — fluxo contínuo). */
-    function appendAllReparoEvents(events, reparoRows, { touched, stepDates, pecaRow, pecaDesc, custoPecas, pecaFallback }) {
+    function appendAllReparoEvents(events, reparoRows, { touched, stepDates, pecaByReparoId }) {
       // Ignora OS cancelada — não entra na timeline
       const sorted = sortReparoChrono(reparoRows).filter((r) => !isReparoCancelado(r));
       if (!sorted.length) return false;
-      let addedGestaoPecasEndpoint = false;
+      const pecaMap = pecaByReparoId || new Map();
+      const emittedPecaIds = new Set();
 
       sorted.forEach((reparo) => {
         const usuarioInicio = reparo["Usuario inicio"] || null;
@@ -1752,6 +1804,7 @@
         const solicitante = reparo.Nome_solicitante_peca || null;
         const decisao = reparo.decisao || null;
         const isReprov = norm(decisao).includes("reprov");
+        const pecaSolic = pecaMap.get(String(reparo.id)) || null;
 
         if (reparo["Data Triagem"]) {
           touched.add("triagem");
@@ -1772,11 +1825,13 @@
           reparo.produto_requisitado_id ||
           reparo.peca_requisitada ||
           reparo.DATA_PEDIDO_SANKHYA ||
-          solicitante;
+          solicitante ||
+          pecaSolic;
 
-        if (hasGestaoReparo || (pecaRow && !addedGestaoPecasEndpoint)) {
+        if (hasGestaoReparo) {
           touched.add("gestao");
           const atGestao =
+            pecaSolic?.at ||
             reparo.DATA_PEDIDO_SANKHYA ||
             reparo["Iniciado_Reparo"] ||
             reparo["Data Triagem"];
@@ -1784,19 +1839,16 @@
             stepDates.gestao = atGestao;
           }
 
-          let pecaTitle;
+          let pecaTitle = null;
           let fromPecasEndpoint = false;
-          if (pecaRow && !addedGestaoPecasEndpoint) {
-            pecaTitle = `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`;
-            addedGestaoPecasEndpoint = true;
+          if (pecaSolic && !emittedPecaIds.has(String(pecaSolic.id))) {
+            pecaTitle = `Peça solicitada: ${pecaSolic.descricoes || "—"}${pecaSolic.valor != null ? ` · ${formatMoney(pecaSolic.valor)}` : ""}`;
+            emittedPecaIds.add(String(pecaSolic.id));
             fromPecasEndpoint = true;
           } else if (reparo.peca_requisitada) {
             pecaTitle = `Peça solicitada: ${reparo.peca_requisitada}${solicitante ? ` · ${solicitante}` : ""}`;
-          } else if (hasGestaoReparo) {
-            // Só gera evento genérico se houver pedido/solicitante real (evita ruído entre ciclos)
+          } else if (solicitante || reparo.DATA_PEDIDO_SANKHYA || reparo.produto_requisitado_id) {
             pecaTitle = `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`;
-          } else {
-            pecaTitle = null;
           }
 
           if (pecaTitle) {
@@ -1884,17 +1936,20 @@
         if (fromStatus) touched.add(fromStatus);
       });
 
-      // Peças do endpoint (serial) se ainda não entrou em nenhum ciclo
-      if (pecaRow && !addedGestaoPecasEndpoint) {
+      // Solicitações de peça (fallback serial) ainda não emitidas
+      pecaMap.forEach((sol) => {
+        if (emittedPecaIds.has(String(sol.id))) return;
         touched.add("gestao");
+        emittedPecaIds.add(String(sol.id));
         events.push({
-          at: stepDates.gestao || stepDates.triagem || null,
+          at: sol.at || stepDates.gestao || stepDates.triagem || null,
           step: "gestao",
-          title: `Peça solicitada: ${pecaDesc || pecaFallback || "—"}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`,
+          title: `Peça solicitada: ${sol.descricoes || "—"}${sol.valor != null ? ` · ${formatMoney(sol.valor)}` : ""}`,
           tag: "Gestão de Peças",
-          source: "pecas"
+          source: "pecas",
+          reparoId: sol.reparoId
         });
-      }
+      });
 
       return true;
     }
@@ -1906,7 +1961,7 @@
       return nextIdx > curIdx ? next : current;
     }
 
-    function buildDevices(rows, reparoByHu, moveByHu = new Map(), pecasBySerial = new Map()) {
+    function buildDevices(rows, reparoByHu, moveByHu = new Map(), pecasBySerial = new Map(), pecasById = new Map()) {
       const map = new Map();
       rows.forEach((raw, rowIndex) => {
         const hu = raw.hu_id ?? raw.serial;
@@ -2082,12 +2137,20 @@
         let decisao = reparo?.decisao || null;
         let statusReparo = reparo?.status || null;
 
-        const pecaRow = pickPecaRow(pecasBySerial.get(String(device.serial || "").trim()) || []);
-        const pecaDesc = pecaRow ? formatPecaDescricoes(pecaRow.descricoes) : "";
-        const pecaCodigos = pecaRow?.pecas ? String(pecaRow.pecas).trim() : "";
-        const custoPecas = pecaRow ? parseMoney(pecaRow.valor_total) : null;
+        const pecaSolicitacoes = resolvePecaSolicitacoes(
+          reparoRows,
+          pecasById,
+          pecasBySerial,
+          device.serial
+        );
+        const pecaByReparoId = new Map(
+          pecaSolicitacoes.map((s) => [String(s.reparoId), s])
+        );
+        const custoPecas = sumPecaValores(pecaSolicitacoes);
+        const pecaDesc = pecaSolicitacoes.map((s) => s.descricoes).filter(Boolean).join(" | ");
+        const pecaCodigos = pecaSolicitacoes.map((s) => s.codigos).filter(Boolean).join(" | ");
         let peca = pecaDesc || reparo?.peca_requisitada || null;
-        if (pecaRow) pecaHits += 1;
+        if (pecaSolicitacoes.length) pecaHits += 1;
 
         // Reprovado em qualquer ciclo (para não prender local em Q.* no retorno ao reparo)
         const isReprov =
@@ -2097,20 +2160,20 @@
         const hasReparoEvents = appendAllReparoEvents(events, reparoRows, {
           touched,
           stepDates,
-          pecaRow,
-          pecaDesc,
-          custoPecas,
-          pecaFallback: peca
+          pecaByReparoId
         });
-        if (!hasReparoEvents && pecaRow) {
+        if (!hasReparoEvents && pecaSolicitacoes.length) {
           touched.add("gestao");
           localVisited.add("gestao");
-          events.push({
-            at: device.data_recebimento,
-            step: "gestao",
-            title: `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`,
-            tag: "Gestão de Peças",
-            source: "pecas"
+          pecaSolicitacoes.forEach((sol) => {
+            events.push({
+              at: sol.at || device.data_recebimento,
+              step: "gestao",
+              title: `Peça solicitada: ${sol.descricoes || "—"}${sol.valor != null ? ` · ${formatMoney(sol.valor)}` : ""}`,
+              tag: "Gestão de Peças",
+              source: "pecas",
+              reparoId: sol.reparoId
+            });
           });
         }
 
@@ -2215,7 +2278,7 @@
           statusReparo,
           peca,
           pecaCodigos,
-          pecaRow,
+          pecaSolicitacoes,
           custoPecas,
           tempos,
           progress: Math.round(((currentIdx + 1) / STEPS.length) * 100),
@@ -2543,15 +2606,28 @@
 
     function renderInfo(device) {
       const custoTotal = sumDeviceCosts(device);
+      const sols = device?.pecaSolicitacoes || [];
       const rows = [
         ["NR", state.nr],
         ["HU", device ? String(device.hu_id) : "—"],
         ["Serial", device?.serial || "—"],
         ["Técnico atual", device?.tecnico || "—"],
         ["Início reparo", device?.usuarioInicio || "—"],
-        ["CQE / decisão", device?.decisao || "—"],
-        ["Peça solicitada", device?.peca || "—"],
-        ["Códigos peça", device?.pecaCodigos || "—"],
+        ["CQE / decisão", device?.decisao || "—"]
+      ];
+
+      if (sols.length > 1) {
+        sols.forEach((sol, i) => {
+          rows.push([`Peça solicitada ${i + 1}`, sol.descricoes || "—"]);
+          rows.push([`Custo peça ${i + 1}`, formatMoney(sol.valor)]);
+          if (sol.codigos) rows.push([`Códigos peça ${i + 1}`, sol.codigos]);
+        });
+      } else {
+        rows.push(["Peça solicitada", device?.peca || "—"]);
+        rows.push(["Códigos peça", device?.pecaCodigos || "—"]);
+      }
+
+      rows.push(
         ["Status reparo", device?.statusReparo || "—"],
         ["Local atual", device?.currentLocal || "—"],
         ["Custo aquisição", formatMoney(device?.custoAquisicao)],
@@ -2559,7 +2635,8 @@
         ["Custo total", formatMoney(custoTotal)],
         ["JOIN HU_certa", device?.hasReparoJoin ? "sim" : "não"],
         ["Recebido em", formatFull(device?.data_recebimento)]
-      ];
+      );
+
       document.getElementById("infoList").innerHTML = rows.map(([k, v]) => {
         const isTotal = k === "Custo total";
         return `<div${isTotal ? ' class="info-cost-total"' : ""}><span>${k}</span><strong>${v}</strong></div>`;
@@ -2789,11 +2866,12 @@
         const reparoByHu = indexReparoByHu(reparoRows);
         const moveByHu = indexMovesByHu(moveRows);
         const pecasBySerial = indexPecasBySerial(pecaRows);
+        const pecasById = indexPecasById(pecaRows);
         state.rows = rows;
         state.reparoRows = reparoRows;
         state.moveRows = moveRows;
         state.pecaRows = pecaRows;
-        state.devices = buildDevices(rows, reparoByHu, moveByHu, pecasBySerial);
+        state.devices = buildDevices(rows, reparoByHu, moveByHu, pecasBySerial, pecasById);
         state.selectedHu = null;
         state.loadedAt = new Date();
         fillFilters();
