@@ -1015,6 +1015,23 @@
     .info-list span { color: var(--muted); }
     .info-list strong { text-align: right; }
 
+    .info-list .info-cost-total {
+      margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(212, 168, 67, 0.35);
+      border-bottom: none;
+    }
+
+    .info-list .info-cost-total span {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .info-list .info-cost-total strong {
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+
     .empty, .loading, .error {
       padding: 28px;
       text-align: center;
@@ -1242,6 +1259,7 @@
                   <div><span>Técnico</span><strong id="kvAlloc">—</strong></div>
                   <div><span>Custo aquisição</span><strong id="kvCustoAquisicao">R$ —</strong></div>
                   <div><span>Custo peças</span><strong id="kvCustoPecas">R$ —</strong></div>
+                  <div><span>Custo total</span><strong id="kvCustoTotal">R$ —</strong></div>
                 </div>
               </div>
             </div>
@@ -1375,6 +1393,16 @@
     function formatMoney(v) {
       if (v == null || !Number.isFinite(v)) return "R$ —";
       return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    /** Soma aquisição + peças (ignora nulos; null se nenhum valor). */
+    function sumDeviceCosts(device) {
+      if (!device) return null;
+      const parts = [device.custoAquisicao, device.custoPecas]
+        .map((v) => Number(v))
+        .filter((n) => Number.isFinite(n));
+      if (!parts.length) return null;
+      return parts.reduce((a, b) => a + b, 0);
     }
 
     function resolveAquisicao(raw) {
@@ -2365,6 +2393,7 @@
     }
 
     function renderInfo(device) {
+      const custoTotal = sumDeviceCosts(device);
       const rows = [
         ["NR", state.nr],
         ["HU", device ? String(device.hu_id) : "—"],
@@ -2374,16 +2403,18 @@
         ["CQE / decisão", device?.decisao || "—"],
         ["Peça solicitada", device?.peca || "—"],
         ["Códigos peça", device?.pecaCodigos || "—"],
-        ["Custo peças", formatMoney(device?.custoPecas)],
         ["Status reparo", device?.statusReparo || "—"],
         ["Local atual", device?.currentLocal || "—"],
         ["Custo aquisição", formatMoney(device?.custoAquisicao)],
+        ["Custo peças", formatMoney(device?.custoPecas)],
+        ["Custo total", formatMoney(custoTotal)],
         ["JOIN HU_certa", device?.hasReparoJoin ? "sim" : "não"],
         ["Recebido em", formatFull(device?.data_recebimento)]
       ];
-      document.getElementById("infoList").innerHTML = rows.map(([k, v]) => `
-        <div><span>${k}</span><strong>${v}</strong></div>
-      `).join("");
+      document.getElementById("infoList").innerHTML = rows.map(([k, v]) => {
+        const isTotal = k === "Custo total";
+        return `<div${isTotal ? ' class="info-cost-total"' : ""}><span>${k}</span><strong>${v}</strong></div>`;
+      }).join("");
     }
 
     function renderNrOverview() {
@@ -2470,6 +2501,7 @@
       document.getElementById("kvAlloc").textContent = device?.tecnico || device?.currentUser || "—";
       document.getElementById("kvCustoAquisicao").textContent = formatMoney(device?.custoAquisicao);
       document.getElementById("kvCustoPecas").textContent = formatMoney(device?.custoPecas);
+      document.getElementById("kvCustoTotal").textContent = formatMoney(sumDeviceCosts(device));
 
       const meta = device ? stepMeta(device.currentStep) : null;
       document.getElementById("devStatStatus").textContent = meta ? meta.label.toUpperCase() : "—";
