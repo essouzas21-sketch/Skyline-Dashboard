@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=57"></script>
+  <script src="yardex-dash.js?v=58"></script>
   <style>
     :root {
       --bg: #070b12;
@@ -773,6 +773,11 @@
       margin-top: 10px;
     }
 
+    .kv-nr .kv-cost strong {
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -1079,7 +1084,7 @@
       </div>
     </div>
 
-    <div id="appState" class="loading card">Conectando aos webhooks (recebimento + movimentações + reparo)…</div>
+    <div id="appState" class="loading card">Conectando aos webhooks (recebimento + movimentações + peças + reparo)…</div>
 
     <section id="dash" hidden>
       <div id="viewOverview">
@@ -1094,6 +1099,10 @@
             <div><span>Etapa dominante</span><strong id="nrDominant">—</strong></div>
             <div><span>1º recebimento</span><strong id="nrFirst">—</strong></div>
             <div><span>Último recebimento</span><strong id="nrLast">—</strong></div>
+            <div class="kv-cost"><span>Custo aquisição (acum.)</span><strong id="nrCustoAquisicao">R$ —</strong></div>
+            <div class="kv-cost"><span>Custo peças (acum.)</span><strong id="nrCustoPecas">R$ —</strong></div>
+            <div class="kv-cost"><span>Custo total NR</span><strong id="nrCustoTotal">R$ —</strong></div>
+            <div class="kv-cost"><span>HUs c/ aquisição · peças</span><strong id="nrCustoCount">0/0 · 0/0</strong></div>
           </div>
         </article>
 
@@ -1231,6 +1240,8 @@
                   <div><span>Local atual</span><strong id="kvLocal">—</strong></div>
                   <div><span>Recebido por</span><strong id="kvUser">—</strong></div>
                   <div><span>Técnico</span><strong id="kvAlloc">—</strong></div>
+                  <div><span>Custo aquisição</span><strong id="kvCustoAquisicao">R$ —</strong></div>
+                  <div><span>Custo peças</span><strong id="kvCustoPecas">R$ —</strong></div>
                 </div>
               </div>
             </div>
@@ -1339,7 +1350,8 @@
       nr: "64561",
       loadedAt: null,
       joinHits: 0,
-      moveHits: 0
+      moveHits: 0,
+      pecaHits: 0
     };
 
     function norm(s) {
@@ -1348,6 +1360,55 @@
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    /** BR (`1.234,56`) ou decimal ponto (`350.00`). */
+    function parseMoney(v) {
+      if (v == null || v === "") return null;
+      let s = String(v).trim();
+      if (!s) return null;
+      if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatMoney(v) {
+      if (v == null || !Number.isFinite(v)) return "R$ —";
+      return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function resolveAquisicao(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      return parseMoney(raw.prod_vuncom ?? raw.prod_vucom ?? raw.prod_Vuncom ?? null);
+    }
+
+    function formatPecaDescricoes(desc) {
+      return String(desc || "")
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(" · ");
+    }
+
+    function indexPecasBySerial(pecaRows) {
+      const map = new Map();
+      (pecaRows || []).forEach((raw) => {
+        const serial = String(raw.serial || "").trim();
+        if (!serial) return;
+        if (!map.has(serial)) map.set(serial, []);
+        map.get(serial).push(raw);
+      });
+      return map;
+    }
+
+    function pickPecaRow(rows) {
+      if (!rows || !rows.length) return null;
+      return [...rows].sort((a, b) => {
+        const vb = parseMoney(b.valor_total) ?? -1;
+        const va = parseMoney(a.valor_total) ?? -1;
+        if (vb !== va) return vb - va;
+        return Number(b.id || 0) - Number(a.id || 0);
+      })[0];
     }
 
     function resolveHuCerta(raw) {
@@ -1592,7 +1653,7 @@
       return nextIdx > curIdx ? next : current;
     }
 
-    function buildDevices(rows, reparoByHu, moveByHu = new Map()) {
+    function buildDevices(rows, reparoByHu, moveByHu = new Map(), pecasBySerial = new Map()) {
       const map = new Map();
       rows.forEach((raw, rowIndex) => {
         const hu = raw.hu_id ?? raw.serial;
@@ -1610,6 +1671,7 @@
             data_recebimento: raw.data_recebimento,
             data_add: raw.data_add,
             usuario_recebimento: raw.usuario_recebimento,
+            custoAquisicao: resolveAquisicao(raw),
             locations: [],
             locationSource: "recebimento"
           });
@@ -1622,6 +1684,8 @@
         if (raw.descricao) device.descricao = raw.descricao;
         if (raw.prod_cprod) device.prod_cprod = raw.prod_cprod;
         if (raw.serial) device.serial = raw.serial;
+        const aquisicao = resolveAquisicao(raw);
+        if (aquisicao != null) device.custoAquisicao = aquisicao;
         // Fallback só se não houver trilha de movimentações para a HU
         device.locations.push({
           endereco: raw.endereco || "—",
@@ -1650,6 +1714,7 @@
 
       let joinHits = 0;
       let moveHits = 0;
+      let pecaHits = 0;
 
       const devices = [...map.values()].map((device) => {
         if (device.locationSource === "movimentacao") moveHits += 1;
@@ -1759,8 +1824,15 @@
         let cqeUser = reparo?.["Usuario qualidade"] || null;
         let decisao = reparo?.decisao || null;
         let statusReparo = reparo?.status || null;
-        let peca = reparo?.peca_requisitada || null;
         let solicitante = reparo?.Nome_solicitante_peca || null;
+
+        const pecaRow = pickPecaRow(pecasBySerial.get(String(device.serial || "").trim()) || []);
+        const pecaDesc = pecaRow ? formatPecaDescricoes(pecaRow.descricoes) : "";
+        const pecaCodigos = pecaRow?.pecas ? String(pecaRow.pecas).trim() : "";
+        const custoPecas = pecaRow ? parseMoney(pecaRow.valor_total) : null;
+        let peca = pecaDesc || reparo?.peca_requisitada || null;
+        if (pecaRow) pecaHits += 1;
+
         const isReprov = norm(decisao).includes("reprov");
 
         if (reparo) {
@@ -1776,18 +1848,27 @@
             });
           }
 
-          if (reparo.produto_requisitado_id || reparo.peca_requisitada || reparo.DATA_PEDIDO_SANKHYA || solicitante) {
+          if (
+            pecaRow ||
+            reparo.produto_requisitado_id ||
+            reparo.peca_requisitada ||
+            reparo.DATA_PEDIDO_SANKHYA ||
+            solicitante
+          ) {
             touched.add("gestao");
             const atGestao = reparo.DATA_PEDIDO_SANKHYA || reparo["Iniciado_Reparo"] || reparo["Data Triagem"];
             stepDates.gestao = atGestao;
+            const pecaTitle = pecaDesc
+              ? `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`
+              : peca
+                ? `Peça solicitada: ${peca}${solicitante ? ` · ${solicitante}` : ""}`
+                : `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`;
             events.push({
               at: atGestao,
               step: "gestao",
-              title: peca
-                ? `Peça solicitada: ${peca}${solicitante ? ` · ${solicitante}` : ""}`
-                : `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`,
+              title: pecaTitle,
               tag: "Gestão de Peças",
-              source: "reparo"
+              source: pecaRow ? "pecas" : "reparo"
             });
           }
 
@@ -1852,6 +1933,16 @@
 
           const fromStatus = mapReparoStatusToStep(reparo);
           if (fromStatus) touched.add(fromStatus);
+        } else if (pecaRow) {
+          touched.add("gestao");
+          localVisited.add("gestao");
+          events.push({
+            at: device.data_recebimento,
+            step: "gestao",
+            title: `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`,
+            tag: "Gestão de Peças",
+            source: "pecas"
+          });
         }
 
         // Etapa atual = LOCAL real (endereço). Reprovado não fica preso em Qualidade.
@@ -1946,6 +2037,9 @@
           isReprov,
           statusReparo,
           peca,
+          pecaCodigos,
+          pecaRow,
+          custoPecas,
           tempos,
           progress: Math.round(((currentIdx + 1) / STEPS.length) * 100),
           events: uniqueEvents
@@ -1954,6 +2048,7 @@
 
       state.joinHits = joinHits;
       state.moveHits = moveHits;
+      state.pecaHits = pecaHits;
       return devices;
     }
 
@@ -2271,9 +2366,12 @@
         ["Serial", device?.serial || "—"],
         ["Técnico atual", device?.tecnico || "—"],
         ["CQE / decisão", device?.decisao || "—"],
-        ["Peça requisitada", device?.peca || "—"],
+        ["Peça solicitada", device?.peca || "—"],
+        ["Códigos peça", device?.pecaCodigos || "—"],
+        ["Custo peças", formatMoney(device?.custoPecas)],
         ["Status reparo", device?.statusReparo || "—"],
         ["Local atual", device?.currentLocal || "—"],
+        ["Custo aquisição", formatMoney(device?.custoAquisicao)],
         ["JOIN HU_certa", device?.hasReparoJoin ? "sim" : "não"],
         ["Recebido em", formatFull(device?.data_recebimento)]
       ];
@@ -2298,11 +2396,32 @@
       document.getElementById("nrFirst").textContent = formatDT(first?.data_recebimento);
       document.getElementById("nrLast").textContent = formatDT(last?.data_recebimento);
 
+      let sumAquisicao = 0;
+      let sumPecas = 0;
+      let comAquisicao = 0;
+      let comPecas = 0;
+      state.devices.forEach((d) => {
+        const e = Number(d.custoAquisicao);
+        const p = Number(d.custoPecas);
+        if (Number.isFinite(e)) {
+          sumAquisicao += e;
+          comAquisicao += 1;
+        }
+        if (Number.isFinite(p)) {
+          sumPecas += p;
+          comPecas += 1;
+        }
+      });
+      document.getElementById("nrCustoAquisicao").textContent = formatMoney(sumAquisicao);
+      document.getElementById("nrCustoPecas").textContent = formatMoney(sumPecas);
+      document.getElementById("nrCustoTotal").textContent = formatMoney(sumAquisicao + sumPecas);
+      document.getElementById("nrCustoCount").textContent = `${comAquisicao}/${total} · ${comPecas}/${total}`;
+
       document.getElementById("statStatus").textContent = dom.step.label.toUpperCase();
       document.getElementById("statStatusSub").textContent = `${dom.count} aparelho(s) nessa etapa`;
       document.getElementById("statCount").textContent = String(total);
       document.getElementById("statCountSub").textContent =
-        `Movimentações: ${state.moveHits}/${total} · JOIN reparo: ${state.joinHits} · filtros: ${state.filtered.length}`;
+        `Movimentações: ${state.moveHits}/${total} · Peças: ${state.pecaHits}/${total} · JOIN reparo: ${state.joinHits} · filtros: ${state.filtered.length}`;
 
       const span = diffMs(first?.data_recebimento, last?.data_recebimento);
       document.getElementById("statTempo").textContent = span != null ? formatDuration(span) : "—";
@@ -2343,6 +2462,8 @@
       document.getElementById("kvLocal").textContent = device?.currentLocal || "—";
       document.getElementById("kvUser").textContent = device?.usuario_recebimento || "—";
       document.getElementById("kvAlloc").textContent = device?.tecnico || device?.currentUser || "—";
+      document.getElementById("kvCustoAquisicao").textContent = formatMoney(device?.custoAquisicao);
+      document.getElementById("kvCustoPecas").textContent = formatMoney(device?.custoPecas);
 
       const meta = device ? stepMeta(device.currentStep) : null;
       document.getElementById("devStatStatus").textContent = meta ? meta.label.toUpperCase() : "—";
@@ -2435,15 +2556,19 @@
       }
       history.replaceState({}, "", url);
 
-      setStateMessage("Rastreando NR · recebimento + movimentações + reparo…");
+      setStateMessage("Rastreando NR · recebimento + movimentações + peças + reparo…");
       try {
         const apiMov =
           YardexDash.API_MOVIMENTACOES ||
           "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9";
-        const [payloadRec, payloadRep, payloadMov] = await Promise.all([
+        const apiPecas =
+          YardexDash.API_PECAS ||
+          "https://automacao.skylinemobile.com.br/webhook/873620b8-7633-4e79-99fe-39c8b504b9a4";
+        const [payloadRec, payloadRep, payloadMov, payloadPecas] = await Promise.all([
           YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
           YardexDash.fetchWebhook(YardexDash.API_REPARO),
-          YardexDash.fetchWebhook(apiMov)
+          YardexDash.fetchWebhook(apiMov),
+          YardexDash.fetchWebhook(apiPecas)
         ]);
         const rows = YardexDash.normalizeRows(payloadRec).filter((r) => String(r.numero || "").trim() === target);
         if (!rows.length) {
@@ -2452,12 +2577,15 @@
         }
         const reparoRows = YardexDash.normalizeRows(payloadRep);
         const moveRows = YardexDash.normalizeRows(payloadMov);
+        const pecaRows = YardexDash.normalizeRows(payloadPecas);
         const reparoByHu = indexReparoByHu(reparoRows);
         const moveByHu = indexMovesByHu(moveRows);
+        const pecasBySerial = indexPecasBySerial(pecaRows);
         state.rows = rows;
         state.reparoRows = reparoRows;
         state.moveRows = moveRows;
-        state.devices = buildDevices(rows, reparoByHu, moveByHu);
+        state.pecaRows = pecaRows;
+        state.devices = buildDevices(rows, reparoByHu, moveByHu, pecasBySerial);
         state.selectedHu = null;
         state.loadedAt = new Date();
         fillFilters();
