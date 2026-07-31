@@ -1684,21 +1684,229 @@
       return map;
     }
 
+    function reparoChronoTs(r) {
+      const raw =
+        r?.["Data Triagem"] ||
+        r?.["Iniciado_Reparo"] ||
+        r?.Data_qualidade ||
+        r?.["Fim do Reparo"] ||
+        "";
+      const t = new Date(raw || 0).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    }
+
+    function sortReparoChrono(rows) {
+      return [...(rows || [])].sort((a, b) => {
+        const t = reparoChronoTs(a) - reparoChronoTs(b);
+        if (t !== 0) return t;
+        return Number(a?.id || 0) - Number(b?.id || 0);
+      });
+    }
+
+    /** Status atual: prioriza OS ativa (pós-reprovação gera novo ID); timeline usa todos os ciclos. */
     function pickPrimaryReparo(rows) {
       if (!rows || !rows.length) return null;
+      const activeStatus = new Set([
+        "em_execucao",
+        "pausado",
+        "aguardando_inicio",
+        "em_triagem",
+        "em_gestao_pecas"
+      ]);
       const score = (r) => {
         let s = 0;
-        if (r["Data_qualidade"] || r.decisao) s += 50;
-        if (r["Fim do Reparo"]) s += 40;
-        if (r["Iniciado_Reparo"]) s += 30;
-        if (r.produto_requisitado_id || r.peca_requisitada) s += 20;
+        const st = norm(r.status);
+        if (activeStatus.has(st)) s += 100;
+        if (st === "finalizado") s += 20;
+        if (st === "cancelado") s -= 50;
+        if (r["Iniciado_Reparo"]) s += 15;
         if (r["Data Triagem"]) s += 10;
-        if (norm(r.status) === "finalizado") s += 5;
-        if (norm(r.status) === "cancelado") s -= 20;
-        const t = r["Fim do Reparo"] || r["Iniciado_Reparo"] || r["Data Triagem"] || r.Data_qualidade || "";
+        if (r.Data_qualidade || r.decisao) s += 5;
+        const t =
+          r["Iniciado_Reparo"] ||
+          r["Data Triagem"] ||
+          r["Fim do Reparo"] ||
+          r.Data_qualidade ||
+          "";
         return s * 1e15 + new Date(t || 0).getTime();
       };
       return [...rows].sort((a, b) => score(b) - score(a))[0];
+    }
+
+    function isReparoCancelado(r) {
+      return norm(r?.status) === "cancelado";
+    }
+
+    /** Emite eventos de TODOS os IDs de reparo da HU (ciclos pós-CQE reprovado). */
+    function appendAllReparoEvents(events, reparoRows, { touched, stepDates, pecaRow, pecaDesc, custoPecas, pecaFallback }) {
+      // Ignora OS cancelada — não entra na timeline
+      const sorted = sortReparoChrono(reparoRows).filter((r) => !isReparoCancelado(r));
+      if (!sorted.length) return false;
+      const multi = sorted.length > 1;
+      let addedGestaoPecasEndpoint = false;
+
+      sorted.forEach((reparo, idx) => {
+        const osLabel = reparo.id != null ? `OS ${reparo.id}` : `ciclo ${idx + 1}`;
+        const osSuffix = multi ? ` · ${osLabel}` : "";
+        const usuarioInicio = reparo["Usuario inicio"] || null;
+        const usuarioFinal = reparo["Usuario final"] || null;
+        const tecnico = reparo["Usuário reparo"] || usuarioInicio || usuarioFinal || null;
+        const cqeUser = reparo["Usuario qualidade"] || null;
+        const solicitante = reparo.Nome_solicitante_peca || null;
+        const decisao = reparo.decisao || null;
+        const isReprov = norm(decisao).includes("reprov");
+        const status = reparo.status || null;
+
+        if (multi && (reparo["Data Triagem"] || reparo["Iniciado_Reparo"])) {
+          events.push({
+            at: reparo["Data Triagem"] || reparo["Iniciado_Reparo"],
+            step: reparo["Data Triagem"] ? "triagem" : "reparo",
+            title: `Ciclo ${osLabel}${status ? ` · ${status}` : ""}`,
+            tag: osLabel,
+            source: "reparo-cycle",
+            reparoId: reparo.id
+          });
+        }
+
+        if (reparo["Data Triagem"]) {
+          touched.add("triagem");
+          if (!stepDates.triagem || reparo["Data Triagem"] > stepDates.triagem) {
+            stepDates.triagem = reparo["Data Triagem"];
+          }
+          events.push({
+            at: reparo["Data Triagem"],
+            step: "triagem",
+            title: `Triagem iniciada${tecnico ? ` por ${tecnico}` : ""}${osSuffix}`,
+            tag: "Triagem",
+            source: "reparo",
+            reparoId: reparo.id
+          });
+        }
+
+        const hasGestaoReparo =
+          reparo.produto_requisitado_id ||
+          reparo.peca_requisitada ||
+          reparo.DATA_PEDIDO_SANKHYA ||
+          solicitante;
+
+        if (hasGestaoReparo || (pecaRow && !addedGestaoPecasEndpoint)) {
+          touched.add("gestao");
+          const atGestao =
+            reparo.DATA_PEDIDO_SANKHYA ||
+            reparo["Iniciado_Reparo"] ||
+            reparo["Data Triagem"];
+          if (atGestao && (!stepDates.gestao || atGestao > stepDates.gestao)) {
+            stepDates.gestao = atGestao;
+          }
+
+          let pecaTitle;
+          let fromPecasEndpoint = false;
+          if (pecaRow && !addedGestaoPecasEndpoint) {
+            pecaTitle = `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}${osSuffix}`;
+            addedGestaoPecasEndpoint = true;
+            fromPecasEndpoint = true;
+          } else if (reparo.peca_requisitada) {
+            pecaTitle = `Peça solicitada: ${reparo.peca_requisitada}${solicitante ? ` · ${solicitante}` : ""}${osSuffix}`;
+          } else {
+            pecaTitle = `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}${osSuffix}`;
+          }
+
+          events.push({
+            at: atGestao,
+            step: "gestao",
+            title: pecaTitle,
+            tag: "Gestão de Peças",
+            source: fromPecasEndpoint ? "pecas" : "reparo",
+            reparoId: reparo.id
+          });
+        }
+
+        if (reparo["Iniciado_Reparo"]) {
+          touched.add("reparo");
+          if (!stepDates.reparo || reparo["Iniciado_Reparo"] > stepDates.reparo) {
+            stepDates.reparo = reparo["Iniciado_Reparo"];
+          }
+          events.push({
+            at: reparo["Iniciado_Reparo"],
+            step: "reparo",
+            title: `Reparo iniciado${usuarioInicio ? ` por ${usuarioInicio}` : ""}${osSuffix}`,
+            tag: "Reparo",
+            source: "reparo",
+            reparoId: reparo.id
+          });
+        }
+
+        ["1", "2", "3"].forEach((n) => {
+          const pausa = reparo[`${n} Pausa`];
+          const retorno = reparo[`${n} Retorno`];
+          if (pausa) {
+            events.push({
+              at: pausa,
+              step: "reparo",
+              title: `Pausa ${n}${reparo[`Usuario ${n} pausa`] ? ` · ${reparo[`Usuario ${n} pausa`]}` : ""}${osSuffix}`,
+              tag: "Pausa",
+              source: "reparo",
+              reparoId: reparo.id
+            });
+          }
+          if (retorno) {
+            events.push({
+              at: retorno,
+              step: "reparo",
+              title: `Retorno ${n}${reparo[`Usuario ${n} retorno`] ? ` · ${reparo[`Usuario ${n} retorno`]}` : ""}${osSuffix}`,
+              tag: "Retorno",
+              source: "reparo",
+              reparoId: reparo.id
+            });
+          }
+        });
+
+        if (reparo["Fim do Reparo"]) {
+          touched.add("reparo");
+          events.push({
+            at: reparo["Fim do Reparo"],
+            step: "reparo",
+            title: `Reparo finalizado${usuarioFinal ? ` por ${usuarioFinal}` : ""}${osSuffix}`,
+            tag: "Fim do Reparo",
+            source: "reparo",
+            reparoId: reparo.id
+          });
+        }
+
+        if (reparo.Data_qualidade || reparo.decisao) {
+          touched.add("cqe");
+          const atCqe = reparo.Data_qualidade || reparo["Fim do Reparo"];
+          if (atCqe && (!stepDates.cqe || atCqe > stepDates.cqe)) {
+            stepDates.cqe = atCqe;
+          }
+          const dec = String(reparo.decisao || "inspecionado");
+          events.push({
+            at: atCqe,
+            step: "cqe",
+            title: `Qualidade: ${dec}${cqeUser ? ` · ${cqeUser}` : ""}${reparo.motivo_reprovacao ? ` (${reparo.motivo_reprovacao})` : ""}${osSuffix}`,
+            tag: isReprov ? "Reprovado" : "Qualidade",
+            source: "reparo",
+            reparoId: reparo.id
+          });
+        }
+
+        const fromStatus = mapReparoStatusToStep(reparo);
+        if (fromStatus) touched.add(fromStatus);
+      });
+
+      // Peças do endpoint (serial) se ainda não entrou em nenhum ciclo
+      if (pecaRow && !addedGestaoPecasEndpoint) {
+        touched.add("gestao");
+        events.push({
+          at: stepDates.gestao || stepDates.triagem || null,
+          step: "gestao",
+          title: `Peça solicitada: ${pecaDesc || pecaFallback || "—"}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`,
+          tag: "Gestão de Peças",
+          source: "pecas"
+        });
+      }
+
+      return true;
     }
 
     function advanceStep(current, next) {
@@ -1822,9 +2030,10 @@
           stepDates.recebimento = device.data_recebimento;
         }
 
-        const reparoRows = reparoByHu.get(String(device.hu_id)) || [];
-        const reparo = pickPrimaryReparo(reparoRows);
-        if (reparo) joinHits += 1;
+        const reparoRowsAll = reparoByHu.get(String(device.hu_id)) || [];
+        const reparoRows = reparoRowsAll.filter((r) => !isReparoCancelado(r));
+        const reparo = pickPrimaryReparo(reparoRows.length ? reparoRows : reparoRowsAll);
+        if (reparo && !isReparoCancelado(reparo)) joinHits += 1;
 
         const events = [];
         if (device.data_recebimento) {
@@ -1877,12 +2086,11 @@
 
         const usuarioInicio = reparo?.["Usuario inicio"] || null;
         const usuarioFinal = reparo?.["Usuario final"] || null;
-        // Técnico operacional (triagem/execução); início do reparo usa sempre Usuario inicio
+        // Técnico operacional (ciclo atual); início do reparo no evento usa Usuario inicio
         let tecnico = reparo?.["Usuário reparo"] || usuarioInicio || usuarioFinal || null;
         let cqeUser = reparo?.["Usuario qualidade"] || null;
         let decisao = reparo?.decisao || null;
         let statusReparo = reparo?.status || null;
-        let solicitante = reparo?.Nome_solicitante_peca || null;
 
         const pecaRow = pickPecaRow(pecasBySerial.get(String(device.serial || "").trim()) || []);
         const pecaDesc = pecaRow ? formatPecaDescricoes(pecaRow.descricoes) : "";
@@ -1891,107 +2099,20 @@
         let peca = pecaDesc || reparo?.peca_requisitada || null;
         if (pecaRow) pecaHits += 1;
 
-        const isReprov = norm(decisao).includes("reprov");
+        // Reprovado em qualquer ciclo (para não prender local em Q.* no retorno ao reparo)
+        const isReprov =
+          reparoRows.some((r) => norm(r.decisao).includes("reprov")) &&
+          !norm(decisao).includes("aprov");
 
-        if (reparo) {
-          if (reparo["Data Triagem"]) {
-            touched.add("triagem");
-            stepDates.triagem = reparo["Data Triagem"];
-            events.push({
-              at: reparo["Data Triagem"],
-              step: "triagem",
-              title: `Triagem iniciada${tecnico ? ` por ${tecnico}` : ""}`,
-              tag: "Triagem",
-              source: "reparo"
-            });
-          }
-
-          if (
-            pecaRow ||
-            reparo.produto_requisitado_id ||
-            reparo.peca_requisitada ||
-            reparo.DATA_PEDIDO_SANKHYA ||
-            solicitante
-          ) {
-            touched.add("gestao");
-            const atGestao = reparo.DATA_PEDIDO_SANKHYA || reparo["Iniciado_Reparo"] || reparo["Data Triagem"];
-            stepDates.gestao = atGestao;
-            const pecaTitle = pecaDesc
-              ? `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`
-              : peca
-                ? `Peça solicitada: ${peca}${solicitante ? ` · ${solicitante}` : ""}`
-                : `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`;
-            events.push({
-              at: atGestao,
-              step: "gestao",
-              title: pecaTitle,
-              tag: "Gestão de Peças",
-              source: pecaRow ? "pecas" : "reparo"
-            });
-          }
-
-          if (reparo["Iniciado_Reparo"]) {
-            touched.add("reparo");
-            stepDates.reparo = reparo["Iniciado_Reparo"];
-            events.push({
-              at: reparo["Iniciado_Reparo"],
-              step: "reparo",
-              title: `Reparo iniciado${usuarioInicio ? ` por ${usuarioInicio}` : ""}`,
-              tag: "Reparo",
-              source: "reparo"
-            });
-          }
-
-          ["1", "2", "3"].forEach((n) => {
-            const pausa = reparo[`${n} Pausa`];
-            const retorno = reparo[`${n} Retorno`];
-            if (pausa) {
-              events.push({
-                at: pausa,
-                step: "reparo",
-                title: `Pausa ${n}${reparo[`Usuario ${n} pausa`] ? ` · ${reparo[`Usuario ${n} pausa`]}` : ""}`,
-                tag: "Pausa",
-                source: "reparo"
-              });
-            }
-            if (retorno) {
-              events.push({
-                at: retorno,
-                step: "reparo",
-                title: `Retorno ${n}${reparo[`Usuario ${n} retorno`] ? ` · ${reparo[`Usuario ${n} retorno`]}` : ""}`,
-                tag: "Retorno",
-                source: "reparo"
-              });
-            }
-          });
-
-          if (reparo["Fim do Reparo"]) {
-            touched.add("reparo");
-            events.push({
-              at: reparo["Fim do Reparo"],
-              step: "reparo",
-              title: `Reparo finalizado${usuarioFinal ? ` por ${usuarioFinal}` : ""}`,
-              tag: "Fim do Reparo",
-              source: "reparo"
-            });
-          }
-
-          if (reparo.Data_qualidade || reparo.decisao) {
-            touched.add("cqe");
-            stepDates.cqe = reparo.Data_qualidade || reparo["Fim do Reparo"];
-            const dec = String(reparo.decisao || "inspecionado");
-            events.push({
-              at: reparo.Data_qualidade || reparo["Fim do Reparo"],
-              step: "cqe",
-              title: `Qualidade: ${dec}${cqeUser ? ` · ${cqeUser}` : ""}${reparo.motivo_reprovacao ? ` (${reparo.motivo_reprovacao})` : ""}`,
-              tag: isReprov ? "Reprovado" : "Qualidade",
-              source: "reparo"
-            });
-          }
-
-          const fromStatus = mapReparoStatusToStep(reparo);
-          if (fromStatus) touched.add(fromStatus);
-        } else if (pecaRow) {
+        const hasReparoEvents = appendAllReparoEvents(events, reparoRows, {
+          touched,
+          stepDates,
+          pecaRow,
+          pecaDesc,
+          custoPecas,
+          pecaFallback: peca
+        });
+        if (!hasReparoEvents && pecaRow) {
           touched.add("gestao");
           localVisited.add("gestao");
           events.push({
@@ -2062,11 +2183,16 @@
         const seenEv = new Set();
         const uniqueEvents = [];
         events.forEach((ev) => {
-          const key = `${ev.step}|${ev.tag}|${String(ev.at || "").slice(0, 16)}|${ev.title}`;
+          const key = `${ev.step}|${ev.tag}|${String(ev.at || "").slice(0, 19)}|${ev.title}|${ev.reparoId ?? ""}|${ev.source || ""}`;
           if (seenEv.has(key)) return;
           seenEv.add(key);
           uniqueEvents.push(ev);
         });
+
+        const reparoIds = sortReparoChrono(reparoRows)
+          .filter((r) => !isReparoCancelado(r))
+          .map((r) => r.id)
+          .filter((id) => id != null && String(id).trim() !== "");
 
         const tempos = {
           triagem: diffMs(device.data_recebimento, stepDates.triagem || reparo?.["Data Triagem"]),
@@ -2088,6 +2214,7 @@
           stepDates,
           reparo,
           reparoRows,
+          reparoIds,
           hasReparoJoin: !!reparo,
           tecnico: tecnico || currentUser,
           usuarioInicio,
@@ -2408,7 +2535,14 @@
         { lab: "Reparo", val: device?.tempos?.reparo, hint: "Início → Fim do reparo" },
         { lab: "Qualidade", val: device?.tempos?.cqe, hint: "Fim reparo → Qualidade" },
         { lab: "Ciclo total", val: device?.tempos?.total, hint: "Recebimento → último marco" },
-        { lab: "OS reparo", val: null, hint: device?.reparo?.id ? `id ${device.reparo.id}` : "sem OS", raw: device?.statusReparo || "—" }
+        {
+          lab: "OS reparo",
+          val: null,
+          hint: (device?.reparoIds || []).length
+            ? device.reparoIds.map((id) => String(id)).join(" → ")
+            : "sem OS",
+          raw: device?.statusReparo || "—"
+        }
       ];
       root.innerHTML = items.map((it) => `
         <div class="stage-time">
@@ -2431,6 +2565,10 @@
         ["Peça solicitada", device?.peca || "—"],
         ["Códigos peça", device?.pecaCodigos || "—"],
         ["Status reparo", device?.statusReparo || "—"],
+        ["OS reparo", (device?.reparoIds || []).length
+          ? (device.reparoIds.map((id) => String(id)).join(" → ") +
+            (device?.reparo?.id != null ? ` (atual ${device.reparo.id})` : ""))
+          : "—"],
         ["Local atual", device?.currentLocal || "—"],
         ["Custo aquisição", formatMoney(device?.custoAquisicao)],
         ["Custo peças", formatMoney(device?.custoPecas)],
