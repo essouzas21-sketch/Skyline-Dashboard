@@ -1737,17 +1737,14 @@
       return norm(r?.status) === "cancelado";
     }
 
-    /** Emite eventos de TODOS os IDs de reparo da HU (ciclos pós-CQE reprovado). */
+    /** Emite eventos de todos os ciclos (sem número de OS — fluxo contínuo). */
     function appendAllReparoEvents(events, reparoRows, { touched, stepDates, pecaRow, pecaDesc, custoPecas, pecaFallback }) {
       // Ignora OS cancelada — não entra na timeline
       const sorted = sortReparoChrono(reparoRows).filter((r) => !isReparoCancelado(r));
       if (!sorted.length) return false;
-      const multi = sorted.length > 1;
       let addedGestaoPecasEndpoint = false;
 
-      sorted.forEach((reparo, idx) => {
-        const osLabel = reparo.id != null ? `OS ${reparo.id}` : `ciclo ${idx + 1}`;
-        const osSuffix = multi ? ` · ${osLabel}` : "";
+      sorted.forEach((reparo) => {
         const usuarioInicio = reparo["Usuario inicio"] || null;
         const usuarioFinal = reparo["Usuario final"] || null;
         const tecnico = reparo["Usuário reparo"] || usuarioInicio || usuarioFinal || null;
@@ -1755,18 +1752,6 @@
         const solicitante = reparo.Nome_solicitante_peca || null;
         const decisao = reparo.decisao || null;
         const isReprov = norm(decisao).includes("reprov");
-        const status = reparo.status || null;
-
-        if (multi && (reparo["Data Triagem"] || reparo["Iniciado_Reparo"])) {
-          events.push({
-            at: reparo["Data Triagem"] || reparo["Iniciado_Reparo"],
-            step: reparo["Data Triagem"] ? "triagem" : "reparo",
-            title: `Ciclo ${osLabel}${status ? ` · ${status}` : ""}`,
-            tag: osLabel,
-            source: "reparo-cycle",
-            reparoId: reparo.id
-          });
-        }
 
         if (reparo["Data Triagem"]) {
           touched.add("triagem");
@@ -1776,7 +1761,7 @@
           events.push({
             at: reparo["Data Triagem"],
             step: "triagem",
-            title: `Triagem iniciada${tecnico ? ` por ${tecnico}` : ""}${osSuffix}`,
+            title: `Triagem iniciada${tecnico ? ` por ${tecnico}` : ""}`,
             tag: "Triagem",
             source: "reparo",
             reparoId: reparo.id
@@ -1802,23 +1787,28 @@
           let pecaTitle;
           let fromPecasEndpoint = false;
           if (pecaRow && !addedGestaoPecasEndpoint) {
-            pecaTitle = `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}${osSuffix}`;
+            pecaTitle = `Peça solicitada: ${pecaDesc}${custoPecas != null ? ` · ${formatMoney(custoPecas)}` : ""}`;
             addedGestaoPecasEndpoint = true;
             fromPecasEndpoint = true;
           } else if (reparo.peca_requisitada) {
-            pecaTitle = `Peça solicitada: ${reparo.peca_requisitada}${solicitante ? ` · ${solicitante}` : ""}${osSuffix}`;
+            pecaTitle = `Peça solicitada: ${reparo.peca_requisitada}${solicitante ? ` · ${solicitante}` : ""}`;
+          } else if (hasGestaoReparo) {
+            // Só gera evento genérico se houver pedido/solicitante real (evita ruído entre ciclos)
+            pecaTitle = `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}`;
           } else {
-            pecaTitle = `Gestão de peças${solicitante ? ` · ${solicitante}` : ""}${osSuffix}`;
+            pecaTitle = null;
           }
 
-          events.push({
-            at: atGestao,
-            step: "gestao",
-            title: pecaTitle,
-            tag: "Gestão de Peças",
-            source: fromPecasEndpoint ? "pecas" : "reparo",
-            reparoId: reparo.id
-          });
+          if (pecaTitle) {
+            events.push({
+              at: atGestao,
+              step: "gestao",
+              title: pecaTitle,
+              tag: "Gestão de Peças",
+              source: fromPecasEndpoint ? "pecas" : "reparo",
+              reparoId: reparo.id
+            });
+          }
         }
 
         if (reparo["Iniciado_Reparo"]) {
@@ -1829,7 +1819,7 @@
           events.push({
             at: reparo["Iniciado_Reparo"],
             step: "reparo",
-            title: `Reparo iniciado${usuarioInicio ? ` por ${usuarioInicio}` : ""}${osSuffix}`,
+            title: `Reparo iniciado${usuarioInicio ? ` por ${usuarioInicio}` : ""}`,
             tag: "Reparo",
             source: "reparo",
             reparoId: reparo.id
@@ -1843,7 +1833,7 @@
             events.push({
               at: pausa,
               step: "reparo",
-              title: `Pausa ${n}${reparo[`Usuario ${n} pausa`] ? ` · ${reparo[`Usuario ${n} pausa`]}` : ""}${osSuffix}`,
+              title: `Pausa ${n}${reparo[`Usuario ${n} pausa`] ? ` · ${reparo[`Usuario ${n} pausa`]}` : ""}`,
               tag: "Pausa",
               source: "reparo",
               reparoId: reparo.id
@@ -1853,7 +1843,7 @@
             events.push({
               at: retorno,
               step: "reparo",
-              title: `Retorno ${n}${reparo[`Usuario ${n} retorno`] ? ` · ${reparo[`Usuario ${n} retorno`]}` : ""}${osSuffix}`,
+              title: `Retorno ${n}${reparo[`Usuario ${n} retorno`] ? ` · ${reparo[`Usuario ${n} retorno`]}` : ""}`,
               tag: "Retorno",
               source: "reparo",
               reparoId: reparo.id
@@ -1866,7 +1856,7 @@
           events.push({
             at: reparo["Fim do Reparo"],
             step: "reparo",
-            title: `Reparo finalizado${usuarioFinal ? ` por ${usuarioFinal}` : ""}${osSuffix}`,
+            title: `Reparo finalizado${usuarioFinal ? ` por ${usuarioFinal}` : ""}`,
             tag: "Fim do Reparo",
             source: "reparo",
             reparoId: reparo.id
@@ -1883,7 +1873,7 @@
           events.push({
             at: atCqe,
             step: "cqe",
-            title: `Qualidade: ${dec}${cqeUser ? ` · ${cqeUser}` : ""}${reparo.motivo_reprovacao ? ` (${reparo.motivo_reprovacao})` : ""}${osSuffix}`,
+            title: `Qualidade: ${dec}${cqeUser ? ` · ${cqeUser}` : ""}${reparo.motivo_reprovacao ? ` (${reparo.motivo_reprovacao})` : ""}`,
             tag: isReprov ? "Reprovado" : "Qualidade",
             source: "reparo",
             reparoId: reparo.id
@@ -2536,11 +2526,9 @@
         { lab: "Qualidade", val: device?.tempos?.cqe, hint: "Fim reparo → Qualidade" },
         { lab: "Ciclo total", val: device?.tempos?.total, hint: "Recebimento → último marco" },
         {
-          lab: "OS reparo",
+          lab: "Status reparo",
           val: null,
-          hint: (device?.reparoIds || []).length
-            ? device.reparoIds.map((id) => String(id)).join(" → ")
-            : "sem OS",
+          hint: device?.hasReparoJoin ? "ciclo atual" : "sem join",
           raw: device?.statusReparo || "—"
         }
       ];
@@ -2565,10 +2553,6 @@
         ["Peça solicitada", device?.peca || "—"],
         ["Códigos peça", device?.pecaCodigos || "—"],
         ["Status reparo", device?.statusReparo || "—"],
-        ["OS reparo", (device?.reparoIds || []).length
-          ? (device.reparoIds.map((id) => String(id)).join(" → ") +
-            (device?.reparo?.id != null ? ` (atual ${device.reparo.id})` : ""))
-          : "—"],
         ["Local atual", device?.currentLocal || "—"],
         ["Custo aquisição", formatMoney(device?.custoAquisicao)],
         ["Custo peças", formatMoney(device?.custoPecas)],
