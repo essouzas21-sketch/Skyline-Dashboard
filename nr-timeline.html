@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=58"></script>
+  <script src="yardex-dash.js?v=59"></script>
   <style>
     :root {
       --bg: #070b12;
@@ -1820,7 +1820,10 @@
           });
         }
 
-        let tecnico = reparo?.["Usuário reparo"] || reparo?.["Usuario inicio"] || reparo?.["Usuario final"] || null;
+        const usuarioInicio = reparo?.["Usuario inicio"] || null;
+        const usuarioFinal = reparo?.["Usuario final"] || null;
+        // Técnico operacional (triagem/execução); início do reparo usa sempre Usuario inicio
+        let tecnico = reparo?.["Usuário reparo"] || usuarioInicio || usuarioFinal || null;
         let cqeUser = reparo?.["Usuario qualidade"] || null;
         let decisao = reparo?.decisao || null;
         let statusReparo = reparo?.status || null;
@@ -1878,7 +1881,7 @@
             events.push({
               at: reparo["Iniciado_Reparo"],
               step: "reparo",
-              title: `Reparo iniciado${tecnico ? ` por ${tecnico}` : ""}`,
+              title: `Reparo iniciado${usuarioInicio ? ` por ${usuarioInicio}` : ""}`,
               tag: "Reparo",
               source: "reparo"
             });
@@ -1912,7 +1915,7 @@
             events.push({
               at: reparo["Fim do Reparo"],
               step: "reparo",
-              title: `Reparo finalizado${reparo["Usuario final"] ? ` por ${reparo["Usuario final"]}` : ""}`,
+              title: `Reparo finalizado${usuarioFinal ? ` por ${usuarioFinal}` : ""}`,
               tag: "Fim do Reparo",
               source: "reparo"
             });
@@ -2032,6 +2035,8 @@
           reparoRows,
           hasReparoJoin: !!reparo,
           tecnico: tecnico || currentUser,
+          usuarioInicio,
+          usuarioFinal,
           cqeUser,
           decisao,
           isReprov,
@@ -2365,6 +2370,7 @@
         ["HU", device ? String(device.hu_id) : "—"],
         ["Serial", device?.serial || "—"],
         ["Técnico atual", device?.tecnico || "—"],
+        ["Início reparo", device?.usuarioInicio || "—"],
         ["CQE / decisão", device?.decisao || "—"],
         ["Peça solicitada", device?.peca || "—"],
         ["Códigos peça", device?.pecaCodigos || "—"],
@@ -2564,12 +2570,33 @@
         const apiPecas =
           YardexDash.API_PECAS ||
           "https://automacao.skylinemobile.com.br/webhook/873620b8-7633-4e79-99fe-39c8b504b9a4";
-        const [payloadRec, payloadRep, payloadMov, payloadPecas] = await Promise.all([
+
+        // allSettled: um endpoint lento/falho não trava a tela inteira
+        const settled = await Promise.allSettled([
           YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
           YardexDash.fetchWebhook(YardexDash.API_REPARO),
           YardexDash.fetchWebhook(apiMov),
           YardexDash.fetchWebhook(apiPecas)
         ]);
+        const [recS, repS, movS, pecS] = settled;
+        if (recS.status !== "fulfilled") {
+          throw recS.reason || new Error("Falha no webhook de recebimento");
+        }
+        if (repS.status !== "fulfilled") {
+          console.warn("[NR Timeline] reparo falhou:", repS.reason);
+        }
+        if (movS.status !== "fulfilled") {
+          console.warn("[NR Timeline] movimentações falhou:", movS.reason);
+        }
+        if (pecS.status !== "fulfilled") {
+          console.warn("[NR Timeline] peças falhou:", pecS.reason);
+        }
+
+        const payloadRec = recS.value;
+        const payloadRep = repS.status === "fulfilled" ? repS.value : {};
+        const payloadMov = movS.status === "fulfilled" ? movS.value : {};
+        const payloadPecas = pecS.status === "fulfilled" ? pecS.value : {};
+
         const rows = YardexDash.normalizeRows(payloadRec).filter((r) => String(r.numero || "").trim() === target);
         if (!rows.length) {
           setStateMessage(`NR <strong>${target}</strong> não encontrada no webhook de recebimento.`, "error");

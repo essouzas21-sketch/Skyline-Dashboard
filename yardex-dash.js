@@ -670,13 +670,12 @@ const YardexDash = {
   },
 
   _getJsonWorker() {
-    if (this._jsonWorker) return this._jsonWorker;
+    // Worker one-shot por parse (evita hang com vários fetchWebhook em paralelo)
     try {
-      this._jsonWorker = new Worker("yardex-json-worker.js?v=2");
+      return new Worker("yardex-json-worker.js?v=3");
     } catch {
-      this._jsonWorker = null;
+      return null;
     }
-    return this._jsonWorker;
   },
 
   parseJsonAsync(text) {
@@ -688,30 +687,39 @@ const YardexDash = {
     if (!worker) {
       return Promise.resolve(JSON.parse(payload));
     }
-    // ID por request: vários fetchWebhook em paralelo compartilham o mesmo Worker
-    if (this._jsonReqId == null) this._jsonReqId = 0;
-    const reqId = ++this._jsonReqId;
     return new Promise((resolve, reject) => {
-      const onMsg = (event) => {
-        const data = event.data;
-        if (!data || data.id !== reqId) return;
-        worker.removeEventListener("message", onMsg);
-        worker.removeEventListener("error", onErr);
-        if (data.ok) resolve(data.data);
-        else reject(new Error(data.error || "Resposta inválida (não é JSON)"));
+      let done = false;
+      const finish = (fn) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try {
+          worker.terminate();
+        } catch {
+          /* ignore */
+        }
+        fn();
       };
-      const onErr = () => {
-        worker.removeEventListener("message", onMsg);
-        worker.removeEventListener("error", onErr);
+      const fallbackMain = () => {
         try {
           resolve(JSON.parse(payload));
         } catch (err) {
           reject(err);
         }
       };
-      worker.addEventListener("message", onMsg);
-      worker.addEventListener("error", onErr);
-      worker.postMessage({ id: reqId, text: payload });
+      // Se o Worker travar/cache antigo sem id, não deixa a página eternamente em loading
+      const timer = setTimeout(() => finish(fallbackMain), 20000);
+      worker.onmessage = (event) => {
+        const data = event.data;
+        if (data && data.ok) finish(() => resolve(data.data));
+        else finish(() => reject(new Error(data?.error || "Resposta inválida (não é JSON)")));
+      };
+      worker.onerror = () => finish(fallbackMain);
+      try {
+        worker.postMessage({ id: 1, text: payload });
+      } catch {
+        finish(fallbackMain);
+      }
     });
   },
 
