@@ -784,12 +784,39 @@
     }
 
     .timeline {
-      max-height: 340px;
       overflow: auto;
       padding-right: 4px;
       display: flex;
       flex-direction: column;
       gap: 0;
+    }
+
+    /* Timeline esquerda = altura do quadro de informações; scroll só se passar */
+    .device-detail-split {
+      align-items: stretch;
+    }
+
+    .device-detail-split > .card {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .device-detail-split > .card > h3 {
+      flex: 0 0 auto;
+    }
+
+    .device-detail-split .timeline {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .device-detail-split .info-list {
+      flex: 1 1 auto;
     }
 
     .tl-item {
@@ -1313,7 +1340,7 @@
           <div class="steps" id="steps"></div>
         </article>
 
-        <div class="grid-mid">
+        <div class="grid-mid device-detail-split">
           <article class="card">
             <h3>Linha do tempo completa</h3>
             <div class="timeline" id="timeline"></div>
