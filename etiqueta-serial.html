@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Busca Serial + Etiqueta</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f5f5f5;
+      color: #1a1a1a;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: #694992;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back:hover {
+      text-decoration: underline;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    input, button, select {
+      font-size: 15px;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    select {
+      min-width: 160px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 180px;
+    }
+
+    .field-group label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #374151;
+    }
+
+    .field-group select {
+      appearance: none;
+      -webkit-appearance: none;
+      min-width: 180px;
+      padding: 12px 40px 12px 14px;
+      border: 2px solid #111827;
+      border-radius: 10px;
+      background-color: #111827;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 16px;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
+    }
+
+    .field-group select:hover,
+    .field-group select:focus-visible {
+      background-color: #1f2937;
+      border-color: #1f2937;
+      outline: none;
+    }
+
+    .field-group select option {
+      color: #111827;
+      background: #ffffff;
+      font-weight: 700;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: #111827;
+      color: white;
+    }
+
+    button.secondary {
+      background: #4b5563;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #374151;
+    }
+
+    .result {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafafa;
+      margin-bottom: 14px;
+    }
+
+    .result p {
+      margin: 4px 0;
+    }
+
+    .label {
+      position: relative;
+      width: 9cm;
+      height: 3cm;
+      border: 1px dashed #333;
+      box-sizing: border-box;
+      padding: 4mm;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .label .desc {
+      font-size: 7.5pt;
+      font-weight: 700;
+      line-height: 1.15;
+      max-height: 11mm;
+      overflow: hidden;
+      white-space: normal;
+      word-break: normal;
+    }
+
+    .label .serial {
+      font-size: 10pt;
+      margin-top: 2mm;
+      font-weight: 600;
+    }
+
+    .label .grade-badge {
+      position: absolute;
+      right: 3mm;
+      bottom: 2.5mm;
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      color: #111;
+      text-align: right;
+      white-space: nowrap;
+      z-index: 2;
+    }
+
+    .barcode-wrap {
+      margin-top: 1mm;
+    }
+
+    .field-group.is-hidden {
+      display: none;
+    }
+
+    /* Error dialog */
+    .err-dialog-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .err-dialog-root.open {
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .err-dialog-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.48);
+      opacity: 0;
+      transition: opacity 200ms ease;
+    }
+
+    .err-dialog-root.open .err-dialog-backdrop {
+      opacity: 1;
+    }
+
+    .err-dialog {
+      position: relative;
+      width: min(100%, 420px);
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 20px;
+      box-shadow:
+        0 24px 48px rgba(15, 23, 42, 0.22),
+        0 0 0 1px rgba(15, 23, 42, 0.06);
+      padding: 28px 28px 24px;
+      text-align: center;
+      transform: translateY(10px) scale(0.96);
+      opacity: 0;
+      transition: transform 200ms ease, opacity 200ms ease;
+    }
+
+    .err-dialog-root.open .err-dialog {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .err-dialog-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #64748b;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .err-dialog-close:hover,
+    .err-dialog-close:focus-visible {
+      background: #f1f5f9;
+      color: #0f172a;
+      outline: none;
+    }
+
+    .err-dialog-icon {
+      width: 64px;
+      height: 64px;
+      margin: 4px auto 18px;
+      border-radius: 50%;
+      background: #fef2f2;
+      color: #dc2626;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .err-dialog-icon svg {
+      width: 34px;
+      height: 34px;
+    }
+
+    .err-dialog-title {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+
+    .err-dialog-message {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #334155;
+      line-height: 1.4;
+    }
+
+    .err-dialog-hint {
+      margin: 0 0 22px;
+      font-size: 0.875rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .err-dialog-action {
+      width: 100%;
+      padding: 14px 18px;
+      border: none;
+      border-radius: 12px;
+      background: #111827;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .err-dialog-action:hover,
+    .err-dialog-action:focus-visible {
+      background: #1f2937;
+      outline: 2px solid #94a3b8;
+      outline-offset: 2px;
+    }
+
+    @media print {
+      .err-dialog-root {
+        display: none !important;
+      }
+
+      @page {
+        size: 9cm 3cm;
+        margin: 0;
+      }
+
+      body {
+        padding: 0;
+        background: #fff;
+      }
+
+      .container > :not(.label-area) {
+        display: none !important;
+      }
+
+      .label-area {
+        display: block !important;
+      }
+
+      .label {
+        border: none;
+        width: 9cm;
+        height: 3cm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="menu.html">← Menu</a>
+    <h1>Localizar Serial e Imprimir Etiqueta</h1>
+
+    <div class="row">
+      <input id="endpoint" type="text" value="https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf" />
+      <button id="loadData">Atualizar dados</button>
+    </div>
+
+    <div class="row">
+      <input id="serialInput" type="text" placeholder="Digite ou leia o IMEI no leitor..." autofocus inputmode="numeric" autocomplete="off" />
+      <button id="searchBtn">Buscar serial</button>
+      <button id="printBtn" class="secondary">Imprimir etiqueta</button>
+    </div>
+
+    <div class="row">
+      <div class="field-group">
+        <label for="gradeSelect">GRADE</label>
+        <select id="gradeSelect" aria-label="GRADE" required>
+          <option value="NOVO" selected>NOVO</option>
+          <option value="PRO">PRO</option>
+          <option value="PREMIUM">PREMIUM</option>
+          <option value="MASTER">MASTER</option>
+          <option value="OUTLET">OUTLET</option>
+        </select>
+      </div>
+      <div class="field-group" id="nivelFieldGroup">
+        <label for="nivelSelect">NIVEL</label>
+        <select id="nivelSelect" aria-label="NIVEL" required>
+          <option value="A" selected>A</option>
+          <option value="B">B</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="resultBox" class="result" hidden></div>
+
+    <div class="label-area">
+      <div id="label" class="label">
+        <div id="labelDesc" class="desc">Descricao do produto</div>
+        <div id="labelSerial" class="serial">Serial: -</div>
+        <div class="barcode-wrap">
+          <svg id="barcode"></svg>
+        </div>
+        <div id="labelGradeBadge" class="grade-badge"></div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="errorDialog"
+    class="err-dialog-root"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="errorDialogTitle"
+    aria-describedby="errorDialogMessage errorDialogHint"
+    hidden
+  >
+    <div class="err-dialog-backdrop" data-err-close></div>
+    <div class="err-dialog" role="document">
+      <button type="button" class="err-dialog-close" data-err-close aria-label="Fechar">×</button>
+      <div class="err-dialog-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M8.5 8.5l7 7M15.5 8.5l-7 7"></path>
+        </svg>
+      </div>
+      <h2 id="errorDialogTitle" class="err-dialog-title">IMEI inválido</h2>
+      <p id="errorDialogMessage" class="err-dialog-message">IMEI com a quantidade de dígitos incorreta.</p>
+      <p id="errorDialogHint" class="err-dialog-hint">Verifique a leitura e tente novamente.</p>
+      <button type="button" class="err-dialog-action" id="errorDialogAction">Ler novamente</button>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      rows: [],
+      current: null,
+      grade: "NOVO",
+      nivel: "A"
+    };
+
+    const endpointInput = document.getElementById("endpoint");
+    const serialInput = document.getElementById("serialInput");
+    const gradeSelect = document.getElementById("gradeSelect");
+    const nivelSelect = document.getElementById("nivelSelect");
+    const nivelFieldGroup = document.getElementById("nivelFieldGroup");
+    const statusEl = document.getElementById("status");
+    const resultBox = document.getElementById("resultBox");
+    const labelDesc = document.getElementById("labelDesc");
+    const labelSerial = document.getElementById("labelSerial");
+    const labelGradeBadge = document.getElementById("labelGradeBadge");
+    const barcodeEl = document.getElementById("barcode");
+
+    const ErrorDialog = (() => {
+      const root = document.getElementById("errorDialog");
+      const titleEl = document.getElementById("errorDialogTitle");
+      const messageEl = document.getElementById("errorDialogMessage");
+      const hintEl = document.getElementById("errorDialogHint");
+      const actionBtn = document.getElementById("errorDialogAction");
+      let previouslyFocused = null;
+      let closing = false;
+
+      function getFocusable() {
+        return [...root.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )].filter((el) => el.offsetParent !== null || el === actionBtn);
+      }
+
+      function focusInputForRescan() {
+        serialInput.focus();
+        serialInput.select();
+      }
+
+      function onKeyDown(event) {
+        if (!root.classList.contains("open")) return;
+
+        if (event.key === "Escape" || event.key === "Enter") {
+          event.preventDefault();
+          close();
+          return;
+        }
+
+        if (event.key === "Tab") {
+          const focusable = getFocusable();
+          if (!focusable.length) {
+            event.preventDefault();
+            return;
+          }
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+
+      function open({
+        title = "IMEI inválido",
+        message = "IMEI com a quantidade de dígitos incorreta.",
+        hint = "Verifique a leitura e tente novamente.",
+        actionLabel = "Ler novamente"
+      } = {}) {
+        previouslyFocused = document.activeElement;
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        hintEl.textContent = hint;
+        actionBtn.textContent = actionLabel;
+
+        root.hidden = false;
+        requestAnimationFrame(() => {
+          root.classList.add("open");
+          actionBtn.focus();
+        });
+
+        document.addEventListener("keydown", onKeyDown, true);
+      }
+
+      function close() {
+        if (!root.classList.contains("open") || closing) return;
+        closing = true;
+        root.classList.remove("open");
+        document.removeEventListener("keydown", onKeyDown, true);
+
+        const finish = () => {
+          root.hidden = true;
+          closing = false;
+          focusInputForRescan();
+          previouslyFocused = null;
+        };
+
+        window.setTimeout(finish, 200);
+      }
+
+      root.addEventListener("click", (event) => {
+        if (event.target.closest("[data-err-close]") || event.target === actionBtn) {
+          close();
+        }
+      });
+
+      return { open, close };
+    })();
+
+    function setStatus(msg, isError = false) {
+      statusEl.textContent = msg;
+      statusEl.style.color = isError ? "#b91c1c" : "#374151";
+    }
+
+    function normalizeSerial(value) {
+      return String(value || "").trim();
+    }
+
+    function isValidImei(value) {
+      return /^\d{15}$/.test(normalizeSerial(value));
+    }
+
+    function ensureValidImei(value) {
+      if (isValidImei(value)) return true;
+      ErrorDialog.open({
+        title: "IMEI inválido",
+        message: "IMEI com a quantidade de dígitos incorreta.",
+        hint: "Verifique a leitura e tente novamente.",
+        actionLabel: "Ler novamente"
+      });
+      return false;
+    }
+
+    function extractSerial(item) {
+      return normalizeSerial(item?.serial ?? item?.Serial ?? item?.imei ?? item?.IMEI);
+    }
+
+    function hasProdCprod(item) {
+      const v = String(item?.prod_cprod ?? "").trim();
+      return Boolean(v && v !== "—" && v !== "-" && v.toLowerCase() !== "null");
+    }
+
+    function resolveDescricao(item) {
+      const descricao = String(item?.descricao ?? "").trim();
+      const prod = hasProdCprod(item) ? String(item?.prod_cprod ?? "").trim() : "";
+
+      const descHasCor = Boolean(descricao) && COR_PATTERN.test(normalizeForMatch(descricao));
+      const prodHasCor = Boolean(prod) && COR_PATTERN.test(normalizeForMatch(prod));
+
+      if (descHasCor && !prodHasCor) return descricao;
+      if (prodHasCor && !descHasCor) return prod;
+      if (descricao) return descricao;
+      if (prod) return prod;
+      return "Sem descricao";
+    }
+
+    const CAPACIDADE_PATTERN = /\b(?:8|16|32|64|128|256|512)\s*GB\b|\b1\s*TB\b/i;
+    const COR_PATTERN = /\brose\s*gold\b|\bdark\s*prisma\b|\b(?:preto|azul|blue|branco|vermelho|lilas|verde|rosa|rose|pink|purple|prata|cinza|grafite|dourado|ouro|bege|lavanda|violeta|creme|roxo|vinho|cobre|gold|silver|ametista)\b/i;
+
+    function productNameText(item) {
+      return [
+        item?.descricao,
+        item?.prod_cprod,
+        item?.produto,
+        item?.nome,
+        item?.product_name
+      ]
+        .map((v) => String(v ?? "").trim())
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    function normalizeForMatch(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function hasCapacidadeInformada(item) {
+      return CAPACIDADE_PATTERN.test(productNameText(item));
+    }
+
+    function ensureCapacidadeInformada(item) {
+      if (hasCapacidadeInformada(item)) return true;
+      ErrorDialog.open({
+        title: "ERRO DE CAPACIDADE",
+        message: "APARELHO SEM CAPACIDADE INFORMADA",
+        hint: "Verifique a leitura e tente novamente.",
+        actionLabel: "Ler novamente"
+      });
+      return false;
+    }
+
+    function hasCorInformada(item) {
+      return COR_PATTERN.test(normalizeForMatch(productNameText(item)));
+    }
+
+    function ensureCorInformada(item) {
+      if (hasCorInformada(item)) return true;
+      ErrorDialog.open({
+        title: "ERRO DE COR",
+        message: "APARELHO SEM A COR INFORMADA",
+        hint: "Verifique a leitura e tente novamente.",
+        actionLabel: "Ler novamente"
+      });
+      return false;
+    }
+
+    function pickBestSerialMatch(matches) {
+      if (!matches.length) return null;
+      return matches
+        .map((item, idx) => ({ item, idx }))
+        .sort((a, b) => {
+          const aCor = hasCorInformada(a.item) ? 1 : 0;
+          const bCor = hasCorInformada(b.item) ? 1 : 0;
+          if (aCor !== bCor) return bCor - aCor;
+
+          const aCap = hasCapacidadeInformada(a.item) ? 1 : 0;
+          const bCap = hasCapacidadeInformada(b.item) ? 1 : 0;
+          if (aCap !== bCap) return bCap - aCap;
+
+          const aProd = hasProdCprod(a.item) ? 1 : 0;
+          const bProd = hasProdCprod(b.item) ? 1 : 0;
+          if (aProd !== bProd) return bProd - aProd;
+
+          const aDesc = String(a.item.descricao ?? "").trim() ? 1 : 0;
+          const bDesc = String(b.item.descricao ?? "").trim() ? 1 : 0;
+          if (aDesc !== bDesc) return bDesc - aDesc;
+
+          return b.idx - a.idx;
+        })[0].item;
+    }
+
+    function formatDescricao(raw, maxChars = 100) {
+      const base = String(raw || "Sem descricao").trim();
+      return base.length > maxChars ? `${base.slice(0, maxChars)}...` : base;
+    }
+
+    function isOutletGrade(grade = gradeSelect.value) {
+      return grade === "OUTLET";
+    }
+
+    function buildGradeBadgeText() {
+      const grade = state.current ? state.grade : gradeSelect.value;
+      const nivel = state.current ? state.nivel : nivelSelect.value;
+      if (isOutletGrade(grade)) return "OUTLET";
+      return `${grade} ${nivel}`.trim();
+    }
+
+    function syncNivelVisibility() {
+      const outlet = isOutletGrade();
+      nivelFieldGroup.classList.toggle("is-hidden", outlet);
+      nivelSelect.required = !outlet;
+      if (!outlet && !nivelSelect.value) {
+        nivelSelect.value = "A";
+      }
+      if (state.current) {
+        state.grade = gradeSelect.value;
+        state.nivel = outlet ? "" : nivelSelect.value;
+      }
+      updateLabelView();
+    }
+
+    function resetGradeNivel() {
+      gradeSelect.value = "NOVO";
+      nivelSelect.value = "A";
+      nivelFieldGroup.classList.remove("is-hidden");
+      nivelSelect.required = true;
+    }
+
+    function captureGradeNivel() {
+      state.grade = gradeSelect.value;
+      state.nivel = isOutletGrade() ? "" : nivelSelect.value;
+    }
+
+    function buildSerialLabelText(serial) {
+      return `Serial: ${serial}`;
+    }
+
+    function ensureGradeNivel() {
+      if (!gradeSelect.value) {
+        setStatus("Selecione a GRADE.", true);
+        gradeSelect.focus();
+        return false;
+      }
+      if (!isOutletGrade() && !nivelSelect.value) {
+        setStatus("Selecione o NIVEL.", true);
+        nivelSelect.focus();
+        return false;
+      }
+      return true;
+    }
+
+    function updateLabelView() {
+      if (!state.current) {
+        labelGradeBadge.textContent = buildGradeBadgeText();
+        return;
+      }
+
+      const serial = extractSerial(state.current);
+      const descricao = resolveDescricao(state.current);
+      const serialLabel = buildSerialLabelText(serial);
+      const gradeBadge = buildGradeBadgeText();
+
+      resultBox.hidden = false;
+      resultBox.innerHTML = `
+        <p><strong>Serial:</strong> ${serial}</p>
+        <p><strong>Texto na etiqueta:</strong> ${serialLabel}</p>
+        <p><strong>Grade / Nivel:</strong> ${gradeBadge || "-"}</p>
+        <p><strong>Descricao:</strong> ${descricao}</p>
+        <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "-"}</p>
+        <p><strong>Status:</strong> ${state.current.status || "-"}</p>
+      `;
+
+      labelDesc.textContent = formatDescricao(descricao);
+      labelSerial.textContent = serialLabel;
+      labelGradeBadge.textContent = gradeBadge;
+    }
+
+    function renderCurrent(item) {
+      state.current = item;
+      const serial = extractSerial(item);
+
+      try {
+        JsBarcode(barcodeEl, serial, {
+          format: "CODE128",
+          displayValue: false,
+          width: 1.6,
+          height: 36,
+          margin: 0
+        });
+      } catch (error) {
+        setStatus("Serial invalido para codigo de barras.", true);
+      }
+
+      updateLabelView();
+    }
+
+    function isArrayLikeRows(value) {
+      return Array.isArray(value) && value.length > 0 && typeof value[0] === "object";
+    }
+
+    function findRowsInObject(obj) {
+      for (const key of Object.keys(obj)) {
+        const value = obj[key];
+        if (isArrayLikeRows(value)) {
+          return value;
+        }
+      }
+      for (const value of Object.values(obj)) {
+        if (value && typeof value === "object") {
+          const inner = findRowsInObject(value);
+          if (inner.length) {
+            return inner;
+          }
+        }
+      }
+      return [];
+    }
+
+    function extractRows(payload) {
+      if (payload == null) {
+        return [];
+      }
+      if (Array.isArray(payload)) {
+        return payload;
+      }
+      if (typeof payload === "object") {
+        const rows = findRowsInObject(payload);
+        if (rows.length) {
+          return rows;
+        }
+        return [payload];
+      }
+      return [];
+    }
+
+    async function loadData() {
+      const endpoint = endpointInput.value.trim();
+      if (!endpoint) {
+        setStatus("Informe um endpoint valido.", true);
+        return;
+      }
+
+      setStatus("Carregando dados...");
+      try {
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+          throw new Error(`Erro HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const rows = extractRows(payload);
+        state.rows = rows;
+        setStatus(`Dados atualizados: ${rows.length} registros carregados.`);
+      } catch (error) {
+        setStatus(`Falha ao carregar endpoint: ${error.message}`, true);
+      }
+    }
+
+    function searchBySerial() {
+      if (!ensureGradeNivel()) return;
+
+      const serialTyped = normalizeSerial(serialInput.value);
+      if (!serialTyped) {
+        setStatus("Digite um IMEI para buscar.", true);
+        return;
+      }
+
+      if (!ensureValidImei(serialTyped)) {
+        resultBox.hidden = true;
+        state.current = null;
+        return;
+      }
+
+      const matches = state.rows.filter((item) => extractSerial(item) === serialTyped);
+      const found = pickBestSerialMatch(matches);
+      if (!found) {
+        resultBox.hidden = true;
+        state.current = null;
+        setStatus("Serial nao encontrado na base carregada.", true);
+        return;
+      }
+
+      if (!ensureCapacidadeInformada(found)) {
+        resultBox.hidden = true;
+        state.current = null;
+        return;
+      }
+
+      if (!ensureCorInformada(found)) {
+        resultBox.hidden = true;
+        state.current = null;
+        return;
+      }
+
+      captureGradeNivel();
+      renderCurrent(found);
+      resetGradeNivel();
+      updateLabelView();
+
+      const dupNote = matches.length > 1 ? ` (${matches.length} registros; priorizado prod_cprod)` : "";
+      setStatus(`Serial encontrado${dupNote}.`);
+    }
+
+    function printLabel() {
+      if (!state.current) {
+        setStatus("Busque um serial antes de imprimir.", true);
+        return;
+      }
+      if (!state.grade) {
+        setStatus("Selecione a GRADE.", true);
+        gradeSelect.focus();
+        return;
+      }
+      if (state.grade !== "OUTLET" && !state.nivel) {
+        setStatus("Selecione o NIVEL.", true);
+        nivelSelect.focus();
+        return;
+      }
+      if (!ensureCapacidadeInformada(state.current)) return;
+      if (!ensureCorInformada(state.current)) return;
+      window.print();
+    }
+
+    document.getElementById("loadData").addEventListener("click", loadData);
+    document.getElementById("searchBtn").addEventListener("click", searchBySerial);
+    document.getElementById("printBtn").addEventListener("click", printLabel);
+    gradeSelect.addEventListener("change", syncNivelVisibility);
+    nivelSelect.addEventListener("change", () => {
+      if (state.current) {
+        state.grade = gradeSelect.value;
+        state.nivel = isOutletGrade() ? "" : nivelSelect.value;
+      }
+      updateLabelView();
+    });
+    serialInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        searchBySerial();
+      }
+    });
+
+    syncNivelVisibility();
+    loadData();
+  </script>
+</body>
+</html>
