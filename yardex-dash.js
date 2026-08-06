@@ -47,6 +47,9 @@ const YardexDash = {
   /** Cache persistente (IndexedDB) — evita baixar ~14 MB de reparo a cada refresh. */
   FETCH_IDB_TTL_MS: 600000,
 
+  /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
+  CACHE_VERSION: "61",
+
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
 
@@ -72,6 +75,35 @@ const YardexDash = {
       if (u.includes(id)) return path;
     }
     return null;
+  },
+
+  _cacheReady: null,
+
+  ensureCacheVersion() {
+    if (this._cacheReady) return this._cacheReady;
+    this._cacheReady = (async () => {
+      try {
+        const key = "yardex-cache-version";
+        const prev = localStorage.getItem(key);
+        if (prev === this.CACHE_VERSION) return;
+        localStorage.setItem(key, this.CACHE_VERSION);
+        this._fetchCache = {};
+        this._fetchInflight = {};
+        this._idbPromise = null;
+        if (typeof indexedDB !== "undefined") {
+          await new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase("yardex-dash-cache");
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve();
+            req.onblocked = () => resolve();
+          });
+        }
+        console.info("[YardexDash] cache local limpo (v" + this.CACHE_VERSION + ")");
+      } catch (_) {
+        /* ignore */
+      }
+    })();
+    return this._cacheReady;
   },
 
   async loadHomologManifest() {
@@ -970,6 +1002,7 @@ const YardexDash = {
   },
 
   async fetchWebhook(url, timeoutMs = this.DEFAULT_FETCH_TIMEOUT_MS, options = {}) {
+    await this.ensureCacheVersion();
     const force = !!options.force;
     if (this.useHomologData()) {
       return this._fetchWebhookRaw(url, timeoutMs, true);
@@ -1207,6 +1240,7 @@ const YardexDash = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  YardexDash.ensureCacheVersion();
   YardexDash.initHomologBanner();
   YardexDash.bindHomologLinks();
   if (typeof YardexVersion !== "undefined") YardexVersion.start(YardexDash.REFRESH_SLOT_MS);
@@ -1215,3 +1249,5 @@ document.addEventListener("DOMContentLoaded", () => {
     YardexDash.warmCaches();
   }
 });
+
+YardexDash.ensureCacheVersion();
