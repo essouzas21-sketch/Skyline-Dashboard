@@ -3,7 +3,7 @@
  */
 const YardexDash = {
   /** Reparo / triagem / gestão / CQE / produção (campos id, Iniciado_Reparo, decisao…) */
-  API_REPARO: "https://automacao.skylinemobile.com.br/webhook/8d085005-6279-410a-882c-051ad2a189cf",
+  API_REPARO: "https://automacao.skylinemobile.com.br/webhook/fi",
   /** Recebimento (campos hu_id, data_recebimento, grupo, descricao…) */
   API_RECEBIMENTO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
   /** Movimentações de endereço (hu_id, endereco, serial, created_at) — trilha completa + último local */
@@ -12,6 +12,7 @@ const YardexDash = {
   API_PECAS: "https://automacao.skylinemobile.com.br/webhook/873620b8-7633-4e79-99fe-39c8b504b9a4",
 
   HOMOLOG_FIXTURES: {
+    "webhook/fi": "data/homolog/reparo.json",
     "8d085005-6279-410a-882c-051ad2a189cf": "data/homolog/reparo.json",
     "8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf": "data/homolog/reparo.json",
     "f16be280-a545-440c-80f4-9481b1dd06f6": "data/homolog/recebimento.json",
@@ -655,7 +656,12 @@ const YardexDash = {
 
   isReparoWebhook(url) {
     const u = String(url);
-    return u.includes("8d085005") || u.includes("8407c7c4") || u.includes("30e00080");
+    return (
+      u.includes("/webhook/fi") ||
+      u.includes("8d085005") ||
+      u.includes("8407c7c4") ||
+      u.includes("30e00080")
+    );
   },
 
   isRecebimentoWebhook(url) {
