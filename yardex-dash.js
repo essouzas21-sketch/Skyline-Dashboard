@@ -48,7 +48,7 @@ const YardexDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "61",
+  CACHE_VERSION: "62",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
@@ -181,7 +181,15 @@ const YardexDash = {
   normalizeRows(payload) {
     if (Array.isArray(payload)) return payload;
     if (!payload || typeof payload !== "object") return [];
-    for (const key of Object.keys(payload)) {
+    const keys = Object.keys(payload);
+    // n8n às vezes devolve "data ", "data 1", etc.
+    for (const key of keys) {
+      const k = String(key).trim().toLowerCase();
+      if (k === "data" || k.startsWith("data ")) {
+        if (Array.isArray(payload[key])) return payload[key];
+      }
+    }
+    for (const key of keys) {
       if (Array.isArray(payload[key])) return payload[key];
     }
     return [];

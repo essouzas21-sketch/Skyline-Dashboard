@@ -288,7 +288,7 @@
   </div>
 
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="yardex-dash.js?v=62"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
   (function () {
@@ -328,9 +328,46 @@
       btnLoadData.disabled = loading;
     }
 
+    function normalizeRowsLocal(payload) {
+      if (typeof YardexDash !== "undefined" && typeof YardexDash.normalizeRows === "function") {
+        return YardexDash.normalizeRows(payload);
+      }
+      if (Array.isArray(payload)) return payload;
+      if (!payload || typeof payload !== "object") return [];
+      const keys = Object.keys(payload);
+      for (const key of keys) {
+        const k = String(key).trim().toLowerCase();
+        if ((k === "data" || k.startsWith("data ")) && Array.isArray(payload[key])) {
+          return payload[key];
+        }
+      }
+      for (const key of keys) {
+        if (Array.isArray(payload[key])) return payload[key];
+      }
+      return [];
+    }
+
+    async function fetchRowsDirect(endpoint) {
+      const sep = endpoint.includes("?") ? "&" : "?";
+      const res = await fetch(`${endpoint}${sep}_t=${Date.now()}`, {
+        cache: "no-store",
+        mode: "cors",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        throw new Error("Resposta inválida (não é JSON)");
+      }
+      return normalizeRowsLocal(payload);
+    }
+
     async function fetchRows(endpoint, force = false) {
       if (typeof YardexDash === "undefined") {
-        throw new Error("yardex-dash.js não carregou — abra via servidor HTTP (ex.: localhost:8080).");
+        return fetchRowsDirect(endpoint);
       }
 
       const homolog = YardexDash.useHomologData();
@@ -343,15 +380,22 @@
         });
         if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
         const payload = JSON.parse(await res.text());
-        return YardexDash.normalizeRows(payload);
+        return normalizeRowsLocal(payload);
       }
 
-      const payload = await YardexDash.fetchWebhook(
-        endpoint,
-        YardexDash.DEFAULT_FETCH_TIMEOUT_MS,
-        { force }
-      );
-      return YardexDash.normalizeRows(payload);
+      try {
+        const payload = await YardexDash.fetchWebhook(
+          endpoint,
+          YardexDash.DEFAULT_FETCH_TIMEOUT_MS,
+          { force }
+        );
+        const rows = normalizeRowsLocal(payload);
+        if (rows.length) return rows;
+      } catch (err) {
+        console.warn("[Imprimir Recebimento] fallback direto após falha YardexDash:", err);
+      }
+
+      return fetchRowsDirect(endpoint);
     }
 
     async function loadData(force = false) {
@@ -374,7 +418,7 @@
         } catch (error) {
           state.rows = [];
           state.current = null;
-          resultBox.hidden = true;
+          if (resultBox) resultBox.hidden = true;
           setStatus(`Falha ao carregar: ${error.message}`, true);
         } finally {
           setLoading(false);
@@ -395,6 +439,32 @@
 
     function normKey(value) {
       return norm(value).toLowerCase();
+    }
+
+    function normalizeSerial(value) {
+      return norm(value);
+    }
+
+    function serialCandidates(item) {
+      return [
+        item?.serial,
+        item?.Serial,
+        item?.imei,
+        item?.IMEI
+      ]
+        .map(normalizeSerial)
+        .filter(Boolean);
+    }
+
+    function serialsMatch(a, b) {
+      const na = normalizeSerial(a);
+      const nb = normalizeSerial(b);
+      if (!na || !nb) return false;
+      if (na === nb) return true;
+      if (na.toLowerCase() === nb.toLowerCase()) return true;
+      const da = na.replace(/\D/g, "");
+      const db = nb.replace(/\D/g, "");
+      return Boolean(da && db && da === db);
     }
 
     function hasProdCprod(item) {
@@ -447,9 +517,10 @@
 
     function updateModeUi() {
       const mode = getSearchMode();
-      Object.entries(panels).forEach(([key, el) => {
-        el.classList.toggle("active", key === mode);
+      Object.entries(panels).forEach(([key, el]) => {
+        el?.classList.toggle("active", key === mode);
       });
+      if (!modeHint) return;
       if (mode === "serial") {
         modeHint.textContent = "Busca pelo serial do aparelho. Duplicatas priorizam registro com prod_cprod.";
         setTimeout(() => document.getElementById("inputSerial")?.focus(), 0);
@@ -464,30 +535,39 @@
 
     function updateLabelView() {
       if (!state.current) return;
-      const serial = norm(state.current.serial);
+      const serial = serialCandidates(state.current)[0] || normalizeSerial(state.current.serial);
       const descricaoBase = resolveDescricao(state.current);
       const descricaoComposta = buildDescricao(descricaoBase);
 
-      resultBox.hidden = false;
-      resultBox.innerHTML = `
-        <p><strong>Serial:</strong> ${serial}</p>
-        <p><strong>HU:</strong> ${state.current.hu_id ?? "—"}</p>
-        <p><strong>Número (doc):</strong> ${state.current.numero ?? "—"}</p>
-        <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "—"}</p>
-        <p><strong>Descricao base:</strong> ${descricaoBase}</p>
-        <p><strong>Descricao na etiqueta:</strong> ${descricaoComposta}</p>
-        <p><strong>Recebido:</strong> ${state.current.recebido === "S" ? "Sim" : state.current.recebido || "—"}</p>
-      `;
+      if (resultBox) {
+        resultBox.hidden = false;
+        resultBox.innerHTML = `
+          <p><strong>Serial:</strong> ${serial}</p>
+          <p><strong>HU:</strong> ${state.current.hu_id ?? "—"}</p>
+          <p><strong>Número (doc):</strong> ${state.current.numero ?? "—"}</p>
+          <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "—"}</p>
+          <p><strong>Descricao base:</strong> ${descricaoBase}</p>
+          <p><strong>Descricao na etiqueta:</strong> ${descricaoComposta}</p>
+          <p><strong>Recebido:</strong> ${state.current.recebido === "S" ? "Sim" : state.current.recebido || "—"}</p>
+        `;
+      }
 
-      labelDesc.textContent = formatDescricao(descricaoComposta);
-      labelSerial.textContent = `Serial: ${serial}`;
+      if (labelDesc) labelDesc.textContent = formatDescricao(descricaoComposta);
+      if (labelSerial) labelSerial.textContent = `Serial: ${serial}`;
     }
 
     function renderCurrent(item) {
       state.current = item;
-      const serial = norm(item.serial);
+      const serial = serialCandidates(item)[0] || "";
       if (!serial) {
         setStatus("Registro sem serial — não é possível gerar código de barras.", true);
+        return;
+      }
+
+      updateLabelView();
+
+      if (typeof JsBarcode !== "function" || !barcodeEl) {
+        setStatus("Serial encontrado, mas o gerador de código de barras não carregou (CDN).", true);
         return;
       }
 
@@ -500,11 +580,8 @@
           margin: 0
         });
       } catch (error) {
-        setStatus("Serial invalido para codigo de barras.", true);
-        return;
+        setStatus("Serial encontrado, mas inválido para código de barras.", true);
       }
-
-      updateLabelView();
     }
 
     function matchesHuOrId(item, typed) {
@@ -518,12 +595,14 @@
     }
 
     function searchBySerial() {
-      const typed = norm(document.getElementById("inputSerial").value);
+      const typed = normalizeSerial(document.getElementById("inputSerial")?.value);
       if (!typed) {
         setStatus("Informe o serial.", true);
         return null;
       }
-      const matches = state.rows.filter((item) => norm(item.serial) === typed);
+      const matches = state.rows.filter((item) =>
+        serialCandidates(item).some((candidate) => serialsMatch(candidate, typed))
+      );
       return { matches, label: "Serial" };
     }
 
@@ -570,24 +649,34 @@
     }
 
     async function runSearch() {
-      if (!state.rows.length) {
-        await loadData(false);
+      if (state.loading || !state.rows.length) {
+        setStatus("Carregando base para buscar…");
+        await loadData(!state.rows.length);
         if (!state.rows.length) return;
       }
 
       const mode = getSearchMode();
-      const result =
+      let result =
         mode === "serial" ? searchBySerial() :
         mode === "numero" ? searchByNumero() :
         searchByProdCprod();
 
       if (!result) return;
 
+      // Se não achou, força refresh da API e tenta de novo (base pode estar desatualizada)
+      if (!result.matches.length && mode === "serial") {
+        setStatus("Serial não encontrado — atualizando base e tentando de novo…");
+        await loadData(true);
+        if (!state.rows.length) return;
+        result = searchBySerial();
+        if (!result) return;
+      }
+
       const { matches, label } = result;
       if (!matches.length) {
-        resultBox.hidden = true;
+        if (resultBox) resultBox.hidden = true;
         state.current = null;
-        setStatus(`${label} não encontrado na base carregada.`, true);
+        setStatus(`${label} não encontrado na base (${state.rows.length} registros).`, true);
         return;
       }
 
