@@ -231,9 +231,25 @@
         margin: 0;
       }
 
+      html,
       body {
-        padding: 0;
-        background: #fff;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: hidden !important;
+      }
+
+      .container {
+        max-width: none !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #fff !important;
       }
 
       .container > :not(.label-area) {
@@ -242,13 +258,22 @@
 
       .label-area {
         display: block !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       .label {
-        border: none;
-        width: 100mm;
-        height: 50mm;
-        box-shadow: none;
+        border: none !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
     }
   </style>
@@ -288,6 +313,7 @@
       <button id="btnSearch" type="button">Buscar</button>
       <button id="btnPrint" type="button" class="secondary">Imprimir etiqueta</button>
     </div>
+    <p class="hint">Impressão: selecione papel <strong>100 × 50 mm</strong> (escala 100%, sem margens) na Zebra ZD220.</p>
 
     <div class="row">
       <input id="extraField1" type="text" placeholder="GB (opcional)" aria-label="GB" />
