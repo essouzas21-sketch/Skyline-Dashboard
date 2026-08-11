@@ -1764,20 +1764,39 @@
   </div>
   <script>
     window.addEventListener("load", () => {
-      setTimeout(() => { try { window.print(); } catch (e) {} }, 250);
+      setTimeout(() => { try { window.focus(); window.print(); } catch (e) {} }, 400);
     });
   <\/script>
 </body>
 </html>`;
 
-      const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
       if (!w) {
-        alert("Permita pop-ups para imprimir o relatório.");
+        // Fallback: iframe oculto + diálogo de impressão
+        let frame = document.getElementById("deviceReportPrintFrame");
+        if (!frame) {
+          frame = document.createElement("iframe");
+          frame.id = "deviceReportPrintFrame";
+          frame.title = "Relatório do aparelho";
+          frame.setAttribute("aria-hidden", "true");
+          frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+          document.body.appendChild(frame);
+        }
+        frame.onload = () => {
+          try {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+          } catch (e) {
+            alert("Não foi possível abrir o relatório. Permita pop-ups neste site.");
+          }
+          setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        };
+        frame.src = url;
         return;
       }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     }
 
     function resolveAquisicao(raw) {
