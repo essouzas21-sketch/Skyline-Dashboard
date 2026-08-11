@@ -196,7 +196,7 @@
       gap: 8px;
       align-items: center;
       flex: 1;
-      min-width: 260px;
+      min-width: 320px;
     }
 
     .search-box input {
@@ -1158,7 +1158,7 @@
     <div class="topbar">
       <a class="back" href="menu.html">← Menu</a>
       <form class="search-box" id="nrForm">
-        <input id="nrInput" type="search" inputmode="numeric" placeholder="Buscar NR…" value="64561" autocomplete="off" />
+        <input id="nrInput" type="search" inputmode="numeric" placeholder="NR ou várias: 64561, 64012…" value="64561" autocomplete="off" />
         <button class="btn" type="submit">Rastrear</button>
         <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
       </form>
@@ -1264,6 +1264,7 @@
             <table>
               <thead>
                 <tr>
+                  <th>NR</th>
                   <th>HU</th>
                   <th>Serial</th>
                   <th>Modelo</th>
@@ -1433,11 +1434,37 @@
       filtered: [],
       selectedHu: null,
       nr: "64561",
+      nrs: ["64561"],
       loadedAt: null,
       joinHits: 0,
       moveHits: 0,
       pecaHits: 0
     };
+
+    /** Aceita "64561, 64012" / "64561;64012" / espaços. */
+    function parseNrList(raw) {
+      const parts = String(raw || "")
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const seen = new Set();
+      const list = [];
+      parts.forEach((p) => {
+        const n = p.replace(/^0+(?=\d)/, "") || p;
+        const key = String(n);
+        if (seen.has(key)) return;
+        seen.add(key);
+        list.push(key);
+      });
+      return list;
+    }
+
+    function formatNrLabel(nrs) {
+      const list = Array.isArray(nrs) && nrs.length ? nrs : [String(state.nr || "—")];
+      if (list.length === 1) return list[0];
+      if (list.length <= 4) return list.join(", ");
+      return `${list.slice(0, 3).join(", ")} +${list.length - 3}`;
+    }
 
     function norm(s) {
       return String(s || "")
@@ -2612,7 +2639,7 @@
       const body = document.getElementById("deviceRows");
       const dups = duplicateImeiSet();
       if (!state.filtered.length) {
-        body.innerHTML = `<tr><td colspan="8">Nenhum aparelho com os filtros atuais.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="9">Nenhum aparelho com os filtros atuais.</td></tr>`;
         return;
       }
       body.innerHTML = state.filtered.map((d) => {
@@ -2625,7 +2652,8 @@
           ? `<span class="chip" style="background:${norm(d.decisao).includes("aprov") ? "var(--green-dim)" : "var(--orange-dim)"};color:${norm(d.decisao).includes("aprov") ? "var(--green)" : "var(--orange)"}">${d.decisao}</span>`
           : (d.hasReparoJoin ? "—" : `<span class="chip" style="background:rgba(91,107,127,0.25);color:var(--muted)">sem join</span>`);
         return `
-          <tr class="${rowClass}" data-hu="${d.hu_id}"${isDup ? ' title="IMEI duplicado nesta NR"' : ""}>
+          <tr class="${rowClass}" data-hu="${d.hu_id}"${isDup ? ' title="IMEI duplicado nesta busca"' : ""}>
+            <td>${d.numero || "—"}</td>
             <td>${d.hu_id ?? "—"}</td>
             <td>${d.serial || "—"}${isDup ? '<span class="dup-imei-badge">dup</span>' : ""}</td>
             <td title="${d.descricao || ""}">${(d.descricao || "—").slice(0, 26)}${(d.descricao || "").length > 26 ? "…" : ""}</td>
@@ -2666,7 +2694,7 @@
       const custoTotal = sumDeviceCosts(device);
       const sols = device?.pecaSolicitacoes || [];
       const rows = [
-        ["NR", state.nr],
+        ["NR", device?.numero || formatNrLabel(state.nrs)],
         ["HU", device ? String(device.hu_id) : "—"],
         ["Serial", device?.serial || "—"],
         ["Técnico atual", device?.tecnico || "—"],
@@ -2708,8 +2736,11 @@
       const last = [...state.devices].sort((a, b) => String(b.data_recebimento || "").localeCompare(String(a.data_recebimento || "")))[0];
       const dom = dominantStep();
 
-      document.getElementById("nrLabel").textContent = state.nr;
-      document.getElementById("nrTitle").textContent = `NR ${state.nr} · ${total} aparelhos`;
+      document.getElementById("nrLabel").textContent = formatNrLabel(state.nrs);
+      const nrCount = (state.nrs || []).length;
+      document.getElementById("nrTitle").textContent = nrCount > 1
+        ? `${nrCount} NRs · ${total} aparelhos`
+        : `NR ${formatNrLabel(state.nrs)} · ${total} aparelhos`;
       document.getElementById("nrTotal").textContent = String(total);
       document.getElementById("nrJoin").textContent = String(state.joinHits);
       document.getElementById("nrModels").textContent = String(models);
@@ -2775,7 +2806,7 @@
     }
 
     function renderDeviceDetail(device) {
-      document.getElementById("nrLabelDevice").textContent = state.nr;
+      document.getElementById("nrLabelDevice").textContent = device?.numero || formatNrLabel(state.nrs);
       document.getElementById("deviceTitle").textContent = device?.descricao || `HU ${device?.hu_id}`;
       document.getElementById("kvSerial").textContent = device?.serial || "—";
       document.getElementById("kvHu").textContent = device?.hu_id ?? "—";
@@ -2864,21 +2895,27 @@
     }
 
     async function loadNr(nr) {
-      const target = String(nr || "").trim();
-      if (!target) {
-        setStateMessage("Informe uma NR para rastrear.", "error");
+      const nrs = parseNrList(nr);
+      if (!nrs.length) {
+        setStateMessage("Informe uma ou mais NRs (separadas por vírgula).", "error");
         return;
       }
-      state.nr = target;
-      document.getElementById("nrInput").value = target;
+      const targetLabel = nrs.join(", ");
+      state.nrs = nrs;
+      state.nr = targetLabel;
+      document.getElementById("nrInput").value = targetLabel;
       const url = new URL(location.href);
-      url.searchParams.set("nr", target);
+      url.searchParams.set("nr", targetLabel);
       if (!url.searchParams.has("prod") && !url.searchParams.has("homolog")) {
         url.searchParams.set("prod", "1");
       }
       history.replaceState({}, "", url);
 
-      setStateMessage("Rastreando NR · recebimento + movimentações + peças + reparo…");
+      setStateMessage(
+        nrs.length > 1
+          ? `Rastreando ${nrs.length} NRs · recebimento + movimentações + peças + reparo…`
+          : "Rastreando NR · recebimento + movimentações + peças + reparo…"
+      );
       try {
         const apiMov =
           YardexDash.API_MOVIMENTACOES ||
@@ -2913,10 +2950,18 @@
         const payloadMov = movS.status === "fulfilled" ? movS.value : {};
         const payloadPecas = pecS.status === "fulfilled" ? pecS.value : {};
 
-        const rows = YardexDash.normalizeRows(payloadRec).filter((r) => String(r.numero || "").trim() === target);
+        const nrSet = new Set(nrs.map(String));
+        const rows = YardexDash.normalizeRows(payloadRec).filter((r) =>
+          nrSet.has(String(r.numero || "").trim())
+        );
+        const found = [...new Set(rows.map((r) => String(r.numero || "").trim()).filter(Boolean))];
+        const missing = nrs.filter((n) => !found.includes(n));
         if (!rows.length) {
-          setStateMessage(`NR <strong>${target}</strong> não encontrada no webhook de recebimento.`, "error");
+          setStateMessage(`NR(s) <strong>${targetLabel}</strong> não encontrada(s) no webhook de recebimento.`, "error");
           return;
+        }
+        if (missing.length) {
+          console.warn("[NR Timeline] NRs sem retorno no recebimento:", missing.join(", "));
         }
         const reparoRows = YardexDash.normalizeRows(payloadRep);
         const moveRows = YardexDash.normalizeRows(payloadMov);
@@ -2929,12 +2974,21 @@
         state.reparoRows = reparoRows;
         state.moveRows = moveRows;
         state.pecaRows = pecaRows;
+        state.nrs = found.length ? found : nrs;
+        state.nr = (found.length ? found : nrs).join(", ");
+        state.missingNrs = missing;
         state.devices = buildDevices(rows, reparoByHu, moveByHu, pecasBySerial, pecasById);
         state.selectedHu = null;
         state.loadedAt = new Date();
         fillFilters();
         applyFilters();
         showDash();
+        if (missing.length) {
+          const last = document.getElementById("lastUpdate");
+          if (last) {
+            last.textContent = `${last.textContent} · NR sem dados: ${missing.join(", ")}`;
+          }
+        }
       } catch (err) {
         console.error(err);
         setStateMessage(`Falha ao carregar webhooks: ${err.message || err}`, "error");
