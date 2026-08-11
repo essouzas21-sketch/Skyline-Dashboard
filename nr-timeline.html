@@ -1569,6 +1569,7 @@
         ["Serial / IMEI", device?.serial || "—"],
         ["Modelo", device?.descricao || "—"],
         ["SKU", device?.prod_cprod || "—"],
+        ["Grade", device?.grade || "—"],
         ["Técnico atual", device?.tecnico || "—"],
         ["Início reparo", device?.usuarioInicio || "—"],
         ["CQE / decisão", device?.decisao || "—"]
@@ -1872,6 +1873,7 @@
           d.serial || "—",
           d.descricao || "—",
           d.prod_cprod || "—",
+          d.grade || "—",
           d.decisao || "—",
           formatPecasSolicitadasReport(d),
           formatMoney(Number.isFinite(aq) ? aq : null),
@@ -1961,8 +1963,8 @@
       top: 0;
     }
     td { color: #15202b; font-weight: 600; }
-    td:nth-child(6), td:nth-child(7), td:nth-child(8),
-    th:nth-child(6), th:nth-child(7), th:nth-child(8) { text-align: right; white-space: nowrap; }
+    td:nth-child(7), td:nth-child(8), td:nth-child(9),
+    th:nth-child(7), th:nth-child(8), th:nth-child(9) { text-align: right; white-space: nowrap; }
     tfoot td {
       background: #f3fafd;
       color: #0b6e99;
@@ -2030,11 +2032,12 @@
       <table>
         <thead>
           <tr>
-            <th style="width:12%">IMEI</th>
-            <th style="width:22%">Modelo</th>
-            <th style="width:8%">SKU</th>
-            <th style="width:10%">CQE / Decisão</th>
-            <th style="width:22%">Peças Solicitadas</th>
+            <th style="width:11%">IMEI</th>
+            <th style="width:18%">Modelo</th>
+            <th style="width:7%">SKU</th>
+            <th style="width:7%">Grade</th>
+            <th style="width:9%">CQE / Decisão</th>
+            <th style="width:20%">Peças Solicitadas</th>
             <th style="width:9%">Custo Aquisição</th>
             <th style="width:8%">Custo Peças</th>
             <th style="width:9%">Custo Total</th>
@@ -2043,7 +2046,7 @@
         <tbody>${bodyRows}</tbody>
         <tfoot>
           <tr>
-            <td colspan="5">${escapeHtml(capitalizeReportText(`Total · ${rows.length} aparelhos`))}</td>
+            <td colspan="6">${escapeHtml(capitalizeReportText(`Total · ${rows.length} aparelhos`))}</td>
             <td>${escapeHtml(formatMoney(nAq ? sumAq : null))}</td>
             <td>${escapeHtml(formatMoney(nPecas ? Math.round(sumPecas * 100) / 100 : null))}</td>
             <td>${escapeHtml(formatMoney(Math.round(sumTotal * 100) / 100))}</td>
@@ -2089,6 +2092,7 @@
         imei: device.serial || "",
         modelo: device.descricao || "",
         sku: device.prod_cprod || "",
+        grade: device.grade || "",
         cqe: device.decisao || "",
         pecas: formatPecasSolicitadasReport(device),
         custoAquisicao: Number.isFinite(aq) ? aq : null,
@@ -2129,6 +2133,7 @@
         "IMEI",
         "Modelo",
         "SKU",
+        "Grade",
         "CQE / Decisão",
         "Peças Solicitadas",
         "Custo Aquisição",
@@ -2141,6 +2146,7 @@
           excelCellText(r.imei),
           excelCellText(r.modelo),
           excelCellText(r.sku),
+          excelCellText(r.grade),
           excelCellText(r.cqe),
           excelCellText(r.pecas),
           excelCellNumber(r.custoAquisicao, "Money"),
@@ -2180,10 +2186,11 @@
  <Worksheet ss:Name="CQE Aprovados">
   <Table>
    <Column ss:Width="140"/>
-   <Column ss:Width="220"/>
+   <Column ss:Width="200"/>
+   <Column ss:Width="70"/>
    <Column ss:Width="70"/>
    <Column ss:Width="100"/>
-   <Column ss:Width="260"/>
+   <Column ss:Width="240"/>
    <Column ss:Width="100"/>
    <Column ss:Width="90"/>
    <Column ss:Width="90"/>
@@ -2207,6 +2214,13 @@
     function resolveAquisicao(raw) {
       if (!raw || typeof raw !== "object") return null;
       return parseMoney(raw.prod_vuncom ?? raw.prod_vucom ?? raw.prod_Vuncom ?? null);
+    }
+
+    function resolveGrade(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const v = raw.grade ?? raw.Grade ?? raw.GRADE ?? raw.grade_cqe ?? raw.Grade_CQE;
+      const s = String(v ?? "").trim();
+      return s || null;
     }
 
     function formatPecaDescricoes(desc) {
@@ -2752,6 +2766,7 @@
             data_add: raw.data_add,
             usuario_recebimento: raw.usuario_recebimento,
             custoAquisicao: resolveAquisicao(raw),
+            grade: resolveGrade(raw),
             locations: [],
             locationSource: "recebimento"
           });
@@ -2766,6 +2781,8 @@
         if (raw.serial) device.serial = raw.serial;
         const aquisicao = resolveAquisicao(raw);
         if (aquisicao != null) device.custoAquisicao = aquisicao;
+        const gradeRec = resolveGrade(raw);
+        if (gradeRec) device.grade = gradeRec;
         // Fallback só se não houver trilha de movimentações para a HU
         device.locations.push({
           endereco: raw.endereco || "—",
@@ -2908,6 +2925,16 @@
         let cqeUser = reparo?.["Usuario qualidade"] || null;
         let decisao = reparo?.decisao || null;
         let statusReparo = reparo?.status || null;
+        let grade = resolveGrade(reparo) || device.grade || null;
+        if (!grade) {
+          for (const r of [...sortReparoChrono(reparoRows)].reverse()) {
+            const g = resolveGrade(r);
+            if (g) {
+              grade = g;
+              break;
+            }
+          }
+        }
 
         const pecaSolicitacoes = resolvePecaSolicitacoes(
           reparoRows,
@@ -3046,6 +3073,7 @@
           usuarioFinal,
           cqeUser,
           decisao,
+          grade,
           isReprov,
           statusReparo,
           peca,
