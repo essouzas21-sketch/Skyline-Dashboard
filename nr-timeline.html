@@ -1181,6 +1181,7 @@
         <button class="btn" type="submit">Rastrear</button>
         <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
         <button class="btn ghost" type="button" id="btnPrintNrAprovados" title="Relatório dos aparelhos com CQE aprovado">Relatório CQE</button>
+        <button class="btn ghost" type="button" id="btnExcelNrAprovados" title="Exportar Excel dos aparelhos com CQE aprovado">Excel CQE</button>
       </form>
       <div class="meta-right">
         <strong>MISSION NR</strong>
@@ -2064,6 +2065,143 @@
 </html>`;
 
       openReportHtml(html, "nrAprovadosPrintFrame");
+    }
+
+    function listNrAprovados(devices) {
+      return (Array.isArray(devices) ? devices : [])
+        .filter(isCqeAprovado)
+        .slice()
+        .sort((a, b) => {
+          const nr = String(a.numero || "").localeCompare(String(b.numero || ""), "pt-BR");
+          if (nr) return nr;
+          return String(a.serial || "").localeCompare(String(b.serial || ""), "pt-BR");
+        });
+    }
+
+    function buildNrAprovadoExcelRow(device) {
+      const aq = Number(device.custoAquisicao);
+      const pecas = reportPecaValor(device.custoPecas);
+      const totalParts = [aq, pecas].filter((n) => Number.isFinite(n));
+      const total = totalParts.length
+        ? Math.round(totalParts.reduce((a, b) => a + b, 0) * 100) / 100
+        : null;
+      return {
+        imei: device.serial || "",
+        modelo: device.descricao || "",
+        sku: device.prod_cprod || "",
+        cqe: device.decisao || "",
+        pecas: formatPecasSolicitadasReport(device),
+        custoAquisicao: Number.isFinite(aq) ? aq : null,
+        custoPecas: Number.isFinite(pecas) ? pecas : null,
+        custoTotal: Number.isFinite(total) ? total : null,
+        nr: device.numero || ""
+      };
+    }
+
+    function xmlEscape(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function excelCellText(value) {
+      return `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+    }
+
+    function excelCellNumber(value, styleId) {
+      if (value == null || !Number.isFinite(value)) {
+        return `<Cell><Data ss:Type="String"></Data></Cell>`;
+      }
+      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+      return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
+    }
+
+    function downloadNrAprovadosExcel(devices) {
+      const rows = listNrAprovados(devices).map(buildNrAprovadoExcelRow);
+      if (!rows.length) {
+        alert("Nenhum aparelho com CQE = Aprovado nesta busca.");
+        return;
+      }
+
+      const header = [
+        "IMEI",
+        "Modelo",
+        "SKU",
+        "CQE / Decisão",
+        "Peças Solicitadas",
+        "Custo Aquisição",
+        "Custo Peças",
+        "Custo Total"
+      ].map(excelCellText).join("");
+
+      const body = rows.map((r) => {
+        const cells = [
+          excelCellText(r.imei),
+          excelCellText(r.modelo),
+          excelCellText(r.sku),
+          excelCellText(r.cqe),
+          excelCellText(r.pecas),
+          excelCellNumber(r.custoAquisicao, "Money"),
+          excelCellNumber(r.custoPecas, "Money"),
+          excelCellNumber(r.custoTotal, "Money")
+        ].join("");
+        return `<Row>${cells}</Row>`;
+      }).join("");
+
+      const nrSlug = String(formatNrLabel(state.nrs) || "nr")
+        .replace(/[^\d,_-]+/g, "")
+        .replace(/,/g, "-")
+        .slice(0, 80) || "nr";
+      const stamp = new Date().toISOString().slice(0, 10);
+      const filename = `relatorio-cqe-aprovados-${nrSlug}-${stamp}.xls`;
+
+      const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>Relatório CQE Aprovados</Title>
+  <Author>Skyline Mission Control</Author>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1"/>
+   <Interior ss:Color="#E8F4FA" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="Money">
+   <NumberFormat ss:Format="R$ #,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="CQE Aprovados">
+  <Table>
+   <Column ss:Width="140"/>
+   <Column ss:Width="220"/>
+   <Column ss:Width="70"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="260"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="90"/>
+   <Row ss:StyleID="Header">${header}</Row>
+   ${body}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+      const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
     }
 
     function resolveAquisicao(raw) {
@@ -3570,6 +3708,9 @@
     document.getElementById("btnRefresh").addEventListener("click", () => loadNr(state.nr));
     document.getElementById("btnPrintNrAprovados").addEventListener("click", () => {
       printNrAprovadosReport(state.devices);
+    });
+    document.getElementById("btnExcelNrAprovados").addEventListener("click", () => {
+      downloadNrAprovadosExcel(state.devices);
     });
     document.getElementById("filterStage").addEventListener("change", applyFilters);
     document.getElementById("filterModel").addEventListener("change", applyFilters);
