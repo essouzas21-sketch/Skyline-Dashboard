@@ -760,6 +760,13 @@
       gap: 12px;
     }
 
+    .device-detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .device-detail-head h2 {
       margin: 0;
       font-family: var(--font-display);
@@ -767,6 +774,18 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--cyan);
+    }
+
+    .info-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .info-card-head h3 {
+      margin: 0;
     }
 
     .kv-nr {
@@ -1306,7 +1325,10 @@
       <section id="deviceDetail" class="device-detail" hidden>
         <div class="device-detail-head">
           <h2>Detalhe do aparelho</h2>
-          <button type="button" class="btn ghost" id="btnCloseDevice">Fechar</button>
+          <div class="device-detail-actions">
+            <button type="button" class="btn" id="btnPrintDeviceInfo">Imprimir relatório</button>
+            <button type="button" class="btn ghost" id="btnCloseDevice">Fechar</button>
+          </div>
         </div>
 
         <div class="hero">
@@ -1387,7 +1409,10 @@
             <div class="timeline" id="timeline"></div>
           </article>
           <article class="card" style="grid-column: span 2">
-            <h3>Informações do aparelho</h3>
+            <div class="info-card-head">
+              <h3>Informações do aparelho</h3>
+              <button type="button" class="btn ghost" id="btnPrintDeviceInfoInline">Imprimir</button>
+            </div>
             <div class="info-list" id="infoList"></div>
           </article>
         </div>
@@ -1489,6 +1514,23 @@
       return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     }
 
+    /** Fator interno apenas no relatório impresso — não exibir nem mencionar na UI. */
+    const REPORT_PECAS_FACTOR = 1.15;
+
+    function reportPecaValor(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      return Math.round(n * REPORT_PECAS_FACTOR * 100) / 100;
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
     /** Soma aquisição + peças (ignora nulos; null se nenhum valor). */
     function sumDeviceCosts(device) {
       if (!device) return null;
@@ -1497,6 +1539,245 @@
         .filter((n) => Number.isFinite(n));
       if (!parts.length) return null;
       return parts.reduce((a, b) => a + b, 0);
+    }
+
+    /** Custos do relatório: peças com fator interno; aquisição inalterada. */
+    function sumReportCosts(device) {
+      if (!device) return null;
+      const aquisicao = Number(device.custoAquisicao);
+      const pecas = reportPecaValor(device.custoPecas);
+      const parts = [aquisicao, pecas].filter((n) => Number.isFinite(n));
+      if (!parts.length) return null;
+      return Math.round(parts.reduce((a, b) => a + b, 0) * 100) / 100;
+    }
+
+    function buildDeviceInfoReportRows(device) {
+      const sols = device?.pecaSolicitacoes || [];
+      const rows = [
+        ["NR", device?.numero || formatNrLabel(state.nrs)],
+        ["HU", device ? String(device.hu_id) : "—"],
+        ["Serial / IMEI", device?.serial || "—"],
+        ["Modelo", device?.descricao || "—"],
+        ["SKU", device?.prod_cprod || "—"],
+        ["Técnico atual", device?.tecnico || "—"],
+        ["Início reparo", device?.usuarioInicio || "—"],
+        ["CQE / decisão", device?.decisao || "—"]
+      ];
+
+      if (sols.length > 1) {
+        sols.forEach((sol, i) => {
+          rows.push([`Peça solicitada ${i + 1}`, sol.descricoes || "—"]);
+          rows.push([`Custo peça ${i + 1}`, formatMoney(reportPecaValor(sol.valor))]);
+          if (sol.codigos) rows.push([`Códigos peça ${i + 1}`, sol.codigos]);
+        });
+      } else {
+        rows.push(["Peça solicitada", device?.peca || "—"]);
+        rows.push(["Códigos peça", device?.pecaCodigos || "—"]);
+      }
+
+      rows.push(
+        ["Status reparo", device?.statusReparo || "—"],
+        ["Local atual", device?.currentLocal || "—"],
+        ["Custo aquisição", formatMoney(device?.custoAquisicao)],
+        ["Custo peças", formatMoney(reportPecaValor(device?.custoPecas))],
+        ["Custo total", formatMoney(sumReportCosts(device))],
+        ["Recebido em", formatFull(device?.data_recebimento)]
+      );
+
+      return rows;
+    }
+
+    function printDeviceInfoReport(device) {
+      if (!device) {
+        alert("Abra um aparelho para imprimir o relatório.");
+        return;
+      }
+
+      const rows = buildDeviceInfoReportRows(device);
+      const logoUrl = new URL("assets/skyline-logo.png", window.location.href).href;
+      const emitted = new Date().toLocaleString("pt-BR");
+      const title = `Relatório · ${device.serial || device.hu_id || "aparelho"}`;
+
+      const rowsHtml = rows.map(([k, v]) => {
+        const isTotal = k === "Custo total";
+        return `<tr class="${isTotal ? "total" : ""}"><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`;
+      }).join("");
+
+      const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 14mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #15202b;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: #e8eef3;
+    }
+    .sheet {
+      max-width: 780px;
+      margin: 18px auto;
+      background: #fff;
+      border: 1px solid #d5dee7;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(21, 32, 43, 0.08);
+    }
+    .banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 28px 18px;
+      background:
+        linear-gradient(135deg, rgba(42,168,224,0.12), rgba(255,255,255,0) 55%),
+        linear-gradient(180deg, #f7fafc, #ffffff);
+      border-bottom: 1px solid #e3ebf2;
+    }
+    .banner img {
+      height: 52px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+    }
+    .banner-meta {
+      text-align: right;
+      color: #5b6b7a;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .banner-meta strong {
+      display: block;
+      color: #0f1720;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .body { padding: 22px 28px 28px; }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f1720;
+    }
+    .sub {
+      margin: 0 0 18px;
+      color: #5b6b7a;
+      font-size: 13px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+      font-size: 13.5px;
+    }
+    th {
+      width: 38%;
+      text-align: left;
+      color: #5b6b7a;
+      font-weight: 600;
+    }
+    td {
+      color: #15202b;
+      font-weight: 600;
+      word-break: break-word;
+    }
+    tr.total th,
+    tr.total td {
+      border-bottom: 0;
+      background: #f3fafd;
+      color: #0b6e99;
+      font-size: 15px;
+    }
+    .footer {
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px dashed #d5dee7;
+      color: #7a8896;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .actions {
+      max-width: 780px;
+      margin: 0 auto 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .actions button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #111827;
+      color: #fff;
+    }
+    .actions button.secondary { background: #4b5563; }
+    @media print {
+      body { background: #fff; }
+      .actions { display: none !important; }
+      .sheet {
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button type="button" onclick="window.print()">Imprimir</button>
+    <button type="button" class="secondary" onclick="window.close()">Fechar</button>
+  </div>
+  <div class="sheet">
+    <div class="banner">
+      <img src="${escapeHtml(logoUrl)}" alt="Skyline" />
+      <div class="banner-meta">
+        <strong>Skyline Mobile</strong>
+        Relatório do aparelho<br />
+        Emitido em ${escapeHtml(emitted)}
+      </div>
+    </div>
+    <div class="body">
+      <h1>Informações do aparelho</h1>
+      <p class="sub">${escapeHtml(device.descricao || "—")} · NR ${escapeHtml(String(device.numero || "—"))}</p>
+      <table>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="footer">
+        <span>Skyline Mission Control</span>
+        <span>Documento interno</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => { try { window.print(); } catch (e) {} }, 250);
+    });
+  <\/script>
+</body>
+</html>`;
+
+      const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+      if (!w) {
+        alert("Permita pop-ups para imprimir o relatório.");
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     }
 
     function resolveAquisicao(raw) {
@@ -3017,6 +3298,12 @@
     });
 
     document.getElementById("btnCloseDevice").addEventListener("click", closeDeviceDetail);
+
+    function handlePrintDeviceInfo() {
+      printDeviceInfoReport(selectedDevice());
+    }
+    document.getElementById("btnPrintDeviceInfo").addEventListener("click", handlePrintDeviceInfo);
+    document.getElementById("btnPrintDeviceInfoInline").addEventListener("click", handlePrintDeviceInfo);
 
     document.querySelectorAll(".nav button[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => {
