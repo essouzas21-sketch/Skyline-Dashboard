@@ -1531,6 +1531,14 @@
         .replace(/"/g, "&quot;");
     }
 
+    /** Primeira letra de cada palavra em maiúsculo (só no relatório). */
+    function capitalizeReportText(value) {
+      const s = String(value ?? "").trim();
+      if (!s || s === "—") return s;
+      if (/^R\$\s/.test(s)) return s;
+      return s.replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, sep, ch) => sep + ch.toLocaleUpperCase("pt-BR"));
+    }
+
     /** Soma aquisição + peças (ignora nulos; null se nenhum valor). */
     function sumDeviceCosts(device) {
       if (!device) return null;
@@ -1600,7 +1608,7 @@
 
       const rowsHtml = rows.map(([k, v]) => {
         const isTotal = k === "Custo total";
-        return `<tr class="${isTotal ? "total" : ""}"><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`;
+        return `<tr class="${isTotal ? "total" : ""}"><th>${escapeHtml(capitalizeReportText(k))}</th><td>${escapeHtml(capitalizeReportText(v))}</td></tr>`;
       }).join("");
 
       const html = `<!doctype html>
@@ -1751,8 +1759,8 @@
       </div>
     </div>
     <div class="body">
-      <h1>Informações do aparelho</h1>
-      <p class="sub">${escapeHtml(device.descricao || "—")} · NR ${escapeHtml(String(device.numero || "—"))}</p>
+      <h1>Informações Do Aparelho</h1>
+      <p class="sub">${escapeHtml(capitalizeReportText(device.descricao || "—"))} · NR ${escapeHtml(capitalizeReportText(String(device.numero || "—")))}</p>
       <table>
         <tbody>${rowsHtml}</tbody>
       </table>
