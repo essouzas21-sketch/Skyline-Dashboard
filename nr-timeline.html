@@ -1180,6 +1180,7 @@
         <input id="nrInput" type="search" inputmode="numeric" placeholder="NR ou várias: 64561, 64012…" value="64561" autocomplete="off" />
         <button class="btn" type="submit">Rastrear</button>
         <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
+        <button class="btn ghost" type="button" id="btnPrintNrAprovados" title="Relatório dos aparelhos com CQE aprovado">Relatório CQE</button>
       </form>
       <div class="meta-right">
         <strong>MISSION NR</strong>
@@ -1778,16 +1779,19 @@
 </body>
 </html>`;
 
+      openReportHtml(html, "deviceReportPrintFrame");
+    }
+
+    function openReportHtml(html, frameId = "reportPrintFrame") {
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const w = window.open(url, "_blank");
       if (!w) {
-        // Fallback: iframe oculto + diálogo de impressão
-        let frame = document.getElementById("deviceReportPrintFrame");
+        let frame = document.getElementById(frameId);
         if (!frame) {
           frame = document.createElement("iframe");
-          frame.id = "deviceReportPrintFrame";
-          frame.title = "Relatório do aparelho";
+          frame.id = frameId;
+          frame.title = "Relatório";
           frame.setAttribute("aria-hidden", "true");
           frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
           document.body.appendChild(frame);
@@ -1805,6 +1809,261 @@
         return;
       }
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
+
+    function isCqeAprovado(device) {
+      const d = norm(device?.decisao || "");
+      if (!d) return false;
+      if (d.includes("reprov")) return false;
+      return d.includes("aprov");
+    }
+
+    function formatPecasSolicitadasReport(device) {
+      const sols = device?.pecaSolicitacoes || [];
+      if (sols.length > 1) {
+        return sols
+          .map((sol, i) => `${i + 1}) ${sol.descricoes || "—"}`)
+          .join(" · ");
+      }
+      if (sols.length === 1) return sols[0].descricoes || device?.peca || "—";
+      return device?.peca || "—";
+    }
+
+    function printNrAprovadosReport(devices) {
+      const all = Array.isArray(devices) ? devices : [];
+      const rows = all
+        .filter(isCqeAprovado)
+        .slice()
+        .sort((a, b) => {
+          const nr = String(a.numero || "").localeCompare(String(b.numero || ""), "pt-BR");
+          if (nr) return nr;
+          return String(a.serial || "").localeCompare(String(b.serial || ""), "pt-BR");
+        });
+
+      if (!rows.length) {
+        alert("Nenhum aparelho com CQE = Aprovado nesta busca.");
+        return;
+      }
+
+      const logoUrl = new URL("assets/skyline-logo.png", window.location.href).href;
+      const emitted = new Date().toLocaleString("pt-BR");
+      const nrLabel = formatNrLabel(state.nrs) || "—";
+      const title = `Relatório CQE Aprovados · NR ${nrLabel}`;
+
+      let sumAq = 0;
+      let sumPecas = 0;
+      let sumTotal = 0;
+      let nAq = 0;
+      let nPecas = 0;
+
+      const bodyRows = rows.map((d) => {
+        const aq = Number(d.custoAquisicao);
+        const pecas = reportPecaValor(d.custoPecas);
+        const totalParts = [aq, pecas].filter((n) => Number.isFinite(n));
+        const total = totalParts.length
+          ? Math.round(totalParts.reduce((a, b) => a + b, 0) * 100) / 100
+          : null;
+        if (Number.isFinite(aq)) { sumAq += aq; nAq += 1; }
+        if (Number.isFinite(pecas)) { sumPecas += pecas; nPecas += 1; }
+        if (Number.isFinite(total)) sumTotal += total;
+
+        const cells = [
+          d.serial || "—",
+          d.descricao || "—",
+          d.prod_cprod || "—",
+          d.decisao || "—",
+          formatPecasSolicitadasReport(d),
+          formatMoney(Number.isFinite(aq) ? aq : null),
+          formatMoney(Number.isFinite(pecas) ? pecas : null),
+          formatMoney(total)
+        ].map((v) => `<td>${escapeHtml(capitalizeReportText(v))}</td>`).join("");
+
+        return `<tr>${cells}</tr>`;
+      }).join("");
+
+      const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm 10mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #15202b;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: #e8eef3;
+    }
+    .sheet {
+      max-width: 1120px;
+      margin: 14px auto;
+      background: #fff;
+      border: 1px solid #d5dee7;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(21, 32, 43, 0.08);
+    }
+    .banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 14px;
+      background:
+        linear-gradient(135deg, rgba(42,168,224,0.12), rgba(255,255,255,0) 55%),
+        linear-gradient(180deg, #f7fafc, #ffffff);
+      border-bottom: 1px solid #e3ebf2;
+    }
+    .banner img { height: 48px; width: auto; display: block; object-fit: contain; }
+    .banner-meta { text-align: right; color: #5b6b7a; font-size: 12px; line-height: 1.45; }
+    .banner-meta strong {
+      display: block;
+      color: #0f1720;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .body { padding: 16px 22px 22px; }
+    h1 { margin: 0 0 4px; font-size: 20px; color: #0f1720; }
+    .sub { margin: 0 0 14px; color: #5b6b7a; font-size: 12.5px; }
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      background: #f3fafd;
+      border-radius: 10px;
+      color: #0b6e99;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+      font-size: 11px;
+      word-break: break-word;
+    }
+    th {
+      text-align: left;
+      color: #5b6b7a;
+      font-weight: 700;
+      background: #f7fafc;
+      position: sticky;
+      top: 0;
+    }
+    td { color: #15202b; font-weight: 600; }
+    td:nth-child(6), td:nth-child(7), td:nth-child(8),
+    th:nth-child(6), th:nth-child(7), th:nth-child(8) { text-align: right; white-space: nowrap; }
+    tfoot td {
+      background: #f3fafd;
+      color: #0b6e99;
+      font-size: 12px;
+      border-bottom: 0;
+    }
+    .footer {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed #d5dee7;
+      color: #7a8896;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .actions {
+      max-width: 1120px;
+      margin: 0 auto 10px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .actions button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #111827;
+      color: #fff;
+    }
+    .actions button.secondary { background: #4b5563; }
+    @media print {
+      body { background: #fff; }
+      .actions { display: none !important; }
+      .sheet { margin: 0; border: 0; border-radius: 0; box-shadow: none; max-width: none; }
+      th { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button type="button" onclick="window.print()">Imprimir</button>
+    <button type="button" class="secondary" onclick="window.close()">Fechar</button>
+  </div>
+  <div class="sheet">
+    <div class="banner">
+      <img src="${escapeHtml(logoUrl)}" alt="Skyline" />
+      <div class="banner-meta">
+        <strong>Skyline Mobile</strong>
+        Relatório CQE aprovados<br />
+        Emitido em ${escapeHtml(emitted)}
+      </div>
+    </div>
+    <div class="body">
+      <h1>Relatório Das NRs · CQE Aprovado</h1>
+      <p class="sub">NRs ${escapeHtml(capitalizeReportText(nrLabel))} · ${rows.length} aparelho(s) aprovado(s) de ${all.length} na busca</p>
+      <div class="summary">
+        <span>Aparelhos: ${rows.length}</span>
+        <span>Aquisição: ${escapeHtml(formatMoney(nAq ? sumAq : null))}</span>
+        <span>Peças: ${escapeHtml(formatMoney(nPecas ? Math.round(sumPecas * 100) / 100 : null))}</span>
+        <span>Total: ${escapeHtml(formatMoney(Math.round(sumTotal * 100) / 100))}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:12%">IMEI</th>
+            <th style="width:22%">Modelo</th>
+            <th style="width:8%">SKU</th>
+            <th style="width:10%">CQE / Decisão</th>
+            <th style="width:22%">Peças Solicitadas</th>
+            <th style="width:9%">Custo Aquisição</th>
+            <th style="width:8%">Custo Peças</th>
+            <th style="width:9%">Custo Total</th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5">${escapeHtml(capitalizeReportText(`Total · ${rows.length} aparelhos`))}</td>
+            <td>${escapeHtml(formatMoney(nAq ? sumAq : null))}</td>
+            <td>${escapeHtml(formatMoney(nPecas ? Math.round(sumPecas * 100) / 100 : null))}</td>
+            <td>${escapeHtml(formatMoney(Math.round(sumTotal * 100) / 100))}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="footer">
+        <span>Skyline Mission Control</span>
+        <span>Documento interno · Somente CQE aprovado</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => { try { window.focus(); window.print(); } catch (e) {} }, 400);
+    });
+  <\/script>
+</body>
+</html>`;
+
+      openReportHtml(html, "nrAprovadosPrintFrame");
     }
 
     function resolveAquisicao(raw) {
@@ -3309,6 +3568,9 @@
     });
 
     document.getElementById("btnRefresh").addEventListener("click", () => loadNr(state.nr));
+    document.getElementById("btnPrintNrAprovados").addEventListener("click", () => {
+      printNrAprovadosReport(state.devices);
+    });
     document.getElementById("filterStage").addEventListener("change", applyFilters);
     document.getElementById("filterModel").addEventListener("change", applyFilters);
     document.getElementById("filterSearch").addEventListener("input", applyFilters);
