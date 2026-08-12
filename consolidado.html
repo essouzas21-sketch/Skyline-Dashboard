@@ -406,7 +406,7 @@
       <div class="co-hero-card health" id="heroHealth">
         <div class="eyebrow">Saúde da operação</div>
         <div class="big" id="heroTaxaCqe">—</div>
-        <div class="hint">Taxa de aprovação CQE · meta 90%</div>
+        <div class="hint">Taxa de aprovação CQE · meta 98%</div>
         <div class="status-pill"><span class="dot"></span><span id="heroStatusText">—</span></div>
         <div class="co-bar" id="heroMetaBar"><span id="heroMetaFill" style="width:0%"></span></div>
       </div>
@@ -548,7 +548,7 @@
             <div class="value" id="kpiCqeTotal">0</div>
           </div>
         </div>
-        <div class="co-mod-foot" id="cqeFoot">Meta 90%</div>
+        <div class="co-mod-foot" id="cqeFoot">Meta 98%</div>
       </article>
 
       <article class="co-mod">
@@ -576,7 +576,7 @@
   </div>
 
   <script>
-    const META_CQE = 90;
+    const META_CQE = 98;
 
     function renderFlow(data) {
       /* Volumes independentes do período — NÃO é funil de conversão. */
@@ -648,8 +648,8 @@
         data.producaoAndroid.pausado + data.producaoIphone.pausado;
 
       document.getElementById("cqeFoot").textContent = taxa == null
-        ? "Meta 90%"
-        : `Taxa ${taxaTxt} · meta 90% · ${data.cqe.aprovado}/${data.cqe.total}`;
+        ? "Meta 98%"
+        : `Taxa ${taxaTxt} · meta 98% · ${data.cqe.aprovado}/${data.cqe.total}`;
     }
 
     const _origRender = ConsolidadoDash.renderKpis.bind(ConsolidadoDash);

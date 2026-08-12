@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="yardex-dash.js?v=62"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -853,8 +853,8 @@
         <div class="kpi-hint" id="kpiTaxaReprovHint">Sem motivo teste</div>
       </div>
       <div class="gm-kpi">
-        <div class="kpi-head"><span class="kpi-label">Meta 90%</span><span class="kpi-icon">🎯</span></div>
-        <div class="kpi-value" id="kpiMeta">90%</div>
+        <div class="kpi-head"><span class="kpi-label">Meta 98%</span><span class="kpi-icon">🎯</span></div>
+        <div class="kpi-value" id="kpiMeta">98%</div>
         <div class="gm-meta-bar" id="kpiMetaBar"><span id="kpiMetaFill" style="width:0%"></span></div>
         <div class="kpi-hint" id="kpiMetaHint">Progresso vs meta</div>
       </div>
@@ -940,7 +940,7 @@
 
     const API_URL = YardexDash.API_REPARO;
     const DATE_FIELD = "data_qualidade";
-    const META_APROVACAO = 90;
+    const META_APROVACAO = 98;
     const SKY = {
       bg: "#694992",
       strong: "#8b6bb8",
@@ -1006,12 +1006,8 @@
       return "Outros";
     }
 
-    function resolveGravidade(motivo) {
-      const m = String(motivo || "").toLowerCase();
-      if (/tela|display|n[aã]o liga|curto|sucat|placa|oxid/.test(m)) return "Alta";
-      if (/bot[aã]o|conector|c[aâ]mera|[aá]udio|microfone|carreg/.test(m)) return "Média";
-      if (/arranh|est[eé]t|limpeza|capa|adesiv/.test(m)) return "Baixa";
-      return "Média";
+    function resolveGravidade(motivo, categoria = null) {
+      return YardexDash.resolveCqeGravidade(motivo, categoria);
     }
 
     function shortModel(desc) {
@@ -1031,7 +1027,9 @@
     function mapRow(raw) {
       const decisao = normalizeDecisao(raw.decisao);
       if (!decisao) return null;
-      const motivo = String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado";
+      const motivoRaw = String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado";
+      const motivoInfo = YardexDash.normalizeCqeMotivoReprovacao(motivoRaw);
+      const motivo = motivoInfo.label;
       const descricao = String(raw.descricao || "—").trim() || "—";
       const tempoReparo = diffMs(raw["Iniciado_Reparo"], raw["Fim do Reparo"]);
       const tempoAteQc = diffMs(raw["Fim do Reparo"], raw.Data_qualidade ?? raw.data_qualidade);
@@ -1044,7 +1042,10 @@
         tecnico: YardexDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || "—"),
         decisao,
         motivo,
-        gravidade: resolveGravidade(motivo),
+        motivo_raw: motivoRaw,
+        motivo_categoria: motivoInfo.categoria,
+        motivo_item: motivoInfo.item,
+        gravidade: resolveGravidade(motivoRaw, motivoInfo.categoria),
         modelo: descricao,
         modelo_curto: shortModel(descricao),
         marca: YardexDash.normalizeBrandName(descricao),
@@ -1343,7 +1344,10 @@
     function renderMotivosFunnel(reprovados) {
       const el = document.getElementById("motivosFunnel");
       const title = document.getElementById("motivosFunnelTitle");
-      const motivos = YardexDash.aggregateCount(reprovados, (r) => r.motivo);
+      const motivos = YardexDash.aggregateCount(
+        reprovados,
+        (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
+      );
       const colors = [
         "#694992", "#8b6bb8", "#5c3d7a", "#a78bca", "#c4a8e8",
         "#7c5294", "#9d7bb8", "#dc2626", "#b45309"
@@ -1379,7 +1383,10 @@
           const idx = Number(step.dataset.idx);
           const [motivo] = motivos[idx] || [];
           if (!motivo) return;
-          openDrill(`Motivo: ${motivo}`, reprovados.filter((r) => r.motivo === motivo));
+          openDrill(
+            `Motivo: ${motivo}`,
+            reprovados.filter((r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === motivo)
+          );
         });
       });
     }

@@ -227,7 +227,7 @@ Cada etapa possui dashboard dedicado e regras de KPI documentadas nas seções 7
 |-----------|------------------------|
 | Aprovados / Reprovados / Total | Contagens após `processCqeRows` |
 | Taxa de aprovação | Aprovados ÷ Total inspecionado |
-| Meta | Referência **90%** (exibida no painel) |
+| Meta | Referência **98%** (exibida no painel) |
 | Comparativos | vs ontem / 7 dias / 30 dias |
 | Motivos de reprovação | Funil / ranking; no painel TV operacional, motivo pode ser condensado (1ª palavra) |
 
