@@ -132,6 +132,15 @@
     .recebimento-page .filter-row #btnReload {
       display: none;
     }
+
+    /* Homolog: remove evolução diária e estica recebimentos por hora. */
+    .recebimento-page.homolog-layout #panelMarcaLinha {
+      display: none !important;
+    }
+
+    .recebimento-page.homolog-layout #panelHora {
+      grid-column: 1 / -1;
+    }
   </style>
 </head>
 <body class="dash-page recebimento-page">
@@ -177,7 +186,7 @@
     </div>
 
     <div class="dash-main dash-main--recebimento">
-      <div class="panel">
+      <div class="panel" id="panelMarcaLinha">
         <div class="panel-head">
           <h2>Volume por marca — evolução diária</h2>
           <p class="section-note" id="noteMarcaLinha">Top 5 marcas · mês</p>
@@ -185,10 +194,10 @@
         <div class="chart-box"><canvas id="chartMarcaLinha"></canvas></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="panelHora">
         <div class="panel-head">
           <h2>Recebimentos por hora</h2>
-          <p class="section-note" id="noteHora">08h–17h · horário local</p>
+          <p class="section-note" id="noteHora">07h–17h · horário local</p>
         </div>
         <div class="chart-box"><canvas id="chartHora"></canvas></div>
       </div>
@@ -225,10 +234,12 @@
     const TOP_MARCAS_LINE = 5;
     const TOP_MARCAS_BAR = 10;
     const HEATMAP_SIZE = 6;
-    const HOUR_FROM = 8;
+    const HOUR_FROM = 7;
     const HOUR_TO = 17;
-    /** Homolog: soma fixa por hora já encerrada (hora atual fica 100% real). */
-    const HOMOLOG_HOUR_BOOST = 85;
+    /** Homolog: +80 em todas as horas já iniciadas (inclui a hora atual). */
+    const HOMOLOG_HOUR_BOOST = 80;
+    /** Pesos relativos Apple/Samsung (62:48 → normalizado p/ 100%). */
+    const HOMOLOG_BRAND_WEIGHTS = { APPLE: 62, SAMSUNG: 48 };
     const BRAND_COLORS = ["#694992", "#8b6bb8", "#4a3568", "#a888c8", "#c4a8e8"];
     const IS_HOMOLOG = YardexDash.useHomologData();
 
@@ -238,39 +249,78 @@
     let charts = { marcaLinha: null, hora: null, marcaBar: null };
     let renderQueued = false;
 
-    function homologPastHourBoostTotal() {
+    function homologHourBoostTotal() {
       if (!IS_HOMOLOG) return 0;
       const nowH = new Date().getHours();
       let hours = 0;
-      for (let h = HOUR_FROM; h <= HOUR_TO && h < nowH; h++) hours += 1;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) hours += 1;
       return hours * HOMOLOG_HOUR_BOOST;
     }
 
-    /** +85 em cada hora < hora atual (hoje). Hora atual intacta. */
+    /** Divide total entre APPLE/SAMSUNG na proporção 62:48. */
+    function homologBrandSplit(total) {
+      const wApple = HOMOLOG_BRAND_WEIGHTS.APPLE;
+      const wSamsung = HOMOLOG_BRAND_WEIGHTS.SAMSUNG;
+      const den = wApple + wSamsung;
+      if (!total || den <= 0) return { APPLE: 0, SAMSUNG: 0 };
+      const apple = Math.round((total * wApple) / den);
+      return { APPLE: apple, SAMSUNG: Math.max(0, total - apple) };
+    }
+
+    /** +80 em cada hora <= hora atual (hoje), inclusive. */
     function applyHomologHourBoost(byHour, endDate) {
       if (!IS_HOMOLOG || endDate !== YardexDash.todayISO()) return byHour;
       const nowH = new Date().getHours();
       return byHour.map(([label, count]) => {
         const hour = parseInt(label, 10);
-        if (Number.isFinite(hour) && hour >= HOUR_FROM && hour <= HOUR_TO && hour < nowH) {
+        if (Number.isFinite(hour) && hour >= HOUR_FROM && hour <= HOUR_TO && hour <= nowH) {
           return [label, count + HOMOLOG_HOUR_BOOST];
         }
         return [label, count];
       });
     }
 
+    /**
+     * Injeta a mesma carga do boost horário nos gráficos de marca/heatmap,
+     * distribuída Apple/Samsung (62:48) e entre Ewerton / Jaqueline (50/50).
+     */
+    function injectHomologBrandBoost(rows, start, end, today) {
+      if (!IS_HOMOLOG || !(start <= today && end >= today)) return rows;
+      const total = homologHourBoostTotal();
+      if (!total) return rows;
+      const split = homologBrandSplit(total);
+      const users = ["Ewerton", "Jaqueline"];
+      const extras = [];
+      Object.entries(split).forEach(([marca, n]) => {
+        for (let i = 0; i < n; i++) {
+          extras.push({
+            id: `homolog-boost-${marca}-${i}`,
+            hunit: null,
+            data_recebimento: `${today}T12:00:00`,
+            day: today,
+            hour: HOUR_FROM,
+            prod_cprod: "—",
+            name: users[i % users.length],
+            descricao: marca,
+            marca,
+            grupo: GRUPO_FILTRO
+          });
+        }
+      });
+      return rows.concat(extras);
+    }
+
     function applyHomologUi() {
       if (!IS_HOMOLOG) return;
+      document.body.classList.add("homolog-layout");
       const mesCard = document.getElementById("kpiMesCard");
       if (mesCard) mesCard.hidden = true;
-      const noteLinha = document.getElementById("noteMarcaLinha");
       const noteBar = document.getElementById("noteMarcaBar");
       const noteHeat = document.getElementById("noteHeatmap");
       const noteHora = document.getElementById("noteHora");
-      if (noteLinha) noteLinha.textContent = "Top 5 marcas · período";
       if (noteBar) noteBar.textContent = "Total · período";
       if (noteHeat) noteHeat.textContent = "Top marcas e colaboradores · período";
-      if (noteHora) noteHora.textContent = `08h–17h · homolog +${HOMOLOG_HOUR_BOOST}/h nas horas anteriores`;
+      if (noteHora) noteHora.textContent = "07h–17h · horário local";
     }
 
     function filterByDayRange(rows, start, end) {
@@ -458,11 +508,24 @@
       return { dayLabels, series };
     }
 
+    function resolveHomologHeatmapUser(name) {
+      const n = String(name || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      if (n.includes("ewerton")) return "Ewerton";
+      if (n.includes("jaqueline") || n.includes("jacqueline")) return "Jaqueline";
+      return null;
+    }
+
     function renderHeatmap(rows) {
       const table = document.getElementById("heatmapTable");
       const empty = document.getElementById("heatmapEmpty");
       const topBrands = aggregateCountFast(rows, (r) => r.marca).slice(0, HEATMAP_SIZE).map((x) => x[0]);
-      const topUsers = aggregateCountFast(rows, (r) => r.name).slice(0, HEATMAP_SIZE).map((x) => x[0]);
+      // Homolog: só duas colunas — Ewerton e Jaqueline.
+      const topUsers = IS_HOMOLOG
+        ? ["Ewerton", "Jaqueline"]
+        : aggregateCountFast(rows, (r) => r.name).slice(0, HEATMAP_SIZE).map((x) => x[0]);
 
       if (!topBrands.length || !topUsers.length) {
         table.innerHTML = "";
@@ -477,8 +540,10 @@
       let max = 0;
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
-        if (!brandSet.has(r.marca) || !userSet.has(r.name)) continue;
-        const key = `${r.marca}|${r.name}`;
+        if (!brandSet.has(r.marca)) continue;
+        const user = IS_HOMOLOG ? resolveHomologHeatmapUser(r.name) : r.name;
+        if (!user || !userSet.has(user)) continue;
+        const key = `${r.marca}|${user}`;
         const next = (matrix.get(key) || 0) + 1;
         matrix.set(key, next);
         if (next > max) max = next;
@@ -516,18 +581,19 @@
       }
       const month = getMonthRange(today);
       const inMonth = IS_HOMOLOG ? [] : filterByDayRange(allRows, month.start, month.end);
-      // Homolog: sem mês — gráficos de marca/heatmap usam o período filtrado.
-      const brandScope = IS_HOMOLOG ? inPeriod : inMonth;
+      // Homolog: sem mês — gráficos de marca/heatmap usam o período + boost Apple/Samsung.
+      const brandScopeBase = IS_HOMOLOG ? inPeriod : inMonth;
+      const brandScope = injectHomologBrandBoost(brandScopeBase, start, end, today);
       const brandStart = IS_HOMOLOG ? start : month.start;
       const brandEnd = IS_HOMOLOG ? end : month.end;
 
       const hourBoost = (IS_HOMOLOG && start <= today && end >= today)
-        ? homologPastHourBoostTotal()
+        ? homologHourBoostTotal()
         : 0;
       const displayToday = inToday + hourBoost;
       const displayPeriod = inPeriod.length + hourBoost;
 
-      const topMarca = topEntry(inPeriod, (r) => r.marca);
+      const topMarca = topEntry(IS_HOMOLOG ? brandScope : inPeriod, (r) => r.marca);
       const daysInPeriod = Math.max(1, listDays(start, end).length);
       const mediaDia = Math.round((displayPeriod / daysInPeriod) * 10) / 10;
 
@@ -547,8 +613,12 @@
         ? `Período: ${YardexDash.formatPeriodBR(start, end)} · homolog · grupo ${GRUPO_FILTRO}`
         : `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
 
-      const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
-      updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
+      if (!IS_HOMOLOG) {
+        const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
+        updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
+      } else if (charts.marcaLinha) {
+        destroyChart("marcaLinha");
+      }
 
       const byHourRaw = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
