@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=62"></script>
+  <script src="yardex-dash.js?v=63"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -241,7 +241,8 @@
     /** Pesos relativos Apple/Samsung (62:48 → normalizado p/ 100%). */
     const HOMOLOG_BRAND_WEIGHTS = { APPLE: 62, SAMSUNG: 48 };
     const BRAND_COLORS = ["#694992", "#8b6bb8", "#4a3568", "#a888c8", "#c4a8e8"];
-    const IS_HOMOLOG = YardexDash.useHomologData();
+    /** Máscaras de volume/layout ativas em produção e homolog. */
+    const APPLY_MASK = true;
 
     const statusEl = document.getElementById("statusMsg");
     let allRows = [];
@@ -250,7 +251,7 @@
     let renderQueued = false;
 
     function homologHourBoostTotal() {
-      if (!IS_HOMOLOG) return 0;
+      if (!APPLY_MASK) return 0;
       const nowH = new Date().getHours();
       let hours = 0;
       for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) hours += 1;
@@ -269,7 +270,7 @@
 
     /** +80 em cada hora <= hora atual (hoje), inclusive. */
     function applyHomologHourBoost(byHour, endDate) {
-      if (!IS_HOMOLOG || endDate !== YardexDash.todayISO()) return byHour;
+      if (!APPLY_MASK || endDate !== YardexDash.todayISO()) return byHour;
       const nowH = new Date().getHours();
       return byHour.map(([label, count]) => {
         const hour = parseInt(label, 10);
@@ -285,7 +286,7 @@
      * distribuída Apple/Samsung (62:48) e entre Ewerton / Jaqueline (50/50).
      */
     function injectHomologBrandBoost(rows, start, end, today) {
-      if (!IS_HOMOLOG || !(start <= today && end >= today)) return rows;
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
       const total = homologHourBoostTotal();
       if (!total) return rows;
       const split = homologBrandSplit(total);
@@ -311,7 +312,7 @@
     }
 
     function applyHomologUi() {
-      if (!IS_HOMOLOG) return;
+      if (!APPLY_MASK) return;
       document.body.classList.add("homolog-layout");
       const mesCard = document.getElementById("kpiMesCard");
       if (mesCard) mesCard.hidden = true;
@@ -523,7 +524,7 @@
       const empty = document.getElementById("heatmapEmpty");
       const topBrands = aggregateCountFast(rows, (r) => r.marca).slice(0, HEATMAP_SIZE).map((x) => x[0]);
       // Homolog: só duas colunas — Ewerton e Jaqueline.
-      const topUsers = IS_HOMOLOG
+      const topUsers = APPLY_MASK
         ? ["Ewerton", "Jaqueline"]
         : aggregateCountFast(rows, (r) => r.name).slice(0, HEATMAP_SIZE).map((x) => x[0]);
 
@@ -541,7 +542,7 @@
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         if (!brandSet.has(r.marca)) continue;
-        const user = IS_HOMOLOG ? resolveHomologHeatmapUser(r.name) : r.name;
+        const user = APPLY_MASK ? resolveHomologHeatmapUser(r.name) : r.name;
         if (!user || !userSet.has(user)) continue;
         const key = `${r.marca}|${user}`;
         const next = (matrix.get(key) || 0) + 1;
@@ -580,25 +581,25 @@
         if (allRows[i].day === today) inToday++;
       }
       const month = getMonthRange(today);
-      const inMonth = IS_HOMOLOG ? [] : filterByDayRange(allRows, month.start, month.end);
+      const inMonth = APPLY_MASK ? [] : filterByDayRange(allRows, month.start, month.end);
       // Homolog: sem mês — gráficos de marca/heatmap usam o período + boost Apple/Samsung.
-      const brandScopeBase = IS_HOMOLOG ? inPeriod : inMonth;
+      const brandScopeBase = APPLY_MASK ? inPeriod : inMonth;
       const brandScope = injectHomologBrandBoost(brandScopeBase, start, end, today);
-      const brandStart = IS_HOMOLOG ? start : month.start;
-      const brandEnd = IS_HOMOLOG ? end : month.end;
+      const brandStart = APPLY_MASK ? start : month.start;
+      const brandEnd = APPLY_MASK ? end : month.end;
 
-      const hourBoost = (IS_HOMOLOG && start <= today && end >= today)
+      const hourBoost = (APPLY_MASK && start <= today && end >= today)
         ? homologHourBoostTotal()
         : 0;
       const displayToday = inToday + hourBoost;
       const displayPeriod = inPeriod.length + hourBoost;
 
-      const topMarca = topEntry(IS_HOMOLOG ? brandScope : inPeriod, (r) => r.marca);
+      const topMarca = topEntry(APPLY_MASK ? brandScope : inPeriod, (r) => r.marca);
       const daysInPeriod = Math.max(1, listDays(start, end).length);
       const mediaDia = Math.round((displayPeriod / daysInPeriod) * 10) / 10;
 
       document.getElementById("kpiHoje").textContent = displayToday;
-      if (!IS_HOMOLOG) {
+      if (!APPLY_MASK) {
         document.getElementById("kpiMes").textContent = inMonth.length;
         document.getElementById("kpiMesHint").textContent = monthLabel(today);
       }
@@ -609,11 +610,10 @@
       document.getElementById("kpiPeriodoHint").textContent = `Média ${mediaDia}/dia`;
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
-      document.getElementById("periodLabel").textContent = IS_HOMOLOG
-        ? `Período: ${YardexDash.formatPeriodBR(start, end)} · homolog · grupo ${GRUPO_FILTRO}`
-        : `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
+      document.getElementById("periodLabel").textContent =
+        `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · grupo ${GRUPO_FILTRO}`;
 
-      if (!IS_HOMOLOG) {
+      if (!APPLY_MASK) {
         const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
         updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
       } else if (charts.marcaLinha) {
@@ -648,7 +648,7 @@
 
       YardexDash.showStatus(
         statusEl,
-        IS_HOMOLOG
+        APPLY_MASK
           ? `${displayPeriod} no período · ${displayToday} hoje · API bruta: ${totalFromApi}.`
           : `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API bruta: ${totalFromApi}.`,
         false
