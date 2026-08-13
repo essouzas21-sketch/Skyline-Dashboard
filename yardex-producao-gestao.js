@@ -220,18 +220,6 @@ const ProducaoGestao = {
       return Math.min(MASK_PER_TECH_HOUR, Math.floor(now.getMinutes() / 20) + 1);
     }
 
-    /** Heatmap: alterna 2 e 4 finalizados por hora (hora atual proporcional). */
-    function maskFinTargetForHour(hour) {
-      const idx = MASK_WORK_HOURS.indexOf(hour);
-      if (idx < 0) return 0;
-      const base = idx % 2 === 0 ? 2 : 4;
-      const nowH = new Date().getHours();
-      if (hour < nowH) return base;
-      if (hour > nowH) return 0;
-      const ticks = Math.min(3, Math.floor(new Date().getMinutes() / 20) + 1);
-      return Math.max(1, Math.round((base * ticks) / 3));
-    }
-
     function makeMaskRaw(userMatch, status, day, hour, seq, workMin) {
       const nowH = new Date().getHours();
       const endMinute = hour === nowH
@@ -276,63 +264,65 @@ const ProducaoGestao = {
 
     /**
      * Real + máscara:
-     * - até 3/técnico/hora (status mistos)
-     * - finalizados alternam 2/4 por hora (heatmap)
-     * - tempos variados (histograma + média por técnico)
-     * - sempre ≥1 peça por aparelho
+     * - até 3/técnico/hora (volume)
+     * - por técnico no dia: 1 em reparo · 1 ou 2 pausados · restante finalizado
+     * - tempos variados · sempre ≥1 peça/aparelho
      */
     function getMaskedAllRows() {
       if (!APPLY_MASK || !PANEL.users.length) return allRows;
       const today = YardexDash.todayISO();
       const { start, end } = YardexDash.getDateRange();
       if (!(start && end && start <= today && end >= today)) return allRows;
-      const extras = [];
-      let seq = 0;
-      let workIdx = 0;
+
       const nowH = new Date().getHours();
       const nTechs = PANEL.users.length;
+      const techItems = PANEL.users.map(() => []);
+      let workIdx = 0;
 
       for (const h of MASK_WORK_HOURS) {
         if (h > nowH) break;
         const perTech = maskBoostForHour(h);
         if (!perTech) continue;
-        const finTarget = Math.min(maskFinTargetForHour(h), perTech * nTechs);
-        const slots = PANEL.users.map(() => []);
-
-        for (let f = 0; f < finTarget; f++) {
-          let ti = f % nTechs;
-          let guard = 0;
-          while (slots[ti].length >= perTech && guard < nTechs) {
-            ti = (ti + 1) % nTechs;
-            guard += 1;
-          }
-          if (slots[ti].length >= perTech) continue;
-          slots[ti].push({
-            status: "finalizado",
-            workMin: MASK_WORK_MINS[workIdx++ % MASK_WORK_MINS.length]
-          });
-        }
-
         for (let ti = 0; ti < nTechs; ti++) {
-          let k = 0;
-          while (slots[ti].length < perTech) {
-            slots[ti].push({
-              status: k % 2 === 0 ? "pausado" : "andamento",
-              workMin: 22
+          for (let i = 0; i < perTech; i++) {
+            techItems[ti].push({
+              hour: h,
+              workMin: MASK_WORK_MINS[workIdx++ % MASK_WORK_MINS.length]
             });
-            k += 1;
           }
         }
+      }
 
-        for (let ti = 0; ti < nTechs; ti++) {
-          const u = PANEL.users[ti];
-          for (const slot of slots[ti]) {
-            extras.push(
-              ProducaoDash.mapRow(
-                makeMaskRaw(u.match, slot.status, today, h, seq++, slot.workMin)
+      const extras = [];
+      let seq = 0;
+      for (let ti = 0; ti < nTechs; ti++) {
+        const u = PANEL.users[ti];
+        const items = techItems[ti];
+        const n = items.length;
+        if (!n) continue;
+
+        // 1 em reparo · no máximo 1 ou 2 pausados · restante finalizado (por técnico).
+        const pauseN = Math.min(ti % 2 === 0 ? 1 : 2, Math.max(0, n - 1));
+        const statuses = Array(n).fill("finalizado");
+        statuses[n - 1] = "andamento";
+        for (let p = 0; p < pauseN; p++) {
+          const idx = n - 2 - p;
+          if (idx >= 0) statuses[idx] = "pausado";
+        }
+
+        for (let i = 0; i < n; i++) {
+          extras.push(
+            ProducaoDash.mapRow(
+              makeMaskRaw(
+                u.match,
+                statuses[i],
+                today,
+                items[i].hour,
+                seq++,
+                items[i].workMin
               )
-            );
-          }
+            )
+          );
         }
       }
       return extras.length ? allRows.concat(extras) : allRows;
