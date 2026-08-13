@@ -497,9 +497,10 @@
     const HOUR_TO = 17;
     const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
     const statusEl = document.getElementById("statusMsg");
-    const IS_HOMOLOG = YardexDash.useHomologData();
+    /** Máscara ativa em prod e homolog (igual Recebimento). */
+    const APPLY_MASK = true;
 
-    /** Homolog: máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
+    /** Máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
     const HOMOLOG_TECH_WEIGHTS = [
       ["Alcione", 14],
       ["Gustavo", 10],
@@ -520,7 +521,7 @@
     let lastPeriodRows = [];
 
     function homologHoursTouched() {
-      if (!IS_HOMOLOG) return 0;
+      if (!APPLY_MASK) return 0;
       const nowH = new Date().getHours();
       let n = 0;
       for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) n += 1;
@@ -577,7 +578,7 @@
 
     /** Injeta máscara: horas fechadas 56/64; hora atual +1/técnico a cada 5 min. */
     function injectHomologTriagemRows(rows, start, end, today) {
-      if (!IS_HOMOLOG || !(start <= today && end >= today)) return rows;
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
       if (!homologHoursTouched()) return rows;
       const weights = HOMOLOG_TECH_WEIGHTS.map(([, w]) => w);
       const extras = [];
@@ -718,7 +719,7 @@
 
     function renderUserChart(rows) {
       let byUser;
-      if (IS_HOMOLOG) {
+      if (APPLY_MASK) {
         const all = YardexDash.aggregateCount(rows, (r) => r.usuario);
         const map = new Map(all);
         const masked = HOMOLOG_TECHS.map((t) => [t, map.get(t) || 0]);
@@ -785,7 +786,7 @@
         (r) => YardexDash.extractFirstWord(r.descricao)
       );
       let byBrand;
-      if (IS_HOMOLOG) {
+      if (APPLY_MASK) {
         const want = ["APPLE", "SAMSUNG"];
         const map = new Map(aggregated);
         const rest = aggregated
@@ -1044,8 +1045,8 @@
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
 
-    // Homolog: atualiza a máscara da hora atual a cada minuto (+1/técnico a cada 5 min).
-    if (IS_HOMOLOG) {
+    // Atualiza a máscara da hora atual a cada minuto (+1/técnico a cada 5 min).
+    if (APPLY_MASK) {
       setInterval(() => {
         if (allRows.length) renderDashboard();
       }, 60 * 1000);
