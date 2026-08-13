@@ -360,8 +360,13 @@ const ProducaoDash = {
 
   matchesUserFilter(user, userFilter) {
     if (!userFilter || !userFilter.length) return true;
-    const norm = String(user).trim().toLowerCase();
-    return userFilter.some((u) => norm.includes(String(u).trim().toLowerCase()));
+    const fold = (s) => String(s)
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const norm = fold(user);
+    return userFilter.some((u) => norm.includes(fold(u)));
   },
 
   filterRows(allRows, start, end, moduleKey, userFilterOverride = undefined) {

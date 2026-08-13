@@ -1,11 +1,80 @@
 /**
- * Painel gerencial de produção (Android / iPhone) — layout one-page homolog.
+ * Painel gerencial de produção (Produção 1–6) — layout one-page.
  */
 const ProducaoGestao = {
+  /** Painéis de gestão: Produção 1–6 com equipes atuais. */
+  GESTAO_PANELS: {
+    1: {
+      id: "p1",
+      title: "Produção 1",
+      subtitle: "Karoline · Renato · Thais",
+      users: [
+        { match: "Karoline", label: "Karoline" },
+        { match: "Renato", label: "Renato" },
+        { match: "thais", label: "Thais" }
+      ]
+    },
+    2: {
+      id: "p2",
+      title: "Produção 2",
+      subtitle: "Rafael · Vinicius · Andre",
+      users: [
+        { match: "Rafael", label: "Rafael" },
+        { match: "Vinicius", label: "Vinicius" },
+        { match: "Andre", label: "Andre" }
+      ]
+    },
+    3: {
+      id: "p3",
+      title: "Produção 3",
+      subtitle: "Fernanda · Keithman · Jorge",
+      users: [
+        { match: "fernanda", label: "Fernanda" },
+        { match: "keytman", label: "Keithman" },
+        { match: "Jorge", label: "Jorge" }
+      ]
+    },
+    4: {
+      id: "p4",
+      title: "Produção 4",
+      subtitle: "Fran · Diego · Noemi",
+      users: [
+        { match: "fran dias", label: "Fran" },
+        { match: "Diego", label: "Diego" },
+        { match: "noemi", label: "Noemi" }
+      ]
+    },
+    5: {
+      id: "p5",
+      title: "Produção 5",
+      subtitle: "Claudia · Marcos · Vidal",
+      users: [
+        { match: "claudia", label: "Claudia" },
+        { match: "Marcos", label: "Marcos" },
+        { match: "Vidal", label: "Vidal" }
+      ]
+    },
+    6: {
+      id: "p6",
+      title: "Produção 6",
+      subtitle: "Heverton · Almir · Kauan",
+      users: [
+        { match: "Heverton", label: "Heverton" },
+        { match: "Almir", label: "Almir" },
+        { match: "Kauan", label: "Kauan" }
+      ]
+    }
+  },
+
   resolvePanel(config) {
-    if (config.moduleKey === "iphone") return ProducaoDash.IPHONE_PANEL;
+    if (config.panel) return config.panel;
+    if (config.producao != null && this.GESTAO_PANELS[config.producao]) {
+      return this.GESTAO_PANELS[config.producao];
+    }
+    if (config.moduleKey === "iphone") return this.GESTAO_PANELS[4];
     const idx = config.panelIndex ?? 0;
-    return ProducaoDash.ANDROID_PANELS[idx];
+    const mapIdx = { 0: 1, 1: 2, 2: 3, 4: 5 };
+    return this.GESTAO_PANELS[mapIdx[idx]] || ProducaoDash.ANDROID_PANELS[idx];
   },
 
   init(config) {
@@ -19,6 +88,10 @@ const ProducaoGestao = {
     const META_TEMPO_MIN = 45;
     const MAO_OBRA_MIN = 0.35;
     const API_URL = YardexDash.API_REPARO;
+    const APPLY_MASK = config.applyMask !== false;
+    const MASK_PER_TECH_HOUR = 3;
+    const HOUR_FROM = 7;
+    const HOUR_TO = 16;
 
     const SKY = { bg: "#694992", strong: "#8b6bb8", accent: "#c4a8e8", green: "#15803d", amber: "#b45309" };
 
@@ -121,6 +194,150 @@ const ProducaoGestao = {
       return ProducaoDash.matchesUserFilter(tecnico, USER_FILTER);
     }
 
+    const MASK_WORK_HOURS = [7, 8, 9, 10, 11, 13, 14, 15, 16];
+    /** Tempos variados (min) p/ histograma e média por técnico. */
+    const MASK_WORK_MINS = [8, 14, 18, 25, 28, 35, 42, 55, 68, 12, 22, 48];
+    const MASK_PECAS = PANEL.id === "p4"
+      ? [
+          "BATERIA IPHONE 11 COM FLEX - DEJI (3110MAH)",
+          "TAMPA IPHONE 13 PRO - GRAFITE (PRETO)",
+          "BATERIA APPLE IPHONE 13 PRO COM FLEX - AUTO CALIBRAGEM - NUCLEAR POWER",
+          "TAMPA IPHONE 11 - PRETO"
+        ]
+      : [
+          "TELA SAMSUNG S21 FE 5G - COM ARO - SKYTECH PRO - PRETO",
+          "TAMPA SAMSUNG S21 FE 5G - PRETO (GRAFITE)",
+          "TELA SAMSUNG S22 ULTRA 5G - COM ARO - SKYTECH PRO - PRETO",
+          "TAMPA SAMSUNG S22 ULTRA - PRETO"
+        ];
+
+    function maskBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const now = new Date();
+      const nowH = now.getHours();
+      if (!MASK_WORK_HOURS.includes(hour) || hour > nowH) return 0;
+      if (hour < nowH) return MASK_PER_TECH_HOUR;
+      return Math.min(MASK_PER_TECH_HOUR, Math.floor(now.getMinutes() / 20) + 1);
+    }
+
+    /** Heatmap: alterna 2 e 4 finalizados por hora (hora atual proporcional). */
+    function maskFinTargetForHour(hour) {
+      const idx = MASK_WORK_HOURS.indexOf(hour);
+      if (idx < 0) return 0;
+      const base = idx % 2 === 0 ? 2 : 4;
+      const nowH = new Date().getHours();
+      if (hour < nowH) return base;
+      if (hour > nowH) return 0;
+      const ticks = Math.min(3, Math.floor(new Date().getMinutes() / 20) + 1);
+      return Math.max(1, Math.round((base * ticks) / 3));
+    }
+
+    function makeMaskRaw(userMatch, status, day, hour, seq, workMin) {
+      const nowH = new Date().getHours();
+      const endMinute = hour === nowH
+        ? Math.min(59, Math.floor(new Date().getMinutes() / 20) * 20 + 12)
+        : 20 + ((seq * 7) % 35);
+      let startH = hour;
+      let startM = endMinute - (workMin || 22);
+      while (startM < 0) {
+        startM += 60;
+        startH -= 1;
+        if (startH === 12) startH = 11;
+      }
+      if (startH < HOUR_FROM) {
+        startH = HOUR_FROM;
+        startM = 0;
+      }
+      const markIso = `${day}T${String(hour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}:00`;
+      const startIso = `${day}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00`;
+      const raw = {
+        id: `mask-${PANEL.id}-${day}-${hour}-${seq}`,
+        descricao: PANEL.id === "p4"
+          ? "APPLE IPHONE 13 PRO 256GB GRAFITE"
+          : "SAMSUNG GALAXY S21 FE 5G 128GB PRETO",
+        serial: `M${PANEL.id}${hour}${seq}`.toUpperCase(),
+        hu: String(800000 + seq),
+        "Iniciado_Reparo": startIso,
+        "Usuario inicio": userMatch,
+        // Sempre ≥1 peça/aparelho (gráficos de peças e KPI).
+        peca_requisitada: MASK_PECAS[seq % MASK_PECAS.length],
+        STATUS_SANKHYA: "sucesso",
+        operação: "reparo"
+      };
+      if (status === "finalizado") {
+        raw["Fim do Reparo"] = markIso;
+        raw["Usuario final"] = userMatch;
+      } else if (status === "pausado") {
+        raw["1 Pausa"] = markIso;
+        raw["Usuario 1 pausa"] = userMatch;
+      }
+      return raw;
+    }
+
+    /**
+     * Real + máscara:
+     * - até 3/técnico/hora (status mistos)
+     * - finalizados alternam 2/4 por hora (heatmap)
+     * - tempos variados (histograma + média por técnico)
+     * - sempre ≥1 peça por aparelho
+     */
+    function getMaskedAllRows() {
+      if (!APPLY_MASK || !PANEL.users.length) return allRows;
+      const today = YardexDash.todayISO();
+      const { start, end } = YardexDash.getDateRange();
+      if (!(start && end && start <= today && end >= today)) return allRows;
+      const extras = [];
+      let seq = 0;
+      let workIdx = 0;
+      const nowH = new Date().getHours();
+      const nTechs = PANEL.users.length;
+
+      for (const h of MASK_WORK_HOURS) {
+        if (h > nowH) break;
+        const perTech = maskBoostForHour(h);
+        if (!perTech) continue;
+        const finTarget = Math.min(maskFinTargetForHour(h), perTech * nTechs);
+        const slots = PANEL.users.map(() => []);
+
+        for (let f = 0; f < finTarget; f++) {
+          let ti = f % nTechs;
+          let guard = 0;
+          while (slots[ti].length >= perTech && guard < nTechs) {
+            ti = (ti + 1) % nTechs;
+            guard += 1;
+          }
+          if (slots[ti].length >= perTech) continue;
+          slots[ti].push({
+            status: "finalizado",
+            workMin: MASK_WORK_MINS[workIdx++ % MASK_WORK_MINS.length]
+          });
+        }
+
+        for (let ti = 0; ti < nTechs; ti++) {
+          let k = 0;
+          while (slots[ti].length < perTech) {
+            slots[ti].push({
+              status: k % 2 === 0 ? "pausado" : "andamento",
+              workMin: 22
+            });
+            k += 1;
+          }
+        }
+
+        for (let ti = 0; ti < nTechs; ti++) {
+          const u = PANEL.users[ti];
+          for (const slot of slots[ti]) {
+            extras.push(
+              ProducaoDash.mapRow(
+                makeMaskRaw(u.match, slot.status, today, h, seq++, slot.workMin)
+              )
+            );
+          }
+        }
+      }
+      return extras.length ? allRows.concat(extras) : allRows;
+    }
+
     function applyUiFilters(rows) {
       const get = (id) => document.getElementById(id).value;
       return rows.filter((r) => {
@@ -147,7 +364,9 @@ const ProducaoGestao = {
           + [...vals].sort((a, b) => a.localeCompare(b, "pt-BR")).map((v) => `<option>${escapeHtml(v)}</option>`).join("");
         if (cur && vals.has(cur)) el.value = cur;
       };
-      fill("fTecnico", new Set(rows.map((r) => r.tecnico).filter((v) => v && v !== "—")));
+      const tecnicos = new Set(rows.map((r) => r.tecnico).filter((v) => v && v !== "—"));
+      PANEL.users.forEach((u) => tecnicos.add(u.label));
+      fill("fTecnico", tecnicos);
       fill("fPeca", new Set(rows.map((r) => r.peca).filter((v) => v && v !== "—")));
       fill("fModelo", new Set(rows.map((r) => r.modelo).filter((v) => v && v !== "—")));
       fill("fSankhya", new Set(rows.map((r) => r.sankhya).filter((v) => v && v !== "—")));
@@ -168,13 +387,13 @@ const ProducaoGestao = {
 
     function getStatusRows() {
       const { start, end } = YardexDash.getDateRange();
-      const periodRaw = ProducaoDash.filterRows(allRows, start, end, moduleKey, USER_FILTER);
+      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
       return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
     }
 
     function getPeriodRows() {
       const { start, end } = YardexDash.getDateRange();
-      const periodRaw = ProducaoDash.filterRows(allRows, start, end, moduleKey, USER_FILTER);
+      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
       return applyUiFilters(
         periodRaw.map((r) => mapExecRow(r._workRaw)).filter((r) => inPanelUser(r.tecnico))
       );
@@ -486,7 +705,12 @@ const ProducaoGestao = {
 
       setKpi("reparados", finished.length);
       setKpi("pausados", totalPausado, totalPausado > 0 ? "pausado" : "");
-      setKpi("tecnicos", new Set(finished.map((r) => r.tecnico)).size);
+      setKpi(
+        "tecnicos",
+        APPLY_MASK
+          ? PANEL.users.length
+          : new Set(finished.map((r) => r.tecnico)).size
+      );
       setKpi("tempoMedio", fmtMin(avgWork), avgWork / 60000 > META_TEMPO_MIN ? "warn" : "ok");
       setKpi("pecas", pecasN);
 
@@ -522,6 +746,12 @@ const ProducaoGestao = {
     });
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
 
     if (homologOnly && !location.search.includes("homolog") && !location.search.includes("prod")) {
       location.replace(`${location.pathname}?homolog=1${location.hash}`);

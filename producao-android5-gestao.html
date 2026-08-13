@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reparo Android 5 — Gestão</title>
+  <title>Produção 5 — Gestão</title>
   <link rel="stylesheet" href="yardex-dash.css" />
   <link rel="stylesheet" href="yardex-producao-gestao.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
   <script src="yardex-dash.js?v=61"></script>
-  <script src="yardex-producao.js?v=20"></script>
-  <script src="yardex-producao-gestao.js?v=5"></script>
+  <script src="yardex-producao.js?v=21"></script>
+  <script src="yardex-producao-gestao.js?v=7"></script>
 </head>
 <body class="dash-page rg-page">
   <div class="page">
@@ -19,8 +19,8 @@
       <div class="rg-topbar-head">
         <div class="title-block">
           <a class="back" href="menu.html">← Menu</a>
-          <h1 id="pageTitle">Reparo Android 5 — Gestão</h1>
-          <p class="subtitle" id="periodLabel">Claudia</p>
+          <h1 id="pageTitle">Produção 5 — Gestão</h1>
+          <p class="subtitle" id="periodLabel">Claudia · Marcos · Vidal</p>
         </div>
         <div class="rg-filters">
           <label>Início <input type="date" id="dateStart" /></label>
@@ -103,7 +103,7 @@
   </div>
 
   <script>
-    ProducaoGestao.init({ moduleKey: "android", panelIndex: 4, pageTitle: "Reparo Android 5 — Gestão" });
+    ProducaoGestao.init({ producao: 5, moduleKey: "android", pageTitle: "Produção 5 — Gestão" });
   </script>
 </body>
 </html>
