@@ -236,7 +236,7 @@
     const HEATMAP_SIZE = 6;
     const HOUR_FROM = 7;
     const HOUR_TO = 17;
-    /** Homolog: +80 em todas as horas já iniciadas (inclui a hora atual). */
+    /** Máscara: +80 por hora fechada; hora atual sobe no refresh até 80. */
     const HOMOLOG_HOUR_BOOST = 80;
     /** Pesos relativos Apple/Samsung (62:48 → normalizado p/ 100%). */
     const HOMOLOG_BRAND_WEIGHTS = { APPLE: 62, SAMSUNG: 48 };
@@ -250,12 +250,30 @@
     let charts = { marcaLinha: null, hora: null, marcaBar: null };
     let renderQueued = false;
 
+    /** Hora atual: escala a cada 5 min (12 ticks) até 80. */
+    function homologCurrentHourBoost() {
+      const now = new Date();
+      const ticks = Math.min(12, Math.floor(now.getMinutes() / 5) + 1);
+      return Math.round((HOMOLOG_HOUR_BOOST * ticks) / 12);
+    }
+
+    /** Boost da máscara para uma hora do expediente (hoje). */
+    function homologBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      if (hour < HOUR_FROM || hour > HOUR_TO || hour > nowH) return 0;
+      if (hour < nowH) return HOMOLOG_HOUR_BOOST;
+      return homologCurrentHourBoost();
+    }
+
     function homologHourBoostTotal() {
       if (!APPLY_MASK) return 0;
       const nowH = new Date().getHours();
-      let hours = 0;
-      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) hours += 1;
-      return hours * HOMOLOG_HOUR_BOOST;
+      let total = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        total += homologBoostForHour(h);
+      }
+      return total;
     }
 
     /** Divide total entre APPLE/SAMSUNG na proporção 62:48. */
@@ -268,16 +286,13 @@
       return { APPLE: apple, SAMSUNG: Math.max(0, total - apple) };
     }
 
-    /** +80 em cada hora <= hora atual (hoje), inclusive. */
+    /** Horas fechadas +80; hora atual escalada até 80. */
     function applyHomologHourBoost(byHour, endDate) {
       if (!APPLY_MASK || endDate !== YardexDash.todayISO()) return byHour;
-      const nowH = new Date().getHours();
       return byHour.map(([label, count]) => {
         const hour = parseInt(label, 10);
-        if (Number.isFinite(hour) && hour >= HOUR_FROM && hour <= HOUR_TO && hour <= nowH) {
-          return [label, count + HOMOLOG_HOUR_BOOST];
-        }
-        return [label, count];
+        if (!Number.isFinite(hour)) return [label, count];
+        return [label, count + homologBoostForHour(hour)];
       });
     }
 
@@ -287,28 +302,35 @@
      */
     function injectHomologBrandBoost(rows, start, end, today) {
       if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
-      const total = homologHourBoostTotal();
-      if (!total) return rows;
-      const split = homologBrandSplit(total);
+      const nowH = new Date().getHours();
       const users = ["Ewerton", "Jaqueline"];
       const extras = [];
-      Object.entries(split).forEach(([marca, n]) => {
-        for (let i = 0; i < n; i++) {
-          extras.push({
-            id: `homolog-boost-${marca}-${i}`,
-            hunit: null,
-            data_recebimento: `${today}T12:00:00`,
-            day: today,
-            hour: HOUR_FROM,
-            prod_cprod: "—",
-            name: users[i % users.length],
-            descricao: marca,
-            marca,
-            grupo: GRUPO_FILTRO
-          });
-        }
-      });
-      return rows.concat(extras);
+      let seq = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        const nHour = homologBoostForHour(h);
+        if (!nHour) continue;
+        const split = homologBrandSplit(nHour);
+        const hh = String(h).padStart(2, "0");
+        const minute = h === nowH ? Math.min(59, (Math.floor(new Date().getMinutes() / 5)) * 5) : 30;
+        const mm = String(minute).padStart(2, "0");
+        Object.entries(split).forEach(([marca, n]) => {
+          for (let i = 0; i < n; i++) {
+            extras.push({
+              id: `homolog-boost-${h}-${marca}-${seq++}`,
+              hunit: null,
+              data_recebimento: `${today}T${hh}:${mm}:00`,
+              day: today,
+              hour: h,
+              prod_cprod: "—",
+              name: users[seq % users.length],
+              descricao: marca,
+              marca,
+              grupo: GRUPO_FILTRO
+            });
+          }
+        });
+      }
+      return extras.length ? rows.concat(extras) : rows;
     }
 
     function applyHomologUi() {
@@ -690,6 +712,13 @@
 
     applyHomologUi();
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
   </script>
 </body>
 </html>
