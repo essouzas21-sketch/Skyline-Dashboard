@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="yardex-dash.js?v=62"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -159,7 +159,7 @@
         <div class="value" id="kpiHoje">0</div>
         <div class="hint" id="kpiHojeHint">—</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" id="kpiMesCard">
         <div class="label">Recebidos no mês</div>
         <div class="value" id="kpiMes">0</div>
         <div class="hint" id="kpiMesHint">—</div>
@@ -180,7 +180,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Volume por marca — evolução diária</h2>
-          <p class="section-note">Top 5 marcas · mês</p>
+          <p class="section-note" id="noteMarcaLinha">Top 5 marcas · mês</p>
         </div>
         <div class="chart-box"><canvas id="chartMarcaLinha"></canvas></div>
       </div>
@@ -188,7 +188,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Recebimentos por hora</h2>
-          <p class="section-note">08h–17h · horário local</p>
+          <p class="section-note" id="noteHora">08h–17h · horário local</p>
         </div>
         <div class="chart-box"><canvas id="chartHora"></canvas></div>
       </div>
@@ -196,7 +196,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Volume por marca</h2>
-          <p class="section-note">Total · mês</p>
+          <p class="section-note" id="noteMarcaBar">Total · mês</p>
         </div>
         <div class="chart-box"><canvas id="chartMarcaBar"></canvas></div>
       </div>
@@ -204,7 +204,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Marca × colaborador</h2>
-          <p class="section-note">Top marcas e colaboradores · mês</p>
+          <p class="section-note" id="noteHeatmap">Top marcas e colaboradores · mês</p>
         </div>
         <div class="rec-heatmap-wrap">
           <table class="rec-heatmap" id="heatmapTable"></table>
@@ -227,13 +227,51 @@
     const HEATMAP_SIZE = 6;
     const HOUR_FROM = 8;
     const HOUR_TO = 17;
+    /** Homolog: soma fixa por hora já encerrada (hora atual fica 100% real). */
+    const HOMOLOG_HOUR_BOOST = 85;
     const BRAND_COLORS = ["#694992", "#8b6bb8", "#4a3568", "#a888c8", "#c4a8e8"];
+    const IS_HOMOLOG = YardexDash.useHomologData();
 
     const statusEl = document.getElementById("statusMsg");
     let allRows = [];
     let totalFromApi = 0;
     let charts = { marcaLinha: null, hora: null, marcaBar: null };
     let renderQueued = false;
+
+    function homologPastHourBoostTotal() {
+      if (!IS_HOMOLOG) return 0;
+      const nowH = new Date().getHours();
+      let hours = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h < nowH; h++) hours += 1;
+      return hours * HOMOLOG_HOUR_BOOST;
+    }
+
+    /** +85 em cada hora < hora atual (hoje). Hora atual intacta. */
+    function applyHomologHourBoost(byHour, endDate) {
+      if (!IS_HOMOLOG || endDate !== YardexDash.todayISO()) return byHour;
+      const nowH = new Date().getHours();
+      return byHour.map(([label, count]) => {
+        const hour = parseInt(label, 10);
+        if (Number.isFinite(hour) && hour >= HOUR_FROM && hour <= HOUR_TO && hour < nowH) {
+          return [label, count + HOMOLOG_HOUR_BOOST];
+        }
+        return [label, count];
+      });
+    }
+
+    function applyHomologUi() {
+      if (!IS_HOMOLOG) return;
+      const mesCard = document.getElementById("kpiMesCard");
+      if (mesCard) mesCard.hidden = true;
+      const noteLinha = document.getElementById("noteMarcaLinha");
+      const noteBar = document.getElementById("noteMarcaBar");
+      const noteHeat = document.getElementById("noteHeatmap");
+      const noteHora = document.getElementById("noteHora");
+      if (noteLinha) noteLinha.textContent = "Top 5 marcas · período";
+      if (noteBar) noteBar.textContent = "Total · período";
+      if (noteHeat) noteHeat.textContent = "Top marcas e colaboradores · período";
+      if (noteHora) noteHora.textContent = `08h–17h · homolog +${HOMOLOG_HOUR_BOOST}/h nas horas anteriores`;
+    }
 
     function filterByDayRange(rows, start, end) {
       return rows.filter((r) => r.day && r.day >= start && r.day <= end);
@@ -477,31 +515,45 @@
         if (allRows[i].day === today) inToday++;
       }
       const month = getMonthRange(today);
-      const inMonth = filterByDayRange(allRows, month.start, month.end);
+      const inMonth = IS_HOMOLOG ? [] : filterByDayRange(allRows, month.start, month.end);
+      // Homolog: sem mês — gráficos de marca/heatmap usam o período filtrado.
+      const brandScope = IS_HOMOLOG ? inPeriod : inMonth;
+      const brandStart = IS_HOMOLOG ? start : month.start;
+      const brandEnd = IS_HOMOLOG ? end : month.end;
+
+      const hourBoost = (IS_HOMOLOG && start <= today && end >= today)
+        ? homologPastHourBoostTotal()
+        : 0;
+      const displayToday = inToday + hourBoost;
+      const displayPeriod = inPeriod.length + hourBoost;
 
       const topMarca = topEntry(inPeriod, (r) => r.marca);
       const daysInPeriod = Math.max(1, listDays(start, end).length);
-      const mediaDia = Math.round((inPeriod.length / daysInPeriod) * 10) / 10;
+      const mediaDia = Math.round((displayPeriod / daysInPeriod) * 10) / 10;
 
-      document.getElementById("kpiHoje").textContent = inToday;
-      document.getElementById("kpiMes").textContent = inMonth.length;
-      document.getElementById("kpiPeriodo").textContent = inPeriod.length;
+      document.getElementById("kpiHoje").textContent = displayToday;
+      if (!IS_HOMOLOG) {
+        document.getElementById("kpiMes").textContent = inMonth.length;
+        document.getElementById("kpiMesHint").textContent = monthLabel(today);
+      }
+      document.getElementById("kpiPeriodo").textContent = displayPeriod;
       document.getElementById("kpiMarca").textContent = topMarca ? topMarca[0] : "—";
 
       document.getElementById("kpiHojeHint").textContent = today.split("-").reverse().join("/");
-      document.getElementById("kpiMesHint").textContent = monthLabel(today);
       document.getElementById("kpiPeriodoHint").textContent = `Média ${mediaDia}/dia`;
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
-      document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
+      document.getElementById("periodLabel").textContent = IS_HOMOLOG
+        ? `Período: ${YardexDash.formatPeriodBR(start, end)} · homolog · grupo ${GRUPO_FILTRO}`
+        : `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · exc. 16/06/2026 · grupo ${GRUPO_FILTRO}`;
 
-      const { dayLabels, series } = buildBrandDaySeries(inMonth, month.start, month.end);
+      const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
       updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
 
-      const byHour = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+      const byHourRaw = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
+      const byHour = applyHomologHourBoost(byHourRaw, end);
       charts.hora = YardexDash.createLineChart(
         "chartHora",
         charts.hora,
@@ -510,7 +562,7 @@
         "#694992"
       );
 
-      const byBrand = aggregateCountFast(inMonth, (r) => r.marca).slice(0, TOP_MARCAS_BAR);
+      const byBrand = aggregateCountFast(brandScope, (r) => r.marca).slice(0, TOP_MARCAS_BAR);
       charts.marcaBar = YardexDash.createBarChart(
         "chartMarcaBar",
         charts.marcaBar,
@@ -519,14 +571,16 @@
         "#694992"
       );
 
-      renderHeatmap(inMonth);
+      renderHeatmap(brandScope);
 
       document.getElementById("footerMeta").textContent =
-        `Fonte: WMS Log Smart · grupo ${GRUPO_FILTRO} · ${inPeriod.length} no período · carregado ${allRows.length} únicos`;
+        `Fonte: WMS Log Smart · grupo ${GRUPO_FILTRO} · ${displayPeriod} no período · carregado ${allRows.length} únicos`;
 
       YardexDash.showStatus(
         statusEl,
-        `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API bruta: ${totalFromApi}.`,
+        IS_HOMOLOG
+          ? `${displayPeriod} no período · ${displayToday} hoje · API bruta: ${totalFromApi}.`
+          : `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API bruta: ${totalFromApi}.`,
         false
       );
     }
@@ -564,6 +618,7 @@
       }
     }
 
+    applyHomologUi();
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   </script>
 </body>

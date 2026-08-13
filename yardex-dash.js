@@ -1052,23 +1052,7 @@ const YardexDash = {
     return promise;
   },
 
-  async _fetchWebhookRaw(url, timeoutMs, homologOnly) {
-    if (homologOnly || this.useHomologData()) {
-      const fixture = this.homologFixtureFor(url);
-      if (!fixture) throw new Error("Sem fixture local para este endpoint.");
-      const res = await fetch(`${fixture}?_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
-      });
-      if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
-      const text = await res.text();
-      try {
-        return await this.parseJsonAsync(text);
-      } catch {
-        throw new Error(`Fixture inválido (não é JSON): ${fixture}`);
-      }
-    }
-
+  async _fetchLiveWebhook(url, timeoutMs) {
     const sep = url.includes("?") ? "&" : "?";
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -1097,6 +1081,38 @@ const YardexDash = {
     } finally {
       clearTimeout(timer);
     }
+  },
+
+  async _fetchWebhookRaw(url, timeoutMs, homologOnly) {
+    if (homologOnly || this.useHomologData()) {
+      const fixture = this.homologFixtureFor(url);
+      if (fixture) {
+        try {
+          const res = await fetch(`${fixture}?_t=${Date.now()}`, {
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+          });
+          if (res.ok) {
+            const text = await res.text();
+            try {
+              return await this.parseJsonAsync(text);
+            } catch {
+              throw new Error(`Fixture inválido (não é JSON): ${fixture}`);
+            }
+          }
+          // Pages não publica data/homolog/*.json (gitignored) — cai na API real.
+          console.warn(`[YardexDash] fixture ${fixture} HTTP ${res.status}; usando API real`);
+        } catch (err) {
+          if (String(err.message || "").includes("Fixture inválido")) throw err;
+          console.warn(`[YardexDash] fixture ${fixture} falhou; usando API real`, err);
+        }
+      } else if (homologOnly) {
+        throw new Error("Sem fixture local para este endpoint.");
+      }
+      return this._fetchLiveWebhook(url, timeoutMs);
+    }
+
+    return this._fetchLiveWebhook(url, timeoutMs);
   },
 
   formatDuration(ms) {
