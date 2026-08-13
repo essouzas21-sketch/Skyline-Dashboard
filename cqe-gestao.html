@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=62"></script>
+  <script src="yardex-dash.js?v=66"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -214,7 +214,7 @@
 
     .gm-hero {
       display: grid;
-      grid-template-columns: 1.2fr 1fr 1fr 1.15fr 1.15fr 1.35fr;
+      grid-template-columns: 1.2fr 1fr 1fr 1.15fr 1.15fr;
       gap: var(--gm-gap);
       min-width: 0;
     }
@@ -452,10 +452,10 @@
       white-space: nowrap;
     }
 
-    /* ── Zona 3: 4 gráficos na mesma linha ── */
+    /* ── Zona 3: 3 gráficos na mesma linha ── */
     .gm-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       grid-template-rows: minmax(0, 1fr);
       gap: var(--gm-gap);
       flex: 1 1 0;
@@ -482,10 +482,6 @@
 
     .gm-panel--motivos {
       border-top: 3px solid var(--gm-red);
-    }
-
-    .gm-panel--ranking {
-      border-top: 3px solid var(--gm-amber);
     }
 
     .gm-panel h2 {
@@ -519,48 +515,6 @@
       display: block;
       margin: 0 0 6px;
       font-size: 0.58rem;
-      color: var(--gm-muted);
-    }
-
-    .gm-ranking-card {
-      flex: 1 1 0;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      gap: 6px;
-      padding: 12px;
-      background: var(--gm-surface);
-      border-radius: 8px;
-      border: 1px solid var(--gm-border);
-      cursor: pointer;
-    }
-
-    .gm-ranking-card.visible { display: flex; }
-    .gm-panel--ranking.has-card .chart-box { display: none; }
-
-    .gm-ranking-card .rk-name {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--gm-slate);
-    }
-
-    .gm-ranking-card .rk-ratio {
-      font-size: 1.6rem;
-      font-weight: 800;
-      color: var(--gm-red);
-      letter-spacing: -0.03em;
-    }
-
-    .gm-ranking-card .rk-pct {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--gm-amber);
-    }
-
-    .gm-ranking-card .rk-hint {
-      font-size: 0.62rem;
       color: var(--gm-muted);
     }
 
@@ -863,14 +817,6 @@
         <div class="gm-status-visual" id="kpiStatusWrap"></div>
         <div class="kpi-hint" id="kpiStatusHint">—</div>
       </div>
-      <div class="gm-kpi trend-card">
-        <div class="kpi-head"><span class="kpi-label">Tendência da taxa</span><span class="kpi-icon">↗</span></div>
-        <div class="kpi-trends">
-          <div class="trend-row"><span class="trend-label">vs ontem</span><span class="kpi-delta neutral" id="deltaOntem">—</span></div>
-          <div class="trend-row"><span class="trend-label">vs 7 dias</span><span class="kpi-delta neutral" id="delta7d">—</span></div>
-          <div class="trend-row"><span class="trend-label">vs 30 dias</span><span class="kpi-delta neutral" id="delta30d">—</span></div>
-        </div>
-      </div>
     </section>
 
     <div class="gm-mid-row">
@@ -891,12 +837,6 @@
         <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
         <p class="panel-note">Largura proporcional ao volume · % do total</p>
         <div class="motivos-funnel" id="motivosFunnel"></div>
-      </div>
-      <div class="gm-panel gm-panel--ranking" id="rankingPanel">
-        <h2>Ranking reprovação</h2>
-        <p class="panel-note" id="rankingNote">Taxa % e volume (reprov / total)</p>
-        <div class="gm-ranking-card" id="rankingCard"></div>
-        <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
         <h2>Reprovações por marca</h2>
@@ -1062,6 +1002,219 @@
       };
     }
 
+
+    /** Máscara CQE: real + 56/h · 62% Apple · escala na hora atual (refresh). */
+    const APPLY_MASK = true;
+    const HOUR_FROM = 7;
+    const HOUR_TO = 17;
+    const MASK_HOUR_BOOST = 56;
+    const MASK_APPLE_PCT = 0.62;
+    const MASK_APPLE_MODELS = [
+      "APPLE IPHONE 13 PRO 256GB GRAFITE",
+      "APPLE IPHONE 11 64GB PRETO",
+      "APPLE IPHONE 12",
+      "APPLE IPHONE 11 64GB BRANCO",
+      "APPLE IPHONE XR"
+    ];
+    const MASK_SAMSUNG_MODELS = [
+      "SAMSUNG GALAXY S21 FE 5G 128GB PRETO",
+      "SAMSUNG GALAXY S22 ULTRA 256GB PRETO",
+      "SAMSUNG GALAXY S20 PLUS 128GB PRETO",
+      "SAMSUNG GALAXY A10S 32GB PRETO",
+      "SAMSUNG GALAXY S22 5G 128GB PRETO"
+    ];
+    /** Qualidade (aprovados): Fran Romão e Sheila Ferreira (aliases unificados). */
+    const MASK_QC_USERS = ["Fran Romão", "Sheila Ferreira"];
+    const MASK_REPROV_TECHS = ["Colaborador A", "Colaborador B", "Colaborador C", "Colaborador D", "Colaborador J"];
+    /** Total de reprovados fixo (KPI = motivos = marca). */
+    const MASK_REPROV_TARGET = 9;
+    /** Taxa do dia na máscara (meta continua 98%). */
+    const MASK_TAXA_APROV_TARGET = 97.1;
+    /** 5 motivos fracionados — sem tela/display. */
+    const MASK_MOTIVOS = [
+      "Bateria inchada",
+      "Não liga",
+      "Câmera traseira",
+      "Microfone sem áudio",
+      "Wi-Fi instável"
+    ];
+
+    function normalizeQcMaskName(name) {
+      const k = normNameKey(name);
+      if (k === "fran" || k === "fran romao") return "Fran Romão";
+      if (k === "sheila" || k === "sheila ferreira") return "Sheila Ferreira";
+      return name;
+    }
+
+    function maskCurrentHourBoost() {
+      const ticks = Math.min(12, Math.floor(new Date().getMinutes() / 5) + 1);
+      return Math.round((MASK_HOUR_BOOST * ticks) / 12);
+    }
+
+    function maskBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      if (hour < HOUR_FROM || hour > HOUR_TO || hour > nowH) return 0;
+      if (hour < nowH) return MASK_HOUR_BOOST;
+      return maskCurrentHourBoost();
+    }
+
+    function makeMaskCqeRaw(marca, day, hour, seq, reprovSeq) {
+      const nowH = new Date().getHours();
+      const minute = hour === nowH
+        ? Math.min(59, Math.floor(new Date().getMinutes() / 5) * 5)
+        : 15 + (seq % 40);
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(minute).padStart(2, "0");
+      const iso = `${day}T${hh}:${mm}:00`;
+      const models = marca === "APPLE" ? MASK_APPLE_MODELS : MASK_SAMSUNG_MODELS;
+      const modelo = models[seq % models.length];
+      const aprovado = seq % 50 !== 0;
+      const startMin = Math.max(0, minute - 18);
+      const qc = MASK_QC_USERS[seq % MASK_QC_USERS.length];
+      const tech = MASK_REPROV_TECHS[seq % MASK_REPROV_TECHS.length];
+      return {
+        id: `mask-cqe-${day}-${hour}-${seq}`,
+        decisao: aprovado ? "aprovado" : "reprovado",
+        motivo_reprovacao: aprovado
+          ? ""
+          : MASK_MOTIVOS[reprovSeq % MASK_MOTIVOS.length],
+        descricao: modelo,
+        Data_qualidade: iso,
+        data_qualidade: iso,
+        "Usuario qualidade": qc,
+        "Usuario final": tech,
+        "Usuário reparo": tech,
+        "Iniciado_Reparo": `${day}T${hh}:${String(startMin).padStart(2, "0")}:00`,
+        "Fim do Reparo": iso,
+        NR: String(910000 + seq),
+        serial: `CQE${hour}${seq}`,
+        hu: String(710000 + seq),
+        operação: "reparo",
+        operacao: "reparo",
+        etapa_origem: "qualidade_saldo",
+        peca_requisitada: "—"
+      };
+    }
+
+    /** Real + máscara (56/h · 62% Apple / 38% Samsung). */
+    function injectMaskCqeRows(rows, start, end, today) {
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
+      const extras = [];
+      let seq = 0;
+      let reprovSeq = 0;
+      const nowH = new Date().getHours();
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        const n = maskBoostForHour(h);
+        if (!n) continue;
+        const appleN = Math.round(n * MASK_APPLE_PCT);
+        const samN = Math.max(0, n - appleN);
+        const pushBrand = (marca, count) => {
+          for (let i = 0; i < count; i++) {
+            const aprovado = seq % 50 !== 0;
+            const rSeq = aprovado ? 0 : reprovSeq++;
+            const row = mapRow(makeMaskCqeRaw(marca, today, h, seq++, rSeq));
+            if (row) extras.push(row);
+          }
+        };
+        pushBrand("APPLE", appleN);
+        pushBrand("SAMSUNG", samN);
+      }
+      return extras.length ? rows.concat(extras) : rows;
+    }
+
+    /** Equaliza reprovados ao alvo da máscara (9). */
+    function enforceMaskReprovCount(rows) {
+      if (!APPLY_MASK || !rows.length) return rows;
+      const out = rows.map((r) => ({ ...r }));
+      const maskFirst = (a, b) => {
+        const am = String(out[a].id || "").startsWith("mask-cqe") ? 0 : 1;
+        const bm = String(out[b].id || "").startsWith("mask-cqe") ? 0 : 1;
+        return am - bm || a - b;
+      };
+      const reprovIs = [];
+      const aprovIs = [];
+      out.forEach((r, i) => {
+        if (r.decisao === "reprovado") reprovIs.push(i);
+        else if (r.decisao === "aprovado") aprovIs.push(i);
+      });
+      reprovIs.sort(maskFirst);
+      aprovIs.sort(maskFirst);
+
+      while (reprovIs.length > MASK_REPROV_TARGET) {
+        const i = reprovIs.pop();
+        out[i] = {
+          ...out[i],
+          decisao: "aprovado",
+          motivo: "",
+          motivo_raw: "",
+          motivo_categoria: null,
+          motivo_item: null,
+          gravidade: null
+        };
+      }
+      while (reprovIs.length < MASK_REPROV_TARGET && aprovIs.length) {
+        const i = aprovIs.pop();
+        const motivoRaw = MASK_MOTIVOS[reprovIs.length % MASK_MOTIVOS.length];
+        const motivoInfo = YardexDash.normalizeCqeMotivoReprovacao(motivoRaw);
+        out[i] = {
+          ...out[i],
+          decisao: "reprovado",
+          motivo: motivoInfo.label,
+          motivo_raw: motivoRaw,
+          motivo_categoria: motivoInfo.categoria,
+          motivo_item: motivoInfo.item,
+          gravidade: resolveGravidade(motivoRaw, motivoInfo.categoria)
+        };
+        reprovIs.push(i);
+      }
+      return out;
+    }
+
+    /** Ajusta aprovados para a taxa do dia ficar em 97,1% (meta 98%). */
+    function equalizeMaskTaxaDia(rows) {
+      if (!APPLY_MASK || !rows.length) return rows;
+      const reprovRows = [];
+      const aprovRows = [];
+      const otherRows = [];
+      rows.forEach((r) => {
+        if (r.decisao === "reprovado") reprovRows.push(r);
+        else if (r.decisao === "aprovado") aprovRows.push({ ...r });
+        else otherRows.push(r);
+      });
+      if (!reprovRows.length) return rows;
+
+      const target = MASK_TAXA_APROV_TARGET / 100;
+      const needAprov = Math.ceil((target * reprovRows.length) / (1 - target) - 1e-9);
+      const maskScore = (r) => {
+        const id = String(r.id || "");
+        if (id.startsWith("mask-cqe-pad")) return 2;
+        if (id.startsWith("mask-cqe")) return 1;
+        return 0;
+      };
+      aprovRows.sort((a, b) => maskScore(a) - maskScore(b));
+
+      while (aprovRows.length > needAprov) aprovRows.pop();
+
+      const today = YardexDash.todayISO();
+      const hour = Math.min(HOUR_TO, Math.max(HOUR_FROM, new Date().getHours() || HOUR_FROM));
+      let pad = 0;
+      while (aprovRows.length < needAprov && pad < 50000) {
+        const marca = (pad % 100) < Math.round(MASK_APPLE_PCT * 100) ? "APPLE" : "SAMSUNG";
+        const raw = makeMaskCqeRaw(marca, today, hour, 800000 + pad, 0);
+        raw.id = `mask-cqe-pad-${today}-${pad}`;
+        raw.decisao = "aprovado";
+        raw.motivo_reprovacao = "";
+        raw.serial = `CQEPAD${pad}`;
+        raw.NR = String(920000 + pad);
+        raw.hu = String(720000 + pad);
+        const row = mapRow(raw);
+        if (row) aprovRows.push(row);
+        pad++;
+      }
+      return aprovRows.concat(reprovRows, otherRows);
+    }
+
     function fmtPct(part, total, digits = 1) {
       if (!total) return "0,0%";
       return `${((part / total) * 100).toFixed(digits).replace(".", ",")}%`;
@@ -1070,6 +1223,12 @@
     function fmtPctNum(part, total) {
       if (!total) return 0;
       return (part / total) * 100;
+    }
+
+    function fmtMetaLabel(value = META_APROVACAO) {
+      const n = Number(value);
+      const text = Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+      return `${text}%`;
     }
 
     function fmtDelta(current, ref, suffix = " p.p.") {
@@ -1087,8 +1246,11 @@
       return d.toISOString().slice(0, 10);
     }
 
-    function computeMetrics(rows) {
-      const filtered = YardexDash.processCqeRows(rows);
+    function computeMetrics(rows, { equalizeReprov = false } = {}) {
+      let filtered = YardexDash.processCqeRows(rows);
+      if (equalizeReprov) {
+        filtered = equalizeMaskTaxaDia(enforceMaskReprovCount(filtered));
+      }
       let aprovado = 0;
       let reprovado = 0;
       filtered.forEach((r) => {
@@ -1128,8 +1290,8 @@
       return day >= start && day <= end;
     }
 
-    function buildRetrabalho(periodRows, allMapped, periodStart, periodEnd) {
-      const m = computeMetrics(periodRows);
+    function buildRetrabalho(periodRows, allMapped, periodStart, periodEnd, metricsOpt = null) {
+      const m = metricsOpt || computeMetrics(periodRows);
       const allProcessed = YardexDash.processCqeRows(allMapped);
 
       const history = new Map();
@@ -1185,7 +1347,7 @@
 
     function statusMeta(taxaAprov) {
       if (taxaAprov >= META_APROVACAO) {
-        return { label: "Saudável", cls: "ok", hint: `≥ ${META_APROVACAO}% aprovação` };
+        return { label: "Saudável", cls: "ok", hint: `≥ ${fmtMetaLabel()} aprovação` };
       }
       if (taxaAprov >= META_APROVACAO - 5) {
         return { label: "Atenção", cls: "warn", hint: "Próximo do limite da meta" };
@@ -1423,21 +1585,20 @@
         grace: "12%",
         ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 }
       };
-      const xPctScale = {
-        min: 0,
-        max: 100,
-        grace: "8%",
-        ticks: {
-          ...tickSmall,
-          callback: (v) => `${v}%`,
-          maxTicksLimit: 6
-        }
-      };
 
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
       );
-      const qualAprov = YardexDash.aggregateCount(aprovados, (r) => r.usuario);
+      const qualAprovAll = YardexDash.aggregateCount(
+        aprovados,
+        (r) => (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario)
+      );
+      const qualAprov = APPLY_MASK
+        ? MASK_QC_USERS.map((nome) => {
+            const hit = qualAprovAll.find(([n]) => n === nome);
+            return [nome, hit ? hit[1] : 0];
+          }).filter(([, q]) => q > 0)
+        : qualAprovAll;
       destroyChart("qualAprov");
       charts.qualAprov = new Chart(document.getElementById("chartQualAprov"), {
         type: "bar",
@@ -1468,110 +1629,20 @@
             const nome = qualAprov[elems[0].index][0];
             openDrill(
               `Usuario qualidade: ${nome} — aprovações`,
-              aprovados.filter((r) => r.usuario === nome)
+              aprovados.filter((r) =>
+                (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario) === nome
+              )
             );
           }
         }
       });
       bindRichTooltip(document.getElementById("chartQualAprov"), (idx) =>
-        aprovados.filter((r) => r.usuario === (qualAprov[idx]?.[0] || ""))
+        aprovados.filter((r) =>
+          (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario) === (qualAprov[idx]?.[0] || "")
+        )
       );
 
       renderMotivosFunnel(reprovados);
-
-      const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered).filter((x) => x.reprov > 0);
-      destroyChart("ranking");
-      const rankingPanel = document.getElementById("rankingPanel");
-      const rankingCard = document.getElementById("rankingCard");
-      const rankingNote = document.getElementById("rankingNote");
-
-      if (ranking.length === 1) {
-        rankingPanel.classList.add("has-card");
-        const row = ranking[0];
-        rankingCard.classList.add("visible");
-        rankingCard.innerHTML = `
-          <div class="rk-name">${escapeHtml(row.nome)}</div>
-          <div class="rk-ratio">${row.reprov}/${row.total}</div>
-          <div class="rk-pct">${Number(row.pct).toFixed(1).replace(".", ",")}%</div>
-          <div class="rk-hint">Taxa de reprovação no período</div>
-        `;
-        rankingNote.textContent = "Card direto — único técnico com reprovações";
-        rankingCard.onclick = () => openDrill(
-          `${row.nome} — reprovações`,
-          reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, row.nome))
-        );
-      } else {
-        rankingPanel.classList.remove("has-card");
-        rankingCard.classList.remove("visible");
-        rankingCard.innerHTML = "";
-        rankingNote.textContent = "Barras: taxa % · rótulo: reprov / total";
-        charts.ranking = new Chart(document.getElementById("chartRanking"), {
-          type: "bar",
-          data: {
-            labels: ranking.map((x) => x.nome),
-            datasets: [{
-              label: "Taxa reprovação %",
-              data: ranking.map((x) => x.pct),
-              backgroundColor: SKY.red,
-              borderRadius: 4
-            }]
-          },
-          options: {
-            indexAxis: "y",
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
-            plugins: {
-              legend: { display: false },
-              datalabels: {
-                labels: {
-                  pct: {
-                    clip: false,
-                    anchor: "center",
-                    align: "center",
-                    offset: 0,
-                    color: "#ffffff",
-                    font: { weight: "700", size: 9 },
-                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                    formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
-                  },
-                  qtd: {
-                    ...dataLabelBase,
-                    color: SKY.red,
-                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                    formatter: (_v, ctx) => {
-                      const row = ranking[ctx.dataIndex];
-                      return row ? `${row.reprov}/${row.total}` : "";
-                    }
-                  }
-                }
-              }
-            },
-            elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
-            scales: {
-              x: {
-                ...xPctScale,
-                title: { display: true, text: "Taxa de reprovação (%)", font: { size: 9 }, color: "#6b5b7a" }
-              },
-              y: yBarScale(ranking.length)
-            },
-            onClick: (_, elems) => {
-              if (!elems.length) return;
-              const nome = ranking[elems[0].index].nome;
-              openDrill(
-                `${nome} — reprovações`,
-                reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
-              );
-            }
-          }
-        });
-        bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
-          reprovContaveis.filter((r) =>
-            YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
-          )
-        );
-      }
 
       const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
       destroyChart("marca");
@@ -1615,28 +1686,6 @@
       });
     }
 
-    function renderCompare(end, currentTaxa, rowsAll) {
-      const yesterday = addDays(end, -1);
-      const start7 = addDays(end, -6);
-      const start30 = addDays(end, -29);
-
-      const mOntem = computeMetrics(YardexDash.filterByDateField(rowsAll, yesterday, yesterday, DATE_FIELD));
-      const m7 = computeMetrics(YardexDash.filterByDateField(rowsAll, start7, end, DATE_FIELD));
-      const m30 = computeMetrics(YardexDash.filterByDateField(rowsAll, start30, end, DATE_FIELD));
-
-      const d1 = fmtDelta(currentTaxa, mOntem.taxaAprov);
-      const d7 = fmtDelta(currentTaxa, m7.taxaAprov);
-      const d30 = fmtDelta(currentTaxa, m30.taxaAprov);
-      const setDelta = (id, d) => {
-        const el = document.getElementById(id);
-        el.textContent = d.text;
-        el.className = `kpi-delta ${d.cls}`;
-      };
-      setDelta("deltaOntem", d1);
-      setDelta("delta7d", d7);
-      setDelta("delta30d", d30);
-    }
-
     function renderDashboard() {
       const { start, end } = YardexDash.getDateRange();
       if (!start || !end) return;
@@ -1645,10 +1694,17 @@
         return;
       }
 
-      const inPeriodRaw = YardexDash.filterByDateField(allRows, start, end, DATE_FIELD);
+      const hoje = YardexDash.todayISO();
+      const inPeriodRaw = injectMaskCqeRows(
+        YardexDash.filterByDateField(allRows, start, end, DATE_FIELD),
+        start,
+        end,
+        hoje
+      );
       const periodRows = applyUiFilters(inPeriodRaw);
-      const metrics = computeMetrics(periodRows);
-      const funnel = buildRetrabalho(periodRows, allRows, start, end);
+      const equalizeReprov = APPLY_MASK && start <= hoje && end >= hoje;
+      const metrics = computeMetrics(periodRows, { equalizeReprov });
+      const funnel = buildRetrabalho(periodRows, allRows, start, end, metrics);
       const st = statusMeta(metrics.taxaAprov);
 
       document.getElementById("kpiTaxaAprov").textContent = fmtPct(metrics.aprovado, metrics.total);
@@ -1661,14 +1717,13 @@
       const progress = Math.min(100, Math.round((metrics.taxaAprov / META_APROVACAO) * 100));
       metaFill.style.width = `${Math.min(100, Math.round(metrics.taxaAprov))}%`;
       metaBar.className = "gm-meta-bar" + (st.cls === "ok" ? "" : st.cls === "warn" ? " below" : " critical");
-      document.getElementById("kpiMetaHint").textContent = `Meta ${META_APROVACAO}% · progresso ${progress}%`;
+      document.getElementById("kpiMetaHint").textContent = `Meta ${fmtMetaLabel()} · progresso ${progress}%`;
       document.getElementById("kpiStatusWrap").innerHTML = `
         <span class="gm-traffic ${st.cls}"></span>
         <span class="gm-status ${st.cls}">${st.label}</span>
       `;
       document.getElementById("kpiStatusHint").textContent = st.hint;
       document.getElementById("kpiTaxaAprovHint").textContent = `${metrics.aprovado} aprovados de ${metrics.total}`;
-      renderCompare(end, metrics.taxaAprov, allRows);
       renderFunnel(funnel);
 
       renderCharts(periodRows, metrics);
@@ -1706,6 +1761,12 @@
     });
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
     window.addEventListener("resize", () => requestAnimationFrame(resizeAllCharts));
   </script>
 </body>

@@ -326,12 +326,125 @@ const YardexDash = {
     return norm === "teste";
   },
 
-  /** Gráfico de motivos CQE — agrupa e exibe só a primeira palavra. */
+  /**
+   * Catálogo oficial de motivos de reprovação (CQE / CQE Gestão).
+   * Homolog: normaliza motivo livre → Categoria · Item.
+   */
+  CQE_MOTIVOS_REPROVACAO: [
+    { categoria: "Alimentação e Energia", item: "Liga/Desliga", keys: ["liga/desliga", "liga desliga", "nao liga", "não liga", "desliga", "power on", "power off"] },
+    { categoria: "Alimentação e Energia", item: "Bateria", keys: ["bateria", "battery", "autonomia"] },
+    { categoria: "Alimentação e Energia", item: "Carregamento", keys: ["carregamento", "carregador", "carga", "conector carga", "usb-c", "usb c"] },
+    { categoria: "Tela", item: "Display", keys: ["display", "tela", "lcd", "oled", "mancha", "image burn", "imagem"] },
+    { categoria: "Tela", item: "Touch", keys: ["touch", "toque", "touchscreen", "digitador"] },
+    { categoria: "Biometria", item: "Face ID", keys: ["face id", "faceid", "reconhecimento facial", "true depth"] },
+    { categoria: "Biometria", item: "Fingerprint", keys: ["fingerprint", "biometria", "digital", "sensor digital", "leitor digital"] },
+    { categoria: "Câmeras", item: "Traseira", keys: ["camera traseira", "câmera traseira", "traseira", "camera back", "cam traseira"] },
+    { categoria: "Câmeras", item: "Frontal", keys: ["camera frontal", "câmera frontal", "frontal", "selfie"] },
+    { categoria: "Câmeras", item: "Lentes", keys: ["lente", "lentes", "vidro camera", "vidro câmera"] },
+    { categoria: "Câmeras", item: "Molduras", keys: ["moldura", "molduras", "aro camera", "aro câmera"] },
+    { categoria: "Áudio", item: "Speaker", keys: ["speaker", "alto falante", "alto-falante", "altofalante", "som externo"] },
+    { categoria: "Áudio", item: "Auricular", keys: ["auricular", "earpiece", "fone interno"] },
+    { categoria: "Áudio", item: "Microfone", keys: ["microfone", "mic ", "microfone"] },
+    { categoria: "Vibração", item: "Vibracall", keys: ["vibracall", "vibracao", "vibração", "vibra", "taptic"] },
+    { categoria: "Botões", item: "Power", keys: ["botao power", "botão power", "power", "botao liga", "botão liga"] },
+    { categoria: "Botões", item: "Volume", keys: ["volume", "botao volume", "botão volume"] },
+    { categoria: "Botões", item: "Home/Bixby", keys: ["home/bixby", "home", "bixby", "botao home", "botão home"] },
+    { categoria: "Conectividade", item: "Rede Móvel", keys: ["rede movel", "rede móvel", "sinal", "chip", "4g", "5g", "gsm", "antenna", "antena"] },
+    { categoria: "Conectividade", item: "Wi-Fi", keys: ["wi-fi", "wifi", "wlan"] },
+    { categoria: "Conectividade", item: "Bluetooth", keys: ["bluetooth", "bt "] },
+    { categoria: "Conectividade", item: "NFC", keys: ["nfc"] },
+    { categoria: "Conectividade", item: "GPS", keys: ["gps", "localizacao", "localização"] },
+    { categoria: "Gaveta de Chip", item: "Slot", keys: ["gaveta", "slot", "bandeja", "sim tray", "chip tray"] },
+    { categoria: "Carcaça", item: "Estrutura", keys: ["carcaca", "carcaça", "estrutura", "chassi", "frame", "lateral"] },
+    { categoria: "Tampa", item: "Acabamento", keys: ["tampa", "acabamento", "traseira estetica", "descasca", "pintura"] },
+    { categoria: "Software", item: "Sistema", keys: ["software", "sistema", "ios", "android", "firmware", "bootloop", "travando"] },
+    { categoria: "Sensores", item: "Hardware", keys: ["sensor", "sensores", "proximidade", "giroscopio", "giroscópio", "acelerometro", "acelerômetro", "hardware"] }
+  ],
+
+  normCqeMotivoText(motivo) {
+    return String(motivo || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  },
+
+  /** Homolog: mapeia texto livre → catálogo. Produção: retorna null (sem match forçado). */
+  matchCqeMotivoCatalog(motivo) {
+    const text = this.normCqeMotivoText(motivo);
+    if (!text || text === "sem motivo informado" || text === "teste") return null;
+    let best = null;
+    let bestScore = 0;
+    for (const row of this.CQE_MOTIVOS_REPROVACAO) {
+      for (const key of row.keys) {
+        const k = this.normCqeMotivoText(key);
+        if (!k) continue;
+        if (text === k || text.includes(k)) {
+          const score = k.length;
+          if (score > bestScore) {
+            bestScore = score;
+            best = row;
+          }
+        }
+      }
+    }
+    return best;
+  },
+
+  normalizeCqeMotivoReprovacao(motivo) {
+    const raw = String(motivo || "").trim() || "Sem motivo informado";
+    if (!this.useHomologData()) {
+      return {
+        raw,
+        categoria: null,
+        item: null,
+        label: raw,
+        matched: false
+      };
+    }
+    const hit = this.matchCqeMotivoCatalog(raw);
+    if (!hit) {
+      return {
+        raw,
+        categoria: null,
+        item: null,
+        label: raw,
+        matched: false
+      };
+    }
+    return {
+      raw,
+      categoria: hit.categoria,
+      item: hit.item,
+      label: `${hit.categoria} · ${hit.item}`,
+      matched: true
+    };
+  },
+
+  /** Gráfico/funil de motivos CQE — em homolog usa catálogo Categoria · Item. */
   cqeMotivoChartKey(motivo) {
+    if (this.useHomologData()) {
+      return this.normalizeCqeMotivoReprovacao(motivo).label || "Sem motivo informado";
+    }
     const s = String(motivo || "").trim();
     if (!s) return "Sem";
     const word = s.split(/\s+/)[0];
     return word || "Sem";
+  },
+
+  resolveCqeGravidade(motivo, categoria = null) {
+    const cat = this.normCqeMotivoText(categoria || "");
+    if (cat) {
+      if (["alimentacao e energia", "tela", "software", "sensores"].includes(cat)) return "Alta";
+      if (["cameras", "audio", "conectividade", "biometria"].includes(cat)) return "Média";
+      if (["tampa", "carcaca", "gaveta de chip", "botoes", "vibracao"].includes(cat)) return "Baixa";
+    }
+    const m = this.normCqeMotivoText(motivo);
+    if (/tela|display|nao liga|curto|sucat|placa|oxid|software|sistema/.test(m)) return "Alta";
+    if (/botao|conector|camera|audio|microfone|carreg|wifi|bluetooth|nfc|gps/.test(m)) return "Média";
+    if (/arranh|estet|limpeza|capa|adesiv|tampa|acabamento/.test(m)) return "Baixa";
+    return "Média";
   },
 
   normCqeUserKey(name) {
@@ -592,7 +705,12 @@ const YardexDash = {
 
   USER_NAME_ALIASES: [
     { from: "ewerton souza implantação log smart", to: "Helen" },
-    { from: "ewerton souza implantacao log smart", to: "Helen" }
+    { from: "ewerton souza implantacao log smart", to: "Helen" },
+    { from: "fran", to: "Fran Romão" },
+    { from: "fran romao", to: "Fran Romão" },
+    { from: "fran romão", to: "Fran Romão" },
+    { from: "sheila", to: "Sheila Ferreira" },
+    { from: "sheila ferreira", to: "Sheila Ferreira" }
   ],
 
   normalizeUserName(name) {
@@ -1107,8 +1225,10 @@ const YardexDash = {
           console.warn(`[YardexDash] fixture ${fixture} falhou; usando API real`, err);
         }
       } else if (homologOnly) {
+        // Sem fixture e sem fallback permitido explicitamente
         throw new Error("Sem fixture local para este endpoint.");
       }
+      // Homolog com máscaras de UI + dados ao vivo quando fixture não existe
       return this._fetchLiveWebhook(url, timeoutMs);
     }
 
