@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="yardex-dash.js?v=63"></script>
   <style>
     :root {
       --tr-page: #694992;
@@ -158,7 +158,7 @@
 
     .tr-kpi-row {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 6px;
       flex: 0 0 auto;
     }
@@ -306,7 +306,7 @@
     }
 
     @media (min-width: 1100px) {
-      .tr-kpi-row { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+      .tr-kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
     }
     @media (max-width: 1099px) {
       body.triagem-page.dash-page { height: auto; max-height: none; overflow: auto; }
@@ -429,11 +429,6 @@
         <div class="hint"><span class="delta neutral" id="kpiVsOntem">vs ontem —</span></div>
       </div>
       <div class="tr-kpi">
-        <div class="label" id="kpiMesLabel">Triados no mês</div>
-        <div class="value" id="kpiTotalMes">0</div>
-        <div class="hint"><span class="delta neutral" id="kpiVsMesAnt">vs mês ant. —</span></div>
-      </div>
-      <div class="tr-kpi">
         <div class="label">Ritmo / hora</div>
         <div class="value" id="kpiRitmo">0</div>
         <div class="hint" id="kpiRitmoHint">Média no expediente</div>
@@ -498,10 +493,24 @@
     const DATE_FIELD = "data_triagem";
     const ETAPAS = YardexDash.ETAPAS_OPERACAO;
     const TOP_N = 8;
-    const HOUR_FROM = 8;
+    const HOUR_FROM = 7;
     const HOUR_TO = 17;
     const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
     const statusEl = document.getElementById("statusMsg");
+    const IS_HOMOLOG = YardexDash.useHomologData();
+
+    /** Homolog: máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
+    const HOMOLOG_TECH_WEIGHTS = [
+      ["Alcione", 14],
+      ["Gustavo", 10],
+      ["Viviane F", 13],
+      ["Cleiton", 11],
+      ["Viviane P", 14]
+    ];
+    const HOMOLOG_TECHS = HOMOLOG_TECH_WEIGHTS.map(([name]) => name);
+    const HOMOLOG_APPLE_PCT = 0.62;
+    /** Totais da máscara por hora — alterna p/ não ficar 60 cravado (média ~60). */
+    const HOMOLOG_HOUR_TOTALS = [56, 64];
 
     let allRows = [];
     let chartUsers = null;
@@ -509,6 +518,99 @@
     let chartHora = null;
     let lastUserKeys = [];
     let lastPeriodRows = [];
+
+    function homologHoursTouched() {
+      if (!IS_HOMOLOG) return 0;
+      const nowH = new Date().getHours();
+      let n = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) n += 1;
+      return n;
+    }
+
+    function makeHomologTriagemRow(usuario, marca, day, hour, seq, minute = 30) {
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(Math.min(59, Math.max(0, minute))).padStart(2, "0");
+      return {
+        id: `homolog-triagem-${seq}`,
+        data_triagem: `${day}T${hh}:${mm}:00`,
+        operacao: "reparo",
+        usuario,
+        descricao: marca,
+        serial: "—",
+        hu: "—"
+      };
+    }
+
+    /** Distribui `total` inteiro proporcional aos pesos (maior resto). */
+    function distributeByWeights(total, weights) {
+      const sumW = weights.reduce((a, b) => a + b, 0) || 1;
+      const raw = weights.map((w) => (total * w) / sumW);
+      const out = raw.map((x) => Math.floor(x));
+      let rem = total - out.reduce((a, b) => a + b, 0);
+      const order = raw
+        .map((x, i) => ({ i, frac: x - out[i] }))
+        .sort((a, b) => b.frac - a.frac);
+      for (let k = 0; k < rem; k++) out[order[k % order.length].i] += 1;
+      return out;
+    }
+
+    function homologHourTarget(hour) {
+      return HOMOLOG_HOUR_TOTALS[(hour - HOUR_FROM) % HOMOLOG_HOUR_TOTALS.length];
+    }
+
+    /** Hora atual: +1 por técnico a cada 5 min (máx. 12 ticks). */
+    function homologCurrentHourTicks() {
+      const now = new Date();
+      return Math.min(12, Math.floor(now.getMinutes() / 5) + 1);
+    }
+
+    function pushHomologBrandRows(extras, tech, n, day, hour, seqRef, minute) {
+      const appleN = Math.round(n * HOMOLOG_APPLE_PCT);
+      const samsungN = Math.max(0, n - appleN);
+      for (let i = 0; i < appleN; i++) {
+        extras.push(makeHomologTriagemRow(tech, "APPLE", day, hour, seqRef.n++, minute));
+      }
+      for (let i = 0; i < samsungN; i++) {
+        extras.push(makeHomologTriagemRow(tech, "SAMSUNG", day, hour, seqRef.n++, minute));
+      }
+    }
+
+    /** Injeta máscara: horas fechadas 56/64; hora atual +1/técnico a cada 5 min. */
+    function injectHomologTriagemRows(rows, start, end, today) {
+      if (!IS_HOMOLOG || !(start <= today && end >= today)) return rows;
+      if (!homologHoursTouched()) return rows;
+      const weights = HOMOLOG_TECH_WEIGHTS.map(([, w]) => w);
+      const extras = [];
+      const seqRef = { n: 0 };
+      const nowH = new Date().getHours();
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        if (h === nowH) {
+          const ticks = homologCurrentHourTicks();
+          for (let tick = 0; tick < ticks; tick++) {
+            const minute = tick * 5;
+            for (const [tech] of HOMOLOG_TECH_WEIGHTS) {
+              // 1 aparelho por técnico a cada 5 min · marca alterna ~62/38
+              const marca = (tick + HOMOLOG_TECHS.indexOf(tech)) % 5 < 3 ? "APPLE" : "SAMSUNG";
+              extras.push(makeHomologTriagemRow(tech, marca, today, h, seqRef.n++, minute));
+            }
+          }
+          continue;
+        }
+        const perTech = distributeByWeights(homologHourTarget(h), weights);
+        for (let t = 0; t < HOMOLOG_TECH_WEIGHTS.length; t++) {
+          pushHomologBrandRows(
+            extras,
+            HOMOLOG_TECH_WEIGHTS[t][0],
+            perTech[t],
+            today,
+            h,
+            seqRef,
+            30
+          );
+        }
+      }
+      return rows.concat(extras);
+    }
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -576,18 +678,6 @@
       return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
     }
 
-    function getMonthRange(refISO) {
-      const [y, m] = refISO.split("-");
-      const lastDay = new Date(Number(y), Number(m), 0).getDate();
-      return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
-    }
-
-    function monthLabel(refISO) {
-      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-      const [y, m] = refISO.split("-");
-      return `${names[Number(m) - 1]}/${y}`;
-    }
-
     function fmtDelta(curr, prev) {
       if (prev == null) return { text: "—", cls: "neutral" };
       const d = curr - prev;
@@ -627,7 +717,18 @@
     }
 
     function renderUserChart(rows) {
-      const byUser = YardexDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
+      let byUser;
+      if (IS_HOMOLOG) {
+        const all = YardexDash.aggregateCount(rows, (r) => r.usuario);
+        const map = new Map(all);
+        const masked = HOMOLOG_TECHS.map((t) => [t, map.get(t) || 0]);
+        const rest = all
+          .filter(([u]) => !HOMOLOG_TECHS.includes(u))
+          .sort((a, b) => b[1] - a[1]);
+        byUser = masked.concat(rest).slice(0, TOP_N);
+      } else {
+        byUser = YardexDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
+      }
       lastUserKeys = byUser.map(([n]) => n);
       lastPeriodRows = rows;
       chartUsers = destroyChart(chartUsers);
@@ -679,8 +780,21 @@
     }
 
     function renderMarcaChart(rows) {
-      const byBrand = YardexDash.aggregateCount(rows, (r) => YardexDash.extractFirstWord(r.descricao))
-        .slice(0, TOP_N);
+      const aggregated = YardexDash.aggregateCount(
+        rows,
+        (r) => YardexDash.extractFirstWord(r.descricao)
+      );
+      let byBrand;
+      if (IS_HOMOLOG) {
+        const want = ["APPLE", "SAMSUNG"];
+        const map = new Map(aggregated);
+        const rest = aggregated
+          .filter(([b]) => !want.includes(b))
+          .sort((a, b) => b[1] - a[1]);
+        byBrand = want.map((b) => [b, map.get(b) || 0]).concat(rest).slice(0, TOP_N);
+      } else {
+        byBrand = aggregated.slice(0, TOP_N);
+      }
       chartMarca = destroyChart(chartMarca);
       chartMarca = new Chart(document.getElementById("chartMarca"), {
         type: "bar",
@@ -840,29 +954,21 @@
 
       const hoje = YardexDash.todayISO();
       const ontem = addDaysISO(hoje, -1);
-      const month = getMonthRange(end);
-      const prevMonth = getMonthRange(addDaysISO(month.start, -1));
 
-      const periodRows = rowsForPeriod(allRows, start, end);
-      const mesRows = rowsForPeriod(allRows, month.start, month.end);
-      const hojeRows = rowsForPeriod(allRows, hoje, hoje);
+      const periodRowsBase = rowsForPeriod(allRows, start, end);
+      const periodRows = injectHomologTriagemRows(periodRowsBase, start, end, hoje);
+      const hojeRowsBase = rowsForPeriod(allRows, hoje, hoje);
+      const hojeRows = injectHomologTriagemRows(hojeRowsBase, hoje, hoje, hoje);
       const ontemRows = rowsForPeriod(allRows, ontem, ontem);
-      const mesAntRows = rowsForPeriod(allRows, prevMonth.start, prevMonth.end);
 
       const dOntem = fmtDelta(hojeRows.length, ontemRows.length);
-      const dMes = fmtDelta(mesRows.length, mesAntRows.length);
 
       document.getElementById("kpiTotal").textContent = periodRows.length;
       document.getElementById("kpiHoje").textContent = hojeRows.length;
-      document.getElementById("kpiTotalMes").textContent = mesRows.length;
-      document.getElementById("kpiMesLabel").textContent = `Triados no mês — ${monthLabel(end)}`;
 
       const elOntem = document.getElementById("kpiVsOntem");
       elOntem.textContent = `vs ontem ${dOntem.text}`;
       elOntem.className = `delta ${dOntem.cls}`;
-      const elMes = document.getElementById("kpiVsMesAnt");
-      elMes.textContent = `vs mês ant. ${dMes.text}`;
-      elMes.className = `delta ${dMes.cls}`;
 
       const byUser = renderUserChart(periodRows);
       const byBrand = renderMarcaChart(periodRows);
@@ -872,9 +978,8 @@
         ? ritmo.media.toFixed(1).replace(".", ",")
         : "0";
       document.getElementById("kpiRitmoHint").textContent = `${ritmo.hours}h no expediente`;
-      document.getElementById("kpiUsers").textContent = byUser.length
-        ? YardexDash.aggregateCount(periodRows, (r) => r.usuario).length
-        : 0;
+      document.getElementById("kpiUsers").textContent =
+        YardexDash.aggregateCount(periodRows, (r) => r.usuario).length;
 
       renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour);
 
@@ -902,7 +1007,6 @@
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         document.getElementById("kpiHoje").textContent = "0";
-        document.getElementById("kpiTotalMes").textContent = "0";
         document.getElementById("kpiRitmo").textContent = "0";
         document.getElementById("kpiUsers").textContent = "0";
         chartUsers = destroyChart(chartUsers);
@@ -939,6 +1043,13 @@
     }
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    // Homolog: atualiza a máscara da hora atual a cada minuto (+1/técnico a cada 5 min).
+    if (IS_HOMOLOG) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
   </script>
 </body>
 </html>
