@@ -222,6 +222,39 @@ const ProducaoGestao = {
       return Math.min(MASK_PER_TECH_HOUR, Math.floor(now.getMinutes() / 20) + 1);
     }
 
+    /**
+     * Distribui o total da hora entre técnicos com variação (não todos iguais),
+     * mantendo a soma = nTechs × média combinada (3/h).
+     */
+    function distributeVaryingCounts(nTechs, avgPerTech, seed) {
+      const total = nTechs * avgPerTech;
+      if (nTechs <= 0 || total <= 0) return Array(Math.max(0, nTechs)).fill(0);
+      const counts = Array(nTechs).fill(0);
+      const base = Math.floor(total / nTechs);
+      let rem = total - base * nTechs;
+      for (let i = 0; i < nTechs; i++) counts[i] = base;
+      for (let r = 0; r < rem; r++) counts[(seed + r) % nTechs]++;
+
+      // Empurra ±1/±2 para afastar do "todo mundo igual", sem mudar o total.
+      if (base >= 2 && nTechs >= 2) {
+        const from = seed % nTechs;
+        const to = (seed + 1) % nTechs;
+        if (counts[from] > 1) {
+          counts[from]--;
+          counts[to]++;
+        }
+      }
+      if (base >= 3 && nTechs >= 3) {
+        const from = (seed + 2) % nTechs;
+        const to = seed % nTechs;
+        if (counts[from] > 1) {
+          counts[from]--;
+          counts[to]++;
+        }
+      }
+      return counts;
+    }
+
     function makeMaskRaw(userMatch, status, day, hour, seq, workMin) {
       const nowH = new Date().getHours();
       const endMinute = hour === nowH
@@ -266,7 +299,8 @@ const ProducaoGestao = {
 
     /**
      * Real + máscara:
-     * - até 3/técnico/hora (volume)
+     * - volume médio 3/técnico/hora (total da equipe preservado)
+     * - quantidade variada entre técnicos (ex.: 2 / 3 / 4)
      * - por técnico no dia: 1 em reparo · 1 ou 2 pausados · restante finalizado
      * - tempos variados · sempre ≥1 peça/aparelho
      */
@@ -280,13 +314,15 @@ const ProducaoGestao = {
       const nTechs = PANEL.users.length;
       const techItems = PANEL.users.map(() => []);
       let workIdx = 0;
+      const panelSeed = String(PANEL.id || "p").charCodeAt(1) || 1;
 
       for (const h of MASK_WORK_HOURS) {
         if (h > nowH) break;
-        const perTech = maskBoostForHour(h);
-        if (!perTech) continue;
+        const avgPerTech = maskBoostForHour(h);
+        if (!avgPerTech) continue;
+        const counts = distributeVaryingCounts(nTechs, avgPerTech, panelSeed + h);
         for (let ti = 0; ti < nTechs; ti++) {
-          for (let i = 0; i < perTech; i++) {
+          for (let i = 0; i < counts[ti]; i++) {
             techItems[ti].push({
               hour: h,
               workMin: MASK_WORK_MINS[workIdx++ % MASK_WORK_MINS.length]

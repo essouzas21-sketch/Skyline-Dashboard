@@ -97,6 +97,11 @@
       align-content: start;
     }
 
+    /* Gestão Produção: 6 painéis — 2 linhas × 3 (não esconde a 6ª). */
+    .menu-grid.menu-grid--gestao {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .menu-btn.android {
       min-height: 72px;
       padding: 12px 10px;
@@ -168,6 +173,9 @@
         grid-template-columns: repeat(2, 1fr);
         grid-template-rows: repeat(3, 1fr);
         max-height: none;
+      }
+      .menu-grid.menu-grid--gestao {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
   </style>
@@ -243,7 +251,7 @@
     </nav>
 
     <p class="menu-section-label">Gestão Produção</p>
-    <nav class="menu-grid">
+    <nav class="menu-grid menu-grid--gestao">
       <a class="menu-btn ready android" href="producao-android1-gestao.html">
         Produção 1 — Gestão
         <span class="badge">Karoline · Renato · Thais</span>
