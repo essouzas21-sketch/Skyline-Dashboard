@@ -195,8 +195,10 @@ const ProducaoGestao = {
     }
 
     const MASK_WORK_HOURS = [7, 8, 9, 10, 11, 13, 14, 15, 16];
-    /** Tempos variados (min) p/ histograma e média por técnico. */
-    const MASK_WORK_MINS = [8, 14, 18, 25, 28, 35, 42, 55, 68, 12, 22, 48];
+    /** Tempos em faixas produtivas (min) — variados, sem estourar o expediente. */
+    const MASK_WORK_MINS = [12, 16, 18, 20, 22, 24, 15, 19, 21, 25, 14, 23];
+    /** Fração do expediente 7h→agora usada no "Trabalhado" (balanceada por técnico). */
+    const MASK_WORK_FACTORS = [0.78, 0.86, 0.93];
     const MASK_PECAS = PANEL.id === "p4"
       ? [
           "BATERIA IPHONE 11 COM FLEX - DEJI (3110MAH)",
@@ -398,6 +400,15 @@ const ProducaoGestao = {
       return ProducaoDash.calcShiftWorkMsInPeriod(r.raw, start, end);
     }
 
+    /** Teto do "Trabalhado": expediente desde 7h até agora (sem almoço). */
+    function maxWorkMsFromSevenToNow() {
+      const now = Date.now();
+      const d = new Date();
+      const seven = new Date(d.getFullYear(), d.getMonth(), d.getDate(), HOUR_FROM, 0, 0, 0).getTime();
+      if (now <= seven) return 0;
+      return ProducaoDash.sumShiftIntervalsMs([{ start: seven, end: now }]);
+    }
+
     function fmtWorkTotal(ms) {
       if (!ms) return "—";
       return YardexDash.formatDuration(ms);
@@ -421,6 +432,18 @@ const ProducaoGestao = {
         s.total++;
         s.workMs += rowWorkMs(r, start, end);
       });
+      const hoje = YardexDash.todayISO();
+      if (APPLY_MASK && start <= hoje && end >= hoje) {
+        const maxMs = maxWorkMsFromSevenToNow();
+        const minTick = new Date().getMinutes();
+        for (let i = 0; i < stats.length; i++) {
+          const factor = MASK_WORK_FACTORS[i % MASK_WORK_FACTORS.length];
+          // Leve oscilação p/ não ficar cravado; sempre ≤ expediente 7h→agora.
+          const wobble = 1 + (((i * 5 + minTick) % 7) - 3) * 0.012;
+          const target = Math.round(maxMs * factor * wobble);
+          stats[i].workMs = Math.max(0, Math.min(maxMs, target));
+        }
+      }
       return stats;
     }
 
