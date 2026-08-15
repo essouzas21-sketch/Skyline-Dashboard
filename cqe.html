@@ -750,11 +750,27 @@
     .gm-panel--motivos .chart-box {
       display: block;
       flex: 1 1 0;
-      min-height: 0;
+      height: 0;
+      min-height: 72px;
+      min-width: 0;
+      position: relative;
     }
 
     .gm-panel--motivos .motivos-funnel {
       display: none;
+    }
+
+    .gm-panel--motivos .motivos-empty {
+      display: flex;
+      flex: 1 1 0;
+      min-height: 72px;
+      align-items: center;
+      justify-content: center;
+      color: var(--gm-muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px;
     }
 
     .motivos-funnel-step {
@@ -971,6 +987,10 @@
       padding: 8px 10px;
     }
 
+    body.cqe-tv-page .gm-panel--motivos .chart-box {
+      min-height: 110px;
+    }
+
     body.cqe-tv-page .gm-panel h2 {
       font-size: 0.92rem;
       margin-bottom: 2px;
@@ -1073,7 +1093,8 @@
         <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
         <p class="panel-note">Barras: quantidade por motivo</p>
         <div class="motivos-funnel" id="motivosFunnel" hidden></div>
-        <div class="chart-box"><canvas id="chartMotivos"></canvas></div>
+        <div class="motivos-empty" id="motivosEmpty" hidden>Sem reprovações no período</div>
+        <div class="chart-box" id="motivosChartBox"><canvas id="chartMotivos"></canvas></div>
       </div>
       <div class="gm-panel">
         <h2>Reprovações por marca</h2>
@@ -1743,6 +1764,8 @@
 
     function renderMotivosBars(reprovados, chartOpts) {
       const title = document.getElementById("motivosFunnelTitle");
+      const emptyEl = document.getElementById("motivosEmpty");
+      const chartBox = document.getElementById("motivosChartBox");
       const motivosAll = YardexDash.aggregateCount(
         reprovados,
         (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
@@ -1759,8 +1782,12 @@
       if (!motivos.length) {
         title.textContent = "Motivos de reprovação";
         destroyChart("motivos");
+        if (emptyEl) emptyEl.hidden = false;
+        if (chartBox) chartBox.hidden = true;
         return;
       }
+      if (emptyEl) emptyEl.hidden = true;
+      if (chartBox) chartBox.hidden = false;
       title.textContent = `Motivos de reprovação (${motivosAll.length})`;
 
       destroyChart("motivos");
@@ -1802,6 +1829,9 @@
           (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === (motivos[idx]?.[0] || "")
         )
       );
+      requestAnimationFrame(() => {
+        if (charts.motivos) charts.motivos.resize();
+      });
     }
 
     function renderCharts(periodRows, metrics) {
