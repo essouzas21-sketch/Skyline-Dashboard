@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=64"></script>
+  <script src="yardex-dash.js?v=65"></script>
   <style>
     :root {
       --gp-page: #694992;
@@ -164,6 +164,75 @@
     .gestao-pecas-page #statusMsg {
       display: none !important;
     }
+
+    .gp-debug {
+      display: none;
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      background: #1e1430;
+      border: 1px solid #c4a8e8;
+      border-radius: 10px;
+      color: #f3eef9;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    body.gestao-debug .gp-debug { display: block; }
+    .gp-debug h2 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: #fde68a;
+    }
+    .gp-debug .dbg-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .gp-debug .dbg-actions button {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #8b6bb8;
+      background: #694992;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .gp-debug .dbg-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .gp-debug .dbg-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    .gp-debug .dbg-card .k { color: #c4a8e8; font-size: 0.62rem; text-transform: uppercase; }
+    .gp-debug .dbg-card .v { font-size: 1.05rem; font-weight: 800; }
+    .gp-debug pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      color: #e9dff5;
+    }
+    .gp-debug table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.68rem;
+    }
+    .gp-debug th, .gp-debug td {
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 5px;
+      text-align: left;
+    }
+    .gp-debug th { color: #c4a8e8; }
 
     .gp-kpi-row {
       display: grid;
@@ -456,6 +525,18 @@
 
     <div id="statusMsg" class="status" hidden></div>
 
+    <section class="gp-debug" id="gestaoDebug" aria-live="polite">
+      <h2>DEBUG Gestão de Peças · regras vs números</h2>
+      <div class="dbg-actions">
+        <button type="button" id="dbgCopy">Copiar relatório</button>
+        <button type="button" id="dbgConsole">Log no console</button>
+        <button type="button" id="dbgReload">Recarregar + auditar</button>
+      </div>
+      <div class="dbg-grid" id="dbgKpis"></div>
+      <pre id="dbgBody">Aguardando carga…</pre>
+      <div id="dbgTables"></div>
+    </section>
+
     <section class="gp-kpi-row">
       <div class="gp-kpi">
         <div class="label">Peças no período</div>
@@ -494,9 +575,10 @@
     Chart.register(ChartDataLabels);
 
     const API_URL = YardexDash.API_REPARO;
+    const API_PECAS = YardexDash.API_PECAS;
     const ETAPAS = YardexDash.ETAPAS_OPERACAO;
     const statusEl = document.getElementById("statusMsg");
-    const SESSION_KEY = "yardex_gestao_rows_v5";
+    const SESSION_KEY = "yardex_gestao_rows_v6";
     const SESSION_TTL_MS = 3600000;
     const SKY = { primary: "#694992", accent: "#8b6bb8", red: "#dc2626", green: "#15803d", muted: "#6b5b7a" };
     const dataLabelCount = {
@@ -512,6 +594,7 @@
 
     /** Máscara: real + 50 aparelhos/h · 62% Apple / 38% Samsung · progressivo na hora atual. */
     const APPLY_MASK = false;
+    const DEBUG_MODE = new URLSearchParams(location.search).get("debug") === "1";
     const HOUR_FROM = 7;
     const HOUR_TO = 17;
     const MASK_HOUR_BOOST = 50;
@@ -548,8 +631,12 @@
     const MASK_SOLICITANTES = ["Helen", "Ewerton Souza", "jaqueline alves", "bruno marcos"];
 
     let allRows = [];
+    let lastRawPayload = [];
+    let lastDebugReport = null;
     let loadSeq = 0;
     const charts = {};
+
+    if (DEBUG_MODE) document.body.classList.add("gestao-debug");
 
     function escapeHtml(s) {
       return String(s ?? "")
@@ -589,6 +676,172 @@
       };
     }
 
+    function rejectReasonGestao(raw) {
+      if (!raw || typeof raw !== "object") return "payload_invalido";
+      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
+      if (produtoId == null || String(produtoId).trim() === "") return "sem_produto_requisitado";
+      if (!YardexDash.resolveGestaoDate(raw)) return "sem_data_pedido";
+      const op = YardexDash.resolveOperacao(raw);
+      if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
+      const hasLegacyPedido = !!(raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya);
+      if (!hasLegacyPedido && !raw["Usuario Solicitação Peça"]) return "sem_usuario_solicitacao";
+      const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+      if (
+        sankhya != null &&
+        String(sankhya).trim() !== "" &&
+        String(sankhya).trim().toLowerCase() !== "sucesso"
+      ) {
+        return `sankhya_${String(sankhya).trim().toLowerCase()}`;
+      }
+      return null;
+    }
+
+    function countMap(entries) {
+      const m = new Map();
+      entries.forEach((k) => m.set(k, (m.get(k) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    }
+
+    function buildGestaoDebugReport(rawList, finalRows) {
+      const { start, end } = YardexDash.getDateRange();
+      const hoje = YardexDash.todayISO();
+      const reasons = [];
+      const ops = [];
+      const accepted = [];
+      (rawList || []).forEach((raw) => {
+        ops.push(YardexDash.resolveOperacao(raw) || "(vazia)");
+        const why = rejectReasonGestao(raw);
+        if (why) reasons.push(why);
+        else accepted.push(raw);
+      });
+
+      const mapped = accepted.map((r) => mapGestaoRow(r, "sucesso"));
+      const beforeDedupe = mapped.length;
+      const afterDedupe = YardexDash.dedupeGestaoRows(mapped);
+      const period = rowsForPeriod(finalRows || afterDedupe, start || "", end || "");
+      const hojeRows = rowsForPeriod(finalRows || afterDedupe, hoje, hoje);
+      const kPeriod = kpis(period);
+      const kHoje = kpis(hojeRows);
+
+      const dedupeKeys = new Map();
+      mapped.forEach((row, i) => {
+        const os = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : `row:${i}`;
+        const produto = String(row.produto_requisitado_id || "").trim();
+        const dia = YardexDash.toLocalDateStr(row.data_pedido_sankhya) || "";
+        const key = `${os}|${produto}|${dia}`;
+        dedupeKeys.set(key, (dedupeKeys.get(key) || 0) + 1);
+      });
+      const dups = [...dedupeKeys.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+
+      return {
+        gerado_em: new Date().toISOString(),
+        api: API_URL,
+        mascara: APPLY_MASK,
+        regras: {
+          fonte: "API_REPARO + API_PECAS (expande N peças/OS)",
+          data: "DATA_PEDIDO_SANKHYA ou Iniciado_Reparo (do reparo)",
+          precisa: "produto_requisitado_id no reparo (entra na base) + catálogo pecas por OS",
+          operacoes: [...ETAPAS],
+          sankhya: "se preenchido, só 'sucesso' (filtro do reparo)",
+          dedupe: "OS + produto/SKU + dia local"
+        },
+        periodo: { start, end, hoje },
+        funil: {
+          raw_api: (rawList || []).length,
+          aceitos_raw: accepted.length,
+          rejeitados_raw: (rawList || []).length - accepted.length,
+          mapped_antes_dedupe: beforeDedupe,
+          apos_dedupe: afterDedupe.length,
+          dups_removidas: Math.max(0, beforeDedupe - afterDedupe.length),
+          kpi_pecas_periodo: kPeriod.pecas,
+          kpi_aparelhos_periodo: kPeriod.aparelhos,
+          kpi_pecas_hoje: kHoje.pecas,
+          kpi_aparelhos_hoje: kHoje.aparelhos,
+          allRows_final: (finalRows || []).length
+        },
+        rejeicoes: countMap(reasons),
+        operacoes_raw: countMap(ops).slice(0, 12),
+        top_pecas_periodo: YardexDash.aggregateCount(period, (r) => r.descricao).slice(0, 12),
+        top_solicitantes_periodo: YardexDash.aggregateCount(period, (r) => r.solicitante).slice(0, 12),
+        chaves_duplicadas: dups.slice(0, 20).map(([key, qtd]) => ({ key, qtd })),
+        amostras_ok: period.slice(0, 8).map((r) => ({
+          id: r.id,
+          dia: YardexDash.toLocalDateStr(r.data_pedido_sankhya),
+          produto: r.produto_requisitado_id,
+          peca: String(r.descricao || "").slice(0, 40),
+          solicitante: r.solicitante
+        })),
+        amostras_rejeitadas: (() => {
+          const out = [];
+          for (const raw of rawList || []) {
+            if (out.length >= 8) break;
+            const why = rejectReasonGestao(raw);
+            if (!why) continue;
+            out.push({
+              id: raw.id ?? null,
+              why,
+              op: YardexDash.resolveOperacao(raw) || "",
+              produto: raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null,
+              data: YardexDash.resolveGestaoDate(raw),
+              sankhya: raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null
+            });
+          }
+          return out;
+        })()
+      };
+    }
+
+    function renderDebugPanel(report) {
+      if (!DEBUG_MODE || !report) return;
+      lastDebugReport = report;
+      const f = report.funil;
+      document.getElementById("dbgKpis").innerHTML = [
+        ["API raw", f.raw_api],
+        ["Aceitos", f.aceitos_raw],
+        ["Rejeitados", f.rejeitados_raw],
+        ["Antes dedupe", f.mapped_antes_dedupe],
+        ["Após dedupe", f.apos_dedupe],
+        ["KPI peças período", f.kpi_pecas_periodo],
+        ["KPI OS período", f.kpi_aparelhos_periodo],
+        ["KPI peças hoje", f.kpi_pecas_hoje]
+      ].map(([k, v]) => `<div class="dbg-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+      const lines = [
+        `API: ${report.api}`,
+        `Período: ${report.periodo.start} → ${report.periodo.end} · hoje ${report.periodo.hoje}`,
+        `Regras: reparo (filtro) + API_PECAS (N peças/OS) + dedupe OS|SKU|dia`,
+        "",
+        "Funil:",
+        `  raw → aceitos: ${f.raw_api} → ${f.aceitos_raw} (rejeitados ${f.rejeitados_raw})`,
+        `  mapped → dedupe: ${f.mapped_antes_dedupe} → ${f.apos_dedupe} (−${f.dups_removidas})`,
+        `  KPI período: ${f.kpi_pecas_periodo} peças · ${f.kpi_aparelhos_periodo} OS`,
+        `  KPI hoje: ${f.kpi_pecas_hoje} peças · ${f.kpi_aparelhos_hoje} OS`,
+        "",
+        "Rejeições:",
+        ...(report.rejeicoes.length ? report.rejeicoes.map(([k, n]) => `  ${k}: ${n}`) : ["  (nenhuma)"]),
+        "",
+        "Operações raw (top):",
+        ...report.operacoes_raw.map(([k, n]) => `  ${k}: ${n}`)
+      ];
+      document.getElementById("dbgBody").textContent = lines.join("\n");
+
+      const table = (title, rows, cols) => {
+        if (!rows?.length) return `<p><strong>${title}</strong>: —</p>`;
+        return `<p><strong>${title}</strong></p><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? "")}</td>`).join("")}</tr>`).join("")
+        }</tbody></table>`;
+      };
+      const pairRows = (arr) => arr.map(([nome, qtd]) => ({ nome, qtd }));
+      document.getElementById("dbgTables").innerHTML = [
+        table("Top peças período", pairRows(report.top_pecas_periodo), ["nome", "qtd"]),
+        table("Top solicitantes período", pairRows(report.top_solicitantes_periodo), ["nome", "qtd"]),
+        table("Chaves duplicadas (OS|produto|dia)", report.chaves_duplicadas, ["key", "qtd"]),
+        table("Amostras OK", report.amostras_ok, ["id", "dia", "produto", "peca", "solicitante"]),
+        table("Amostras rejeitadas", report.amostras_rejeitadas, ["id", "why", "op", "produto", "data", "sankhya"])
+      ].join("");
+      console.info("[Gestão Peças DEBUG]", report);
+    }
+
     function ingestPayload(payload) {
       const rawList = YardexDash.normalizeRows(payload);
       const ok = [];
@@ -598,7 +851,74 @@
         if (!YardexDash.passesGestaoRaw(raw, ETAPAS)) continue;
         ok.push(mapGestaoRow(raw, "sucesso"));
       }
-      return YardexDash.dedupeGestaoRows(ok);
+      return { rawList, rows: YardexDash.dedupeGestaoRows(ok) };
+    }
+
+    /** API_PECAS traz N peças por OS; reparo só traz a última. Expande 1→N. */
+    function expandRowsWithPecasCatalog(gestaoRows, pecasPayload) {
+      const base = Array.isArray(gestaoRows) ? gestaoRows : [];
+      const pecasRows = YardexDash.normalizeRows(pecasPayload);
+      if (!pecasRows.length) return base;
+
+      const metaById = new Map();
+      base.forEach((row) => {
+        if (row?.id == null || String(row.id).trim() === "") return;
+        const id = String(row.id).trim();
+        if (!metaById.has(id)) metaById.set(id, row);
+      });
+
+      const expanded = [];
+      const expandedIds = new Set();
+      pecasRows.forEach((p) => {
+        if (!p || p.id == null || String(p.id).trim() === "") return;
+        const id = String(p.id).trim();
+        const meta = metaById.get(id);
+        if (!meta) return;
+
+        const codes = String(p.pecas || "")
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const descs = String(p.descricoes || "")
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const n = Math.max(codes.length, descs.length);
+        if (!n) return;
+
+        const seen = new Set();
+        let added = 0;
+        for (let i = 0; i < n; i++) {
+          const code = codes[i] || "";
+          const desc = descs[i] || code || "—";
+          const produto = code || `desc:${desc}`;
+          if (seen.has(produto)) continue;
+          seen.add(produto);
+          expanded.push({
+            id: meta.id,
+            nr: meta.nr,
+            serial: p.serial || meta.serial,
+            data_pedido_sankhya: meta.data_pedido_sankhya,
+            produto_requisitado_id: produto,
+            descricao: desc,
+            aparelho: meta.aparelho,
+            marca: meta.marca,
+            categoria: categorizePeca(desc),
+            solicitante: meta.solicitante,
+            status_sankhya: meta.status_sankhya || "sucesso"
+          });
+          added += 1;
+        }
+        if (added > 0) expandedIds.add(id);
+      });
+
+      base.forEach((row) => {
+        const id = row?.id != null ? String(row.id).trim() : "";
+        if (id && expandedIds.has(id)) return;
+        expanded.push(row);
+      });
+
+      return YardexDash.dedupeGestaoRows(expanded);
     }
 
     function saveSession() {
@@ -893,6 +1213,9 @@
       renderCharts(basePeriod);
       renderAlerts(basePeriod, baseHoje);
       YardexDash.markRefresh();
+      if (DEBUG_MODE && lastRawPayload.length) {
+        renderDebugPanel(buildGestaoDebugReport(lastRawPayload, allRows));
+      }
     }
 
     function clearFilters() {
@@ -912,7 +1235,9 @@
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
         if (seq !== loadSeq) return;
-        let rows = ingestPayload(json);
+        const first = ingestPayload(json);
+        let rawAll = first.rawList.slice();
+        let rows = first.rows;
         // Homolog/local: soma API real ao fixture para não perder o dia corrente.
         if (YardexDash.useHomologData()) {
           try {
@@ -923,16 +1248,34 @@
             });
             if (liveRes.ok) {
               const liveJson = await liveRes.json();
-              rows = YardexDash.dedupeGestaoRows(rows.concat(ingestPayload(liveJson)));
+              const live = ingestPayload(liveJson);
+              rawAll = rawAll.concat(live.rawList);
+              rows = YardexDash.dedupeGestaoRows(rows.concat(live.rows));
             }
           } catch (_) { /* mantém fixture */ }
         }
+
+        // Catálogo completo de peças (1 OS pode ter N itens; reparo só traz o último).
+        try {
+          const pecasJson = await YardexDash.fetchWebhook(API_PECAS);
+          if (seq !== loadSeq) return;
+          rows = expandRowsWithPecasCatalog(rows, pecasJson);
+        } catch (_) { /* mantém linhas do reparo */ }
+
+        lastRawPayload = rawAll;
         allRows = rows;
         saveSession();
         renderDashboard();
+        if (DEBUG_MODE) {
+          renderDebugPanel(buildGestaoDebugReport(lastRawPayload, allRows));
+        }
         YardexDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
       } catch (err) {
         if (seq !== loadSeq) return;
+        if (DEBUG_MODE) {
+          const body = document.getElementById("dbgBody");
+          if (body) body.textContent = `Erro ao carregar: ${err.message}`;
+        }
         if (allRows.length) {
           YardexDash.showStatus(statusEl, `Atualização falhou — cache (${err.message})`, true);
           return;
@@ -961,6 +1304,25 @@
 
     restoreSession();
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (DEBUG_MODE) {
+      document.getElementById("dbgCopy")?.addEventListener("click", async () => {
+        if (!lastDebugReport) return;
+        const text = JSON.stringify(lastDebugReport, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          document.getElementById("dbgCopy").textContent = "Copiado!";
+          setTimeout(() => { document.getElementById("dbgCopy").textContent = "Copiar relatório"; }, 1500);
+        } catch (_) {
+          console.info(text);
+          alert("Não deu pra copiar — abri no console.");
+        }
+      });
+      document.getElementById("dbgConsole")?.addEventListener("click", () => {
+        console.info("[Gestão Peças DEBUG]", lastDebugReport);
+      });
+      document.getElementById("dbgReload")?.addEventListener("click", () => loadData());
+    }
 
     // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 50).
     if (APPLY_MASK) {
