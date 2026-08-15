@@ -255,19 +255,22 @@ const YardexDash = {
     );
   },
 
-  /** Triagem: Data Triagem + operação reparo/gestao_pecas; STATUS_SANKHYA=sucesso só se existir. */
-  passesTriagemRaw(raw, etapas = this.ETAPAS_OPERACAO) {
+  /** Triagem: Data Triagem + operação; Sankhya opcional (por padrão exige sucesso se preenchido). */
+  passesTriagemRaw(raw, etapas = this.ETAPAS_OPERACAO, opts = {}) {
     if (!raw || typeof raw !== "object") return false;
     const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
     if (!dataTriagem) return false;
     if (!etapas.has(this.resolveOperacao(raw))) return false;
-    const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
-    if (
-      sankhya != null &&
-      String(sankhya).trim() !== "" &&
-      String(sankhya).trim().toLowerCase() !== "sucesso"
-    ) {
-      return false;
+    const requireSankhyaSucesso = opts.requireSankhyaSucesso !== false;
+    if (requireSankhyaSucesso) {
+      const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+      if (
+        sankhya != null &&
+        String(sankhya).trim() !== "" &&
+        String(sankhya).trim().toLowerCase() !== "sucesso"
+      ) {
+        return false;
+      }
     }
     return true;
   },

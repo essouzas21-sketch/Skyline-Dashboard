@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=63"></script>
+  <script src="yardex-dash.js?v=64"></script>
   <style>
     :root {
       --tr-page: #694992;
@@ -155,6 +155,75 @@
 
     .triagem-page #statusMsg { display: none !important; }
     .triagem-page .last-refresh { display: none !important; }
+
+    .tr-debug {
+      display: none;
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      background: #1e1430;
+      border: 1px solid #c4a8e8;
+      border-radius: 10px;
+      color: #f3eef9;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    body.triagem-debug .tr-debug { display: block; }
+    .tr-debug h2 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: #fde68a;
+    }
+    .tr-debug .dbg-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tr-debug .dbg-actions button {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #8b6bb8;
+      background: #694992;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .tr-debug .dbg-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tr-debug .dbg-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    .tr-debug .dbg-card .k { color: #c4a8e8; font-size: 0.62rem; text-transform: uppercase; }
+    .tr-debug .dbg-card .v { font-size: 1.05rem; font-weight: 800; }
+    .tr-debug pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      color: #e9dff5;
+    }
+    .tr-debug table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.68rem;
+    }
+    .tr-debug th, .tr-debug td {
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 5px;
+      text-align: left;
+    }
+    .tr-debug th { color: #c4a8e8; }
 
     .tr-kpi-row {
       display: grid;
@@ -417,6 +486,18 @@
 
     <div id="statusMsg" class="status" hidden></div>
 
+    <section class="tr-debug" id="triagemDebug" aria-live="polite">
+      <h2>DEBUG Triagem · regras vs números</h2>
+      <div class="dbg-actions">
+        <button type="button" id="dbgCopy">Copiar relatório</button>
+        <button type="button" id="dbgConsole">Log no console</button>
+        <button type="button" id="dbgReload">Recarregar + auditar</button>
+      </div>
+      <div class="dbg-grid" id="dbgKpis"></div>
+      <pre id="dbgBody">Aguardando carga…</pre>
+      <div id="dbgTables"></div>
+    </section>
+
     <section class="tr-kpi-row">
       <div class="tr-kpi">
         <div class="label">Triados no período</div>
@@ -491,14 +572,18 @@
 
     const API_URL = YardexDash.API_REPARO;
     const DATE_FIELD = "data_triagem";
-    const ETAPAS = YardexDash.ETAPAS_OPERACAO;
+    /** Triagem completa: reparo + gestão peças + limpeza. */
+    const ETAPAS = new Set(["reparo", "gestao_pecas", "limpeza"]);
+    /** Conta também Sankhya erro / outros (não exige sucesso). */
+    const REQUIRE_SANKHYA_SUCESSO = false;
     const TOP_N = 8;
     const HOUR_FROM = 7;
     const HOUR_TO = 17;
     const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
     const statusEl = document.getElementById("statusMsg");
-    /** Máscara ativa em prod e homolog (igual Recebimento). */
+    /** Máscara desligada — números reais. */
     const APPLY_MASK = false;
+    const DEBUG_MODE = new URLSearchParams(location.search).get("debug") === "1";
 
     /** Máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
     const HOMOLOG_TECH_WEIGHTS = [
@@ -514,11 +599,193 @@
     const HOMOLOG_HOUR_TOTALS = [56, 64];
 
     let allRows = [];
+    let lastRawPayload = [];
+    let lastDebugReport = null;
     let chartUsers = null;
     let chartMarca = null;
     let chartHora = null;
     let lastUserKeys = [];
     let lastPeriodRows = [];
+
+    if (DEBUG_MODE) document.body.classList.add("triagem-debug");
+
+    function rejectReasonTriagem(raw) {
+      if (!raw || typeof raw !== "object") return "payload_invalido";
+      const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
+      if (!dataTriagem) return "sem_data_triagem";
+      const op = YardexDash.resolveOperacao(raw);
+      if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
+      if (REQUIRE_SANKHYA_SUCESSO) {
+        const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+        if (
+          sankhya != null &&
+          String(sankhya).trim() !== "" &&
+          String(sankhya).trim().toLowerCase() !== "sucesso"
+        ) {
+          return `sankhya_${String(sankhya).trim().toLowerCase()}`;
+        }
+      }
+      return null;
+    }
+
+    function countMap(entries) {
+      const m = new Map();
+      entries.forEach((k) => m.set(k, (m.get(k) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    }
+
+    function buildTriagemDebugReport(rawList, mappedRows) {
+      const { start, end } = YardexDash.getDateRange();
+      const hoje = YardexDash.todayISO();
+      const reasons = [];
+      const ops = [];
+      const acceptedRaw = [];
+      rawList.forEach((raw) => {
+        const why = rejectReasonTriagem(raw);
+        ops.push(YardexDash.resolveOperacao(raw) || "(vazia)");
+        if (why) reasons.push(why);
+        else acceptedRaw.push(raw);
+      });
+
+      const mapped = mappedRows || acceptedRaw.map(mapRow).filter((r) => r.data_triagem);
+      const withDupesPeriod = start && end
+        ? YardexDash.filterByDateField(mapped, start, end, DATE_FIELD)
+        : [];
+      const periodDistinct = YardexDash.distinctById(withDupesPeriod, "id");
+      const hojeDupes = YardexDash.filterByDateField(mapped, hoje, hoje, DATE_FIELD);
+      const hojeDistinct = YardexDash.distinctById(hojeDupes, "id");
+
+      const dupIds = (() => {
+        const seen = new Map();
+        withDupesPeriod.forEach((r) => {
+          const id = r.id != null ? String(r.id).trim() : "";
+          if (!id) return;
+          seen.set(id, (seen.get(id) || 0) + 1);
+        });
+        return [...seen.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+      })();
+
+      const byUserPeriod = YardexDash.aggregateCount(periodDistinct, (r) => r.usuario).slice(0, 15);
+      const byUserHoje = YardexDash.aggregateCount(hojeDistinct, (r) => r.usuario).slice(0, 15);
+      const byOp = countMap(ops).slice(0, 12);
+      const byReason = countMap(reasons);
+
+      const sampleOk = periodDistinct.slice(0, 8).map((r) => ({
+        id: r.id,
+        data: r.data_triagem,
+        user: r.usuario,
+        serial: r.serial,
+        modelo: String(r.descricao || "").slice(0, 40)
+      }));
+      const sampleReject = [];
+      for (const raw of rawList) {
+        if (sampleReject.length >= 8) break;
+        const why = rejectReasonTriagem(raw);
+        if (!why) continue;
+        sampleReject.push({
+          id: raw.id ?? null,
+          why,
+          op: YardexDash.resolveOperacao(raw) || "",
+          data: raw["Data Triagem"] || raw.data_triagem || null,
+          sankhya: raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null,
+          user: raw["Usuário triagem"] || raw["Usuário reparo"] || null
+        });
+      }
+
+      return {
+        gerado_em: new Date().toISOString(),
+        api: API_URL,
+        mascara: APPLY_MASK,
+        regras: {
+          fonte: "API_REPARO (webhook/fi)",
+          data: "Data Triagem",
+          operacoes: [...ETAPAS],
+          sankhya: REQUIRE_SANKHYA_SUCESSO
+            ? "se preenchido, só 'sucesso'"
+            : "ignorado (conta sucesso, erro e vazio)",
+          periodo: "filterByDateField(data_triagem)",
+          dedupe: "distinctById(id) — 1 contagem por OS"
+        },
+        periodo: { start, end, hoje },
+        funil: {
+          raw_api: rawList.length,
+          aceitos_raw: acceptedRaw.length,
+          rejeitados_raw: rawList.length - acceptedRaw.length,
+          mapped: mapped.length,
+          periodo_com_duplicatas: withDupesPeriod.length,
+          periodo_kpi_distinct: periodDistinct.length,
+          duplicatas_removidas_periodo: Math.max(0, withDupesPeriod.length - periodDistinct.length),
+          hoje_com_duplicatas: hojeDupes.length,
+          hoje_kpi_distinct: hojeDistinct.length,
+          duplicatas_removidas_hoje: Math.max(0, hojeDupes.length - hojeDistinct.length)
+        },
+        rejeicoes: byReason,
+        operacoes_raw: byOp,
+        top_users_periodo: byUserPeriod,
+        top_users_hoje: byUserHoje,
+        ids_duplicados_periodo: dupIds.slice(0, 20),
+        amostras_ok: sampleOk,
+        amostras_rejeitadas: sampleReject
+      };
+    }
+
+    function renderDebugPanel(report) {
+      if (!DEBUG_MODE || !report) return;
+      lastDebugReport = report;
+      const f = report.funil;
+      document.getElementById("dbgKpis").innerHTML = [
+        ["API raw", f.raw_api],
+        ["Aceitos", f.aceitos_raw],
+        ["Rejeitados", f.rejeitados_raw],
+        ["KPI período", f.periodo_kpi_distinct],
+        ["KPI hoje", f.hoje_kpi_distinct],
+        ["Dups período", f.duplicatas_removidas_periodo],
+        ["Dups hoje", f.duplicatas_removidas_hoje],
+        ["Máscara", report.mascara ? "ON" : "OFF"]
+      ].map(([k, v]) => `<div class="dbg-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+      const lines = [
+        `API: ${report.api}`,
+        `Período: ${report.periodo.start} → ${report.periodo.end} · hoje ${report.periodo.hoje}`,
+        `Regras: Data Triagem + op ∈ {${[...ETAPAS].join(", ")}} + Sankhya ${REQUIRE_SANKHYA_SUCESSO ? "só sucesso" : "IGNORADO"} + distinct por id`,
+        "",
+        "Funil:",
+        `  raw → aceitos: ${f.raw_api} → ${f.aceitos_raw} (rejeitados ${f.rejeitados_raw})`,
+        `  período linhas → KPI: ${f.periodo_com_duplicatas} → ${f.periodo_kpi_distinct} (−${f.duplicatas_removidas_periodo} dups)`,
+        `  hoje linhas → KPI: ${f.hoje_com_duplicatas} → ${f.hoje_kpi_distinct} (−${f.duplicatas_removidas_hoje} dups)`,
+        "",
+        "Rejeições:",
+        ...(report.rejeicoes.length
+          ? report.rejeicoes.map(([k, n]) => `  ${k}: ${n}`)
+          : ["  (nenhuma)"]),
+        "",
+        "Operações no raw (top):",
+        ...report.operacoes_raw.map(([k, n]) => `  ${k}: ${n}`),
+        "",
+        "Se alguém contar ‘todas as linhas’ sem distinct, o número DELE fica maior que o KPI.",
+        `Diferença típica hoje: ${f.hoje_com_duplicatas - f.hoje_kpi_distinct} OS repetidas no payload.`
+      ];
+      document.getElementById("dbgBody").textContent = lines.join("\n");
+
+      const table = (title, rows, cols) => {
+        if (!rows?.length) return `<p><strong>${title}</strong>: —</p>`;
+        return `<p><strong>${title}</strong></p><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? r[0] ?? "")}</td>`).join("")}</tr>`).join("")
+        }</tbody></table>`;
+      };
+
+      // aggregateCount returns [name, count]
+      const userRows = (arr) => arr.map(([usuario, qtd]) => ({ usuario, qtd }));
+      document.getElementById("dbgTables").innerHTML = [
+        table("Top users período (KPI)", userRows(report.top_users_periodo), ["usuario", "qtd"]),
+        table("Top users hoje (KPI)", userRows(report.top_users_hoje), ["usuario", "qtd"]),
+        table("IDs duplicados no período", report.ids_duplicados_periodo.map(([id, qtd]) => ({ id, qtd })), ["id", "qtd"]),
+        table("Amostras OK", report.amostras_ok, ["id", "data", "user", "serial", "modelo"]),
+        table("Amostras rejeitadas", report.amostras_rejeitadas, ["id", "why", "op", "data", "sankhya", "user"])
+      ].join("");
+
+      console.info("[Triagem DEBUG]", report);
+    }
 
     function homologHoursTouched() {
       if (!APPLY_MASK) return 0;
@@ -992,17 +1259,26 @@
 
       YardexDash.markRefresh();
       YardexDash.showStatus(statusEl, `${periodRows.length} aparelho(s) no período.`, false);
+      if (DEBUG_MODE && lastRawPayload.length) {
+        renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
+      }
     }
 
     async function loadData() {
       YardexDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await YardexDash.fetchWebhook(API_URL);
-        allRows = YardexDash.normalizeRows(json)
-          .filter((raw) => YardexDash.passesTriagemRaw(raw, ETAPAS))
+        lastRawPayload = YardexDash.normalizeRows(json);
+        allRows = lastRawPayload
+          .filter((raw) => YardexDash.passesTriagemRaw(raw, ETAPAS, {
+            requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO
+          }))
           .map(mapRow)
           .filter((r) => r.data_triagem);
         renderDashboard();
+        if (DEBUG_MODE) {
+          renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
+        }
         YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
       } catch (err) {
         YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
@@ -1014,6 +1290,9 @@
         chartMarca = destroyChart(chartMarca);
         chartHora = destroyChart(chartHora);
         document.getElementById("alertsList").innerHTML = "";
+        if (DEBUG_MODE) {
+          document.getElementById("dbgBody").textContent = `Erro ao carregar: ${err.message}`;
+        }
       }
     }
 
@@ -1044,6 +1323,25 @@
     }
 
     YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (DEBUG_MODE) {
+      document.getElementById("dbgCopy")?.addEventListener("click", async () => {
+        if (!lastDebugReport) return;
+        const text = JSON.stringify(lastDebugReport, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          document.getElementById("dbgCopy").textContent = "Copiado!";
+          setTimeout(() => { document.getElementById("dbgCopy").textContent = "Copiar relatório"; }, 1500);
+        } catch (_) {
+          console.info(text);
+          alert("Não deu pra copiar — abri no console.");
+        }
+      });
+      document.getElementById("dbgConsole")?.addEventListener("click", () => {
+        console.info("[Triagem DEBUG]", lastDebugReport);
+      });
+      document.getElementById("dbgReload")?.addEventListener("click", () => loadData());
+    }
 
     // Atualiza a máscara da hora atual a cada minuto (+1/técnico a cada 5 min).
     if (APPLY_MASK) {
