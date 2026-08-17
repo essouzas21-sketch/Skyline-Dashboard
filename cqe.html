@@ -1102,7 +1102,7 @@
       </div>
       <div class="gm-panel gm-panel--ranking">
         <h2>Reprovação por técnico</h2>
-        <p class="panel-note">Barras: taxa % · rótulo: reprov / total</p>
+        <p class="panel-note">Usuario A–Z · barras: taxa % · rótulo: reprov / total</p>
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
@@ -1171,6 +1171,43 @@
     let allRows = [];
     let rawById = new Map();
     const charts = {};
+    const reprovAlias = new Map();
+
+    /** TV: técnicos como Usuario A–Z (gestão mantém nomes reais). */
+    function usuarioLetter(index) {
+      let n = index + 1;
+      let s = "";
+      while (n > 0) {
+        n -= 1;
+        s = String.fromCharCode(65 + (n % 26)) + s;
+        n = Math.floor(n / 26);
+      }
+      return s;
+    }
+
+    function buildReprovAlias(names) {
+      reprovAlias.clear();
+      [...new Set(names.filter((n) => n && n !== "—" && n !== "Usuario X"))]
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .forEach((name, i) => {
+          reprovAlias.set(name, `Usuario ${usuarioLetter(i)}`);
+        });
+    }
+
+    function aliasReprov(name) {
+      if (!name || name === "—") return "—";
+      const bucket = YardexDash.bucketCqeUsuarioReprov(name);
+      if (bucket === "Usuario X") return "Usuario X";
+      return reprovAlias.get(bucket) ?? reprovAlias.get(name) ?? "—";
+    }
+
+    function logReprovAliasMap() {
+      if (!reprovAlias.size) return;
+      const lines = [...reprovAlias.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], "pt-BR", { numeric: true }))
+        .map(([real, alias]) => `${real} → ${alias}`);
+      console.info("[CQE TV] Mapa técnicos:\n" + lines.join("\n"));
+    }
 
     const ETAPA_LABELS = {
       qualidade_saldo: "Qualidade saldo",
@@ -1654,7 +1691,16 @@
         if (cur && slice.includes(cur)) el.value = cur;
       };
       fill("fModelo", rows.map((r) => r.modelo));
-      fill("fTecnico", rows.map((r) => r.tecnico));
+      buildReprovAlias(rows.map((r) => YardexDash.bucketCqeUsuarioReprov(r.tecnico)));
+      const techEl = document.getElementById("fTecnico");
+      const techCur = techEl.value;
+      const techNames = [...new Set(rows.map((r) => r.tecnico).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"))
+        .slice(0, 80);
+      techEl.innerHTML = `<option value="">Todos</option>` + techNames.map((v) =>
+        `<option value="${escapeHtml(v)}">${escapeHtml(aliasReprov(v))}</option>`
+      ).join("");
+      if (techCur && techNames.includes(techCur)) techEl.value = techCur;
       fill("fMarca", rows.map((r) => r.marca));
       fill("fTipo", rows.map((r) => r.tipo_reparo));
       fill("fLinha", rows.map((r) => r.linha));
@@ -1683,13 +1729,14 @@
       return rows[0] || null;
     }
 
-    function richTooltipHtml(row, extra = "") {
+    function richTooltipHtml(row, extra = "", opts = {}) {
       if (!row) return `<div>Sem registro</div>`;
       const foto = row.raw?.foto || row.raw?.Foto || row.raw?.url_foto;
+      const tecnico = opts.anonTecnico === false ? row.tecnico : aliasReprov(row.tecnico);
       return `
         <div><strong>IMEI:</strong> ${escapeHtml(row.serial)}</div>
         <div><strong>OS (NR):</strong> ${escapeHtml(row.nr)} · HU ${escapeHtml(row.hu)}</div>
-        <div><strong>Técnico:</strong> ${escapeHtml(row.tecnico)}</div>
+        <div><strong>Técnico:</strong> ${escapeHtml(tecnico)}</div>
         <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
         <div><strong>Modelo:</strong> ${escapeHtml(row.modelo_curto)}</div>
         <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? YardexDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
@@ -1700,7 +1747,7 @@
       `;
     }
 
-    function bindRichTooltip(canvas, matchFn) {
+    function bindRichTooltip(canvas, matchFn, opts = {}) {
       canvas.onmousemove = (ev) => {
         const chart = Chart.getChart(canvas);
         if (!chart) return;
@@ -1711,7 +1758,11 @@
         }
         const idx = pts[0].index;
         const rows = matchFn(idx, chart);
-        tooltipEl.innerHTML = richTooltipHtml(sampleForTooltip(rows), rows.length > 1 ? `${rows.length} registro(s)` : "");
+        tooltipEl.innerHTML = richTooltipHtml(
+          sampleForTooltip(rows),
+          rows.length > 1 ? `${rows.length} registro(s)` : "",
+          opts
+        );
         tooltipEl.style.display = "block";
         tooltipEl.style.left = `${Math.min(ev.clientX + 12, window.innerWidth - 340)}px`;
         tooltipEl.style.top = `${Math.min(ev.clientY + 12, window.innerHeight - 200)}px`;
@@ -1719,7 +1770,7 @@
       canvas.onmouseleave = () => { tooltipEl.style.display = "none"; };
     }
 
-    function openDrill(title, rows) {
+    function openDrill(title, rows, opts = {}) {
       document.getElementById("drillTitle").textContent = title;
       const tbody = document.getElementById("drillBody");
       if (!rows.length) {
@@ -1730,7 +1781,7 @@
             <td>${escapeHtml(r.serial)}</td>
             <td>${escapeHtml(r.nr)}</td>
             <td>${escapeHtml(r.modelo_curto)}</td>
-            <td>${escapeHtml(r.tecnico)}</td>
+            <td>${escapeHtml(opts.anonTecnico === false ? r.tecnico : aliasReprov(r.tecnico))}</td>
             <td>${escapeHtml(r.usuario)}</td>
             <td>${escapeHtml(r.decisao)}</td>
             <td class="col-motivo">${escapeHtml(r.motivo)}</td>
@@ -1965,15 +2016,20 @@
       });
 
       const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered)
-        .filter((x) => x.reprov > 0)
-        .slice(0, 5);
+      const rankingAll = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
+      buildReprovAlias([
+        ...reprovContaveis.map((r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final)),
+        ...rankingAll.map((x) => x.nome),
+        ...metrics.filtered.map((r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final || r.tecnico))
+      ]);
+      logReprovAliasMap();
+      const ranking = rankingAll.filter((x) => x.reprov > 0).slice(0, 5);
       destroyChart("ranking");
       if (ranking.length) {
         charts.ranking = new Chart(document.getElementById("chartRanking"), {
           type: "bar",
           data: {
-            labels: ranking.map((x) => x.nome),
+            labels: ranking.map((x) => aliasReprov(x.nome)),
             datasets: [{
               label: "Taxa reprovação %",
               data: ranking.map((x) => x.pct),
@@ -2024,7 +2080,7 @@
               if (!elems.length) return;
               const nome = ranking[elems[0].index].nome;
               openDrill(
-                `${nome} — reprovações`,
+                `${aliasReprov(nome)} — reprovações`,
                 reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
               );
             }
