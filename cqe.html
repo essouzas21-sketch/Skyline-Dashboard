@@ -452,10 +452,10 @@
       white-space: nowrap;
     }
 
-    /* ── Zona 3: 3 gráficos na mesma linha ── */
+    /* ── Zona 3: 4 gráficos na mesma linha ── */
     .gm-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: minmax(0, 1fr);
       gap: var(--gm-gap);
       flex: 1 1 0;
@@ -482,6 +482,10 @@
 
     .gm-panel--motivos {
       border-top: 3px solid var(--gm-red);
+    }
+
+    .gm-panel--ranking {
+      border-top: 3px solid var(--gm-amber);
     }
 
     .gm-panel h2 {
@@ -1095,6 +1099,11 @@
         <div class="motivos-funnel" id="motivosFunnel" hidden></div>
         <div class="motivos-empty" id="motivosEmpty" hidden>Sem reprovações no período</div>
         <div class="chart-box" id="motivosChartBox"><canvas id="chartMotivos"></canvas></div>
+      </div>
+      <div class="gm-panel gm-panel--ranking">
+        <h2>Reprovação por técnico</h2>
+        <p class="panel-note">Barras: taxa % · rótulo: reprov / total</p>
+        <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
         <h2>Reprovações por marca</h2>
@@ -1872,6 +1881,16 @@
         grace: "12%",
         ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 }
       };
+      const xPctScale = {
+        min: 0,
+        max: 100,
+        grace: "8%",
+        ticks: {
+          ...tickSmall,
+          callback: (v) => `${v}%`,
+          maxTicksLimit: 6
+        }
+      };
 
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
@@ -1944,6 +1963,79 @@
         yBarScale,
         xCountScale
       });
+
+      const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const ranking = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered)
+        .filter((x) => x.reprov > 0)
+        .slice(0, 5);
+      destroyChart("ranking");
+      if (ranking.length) {
+        charts.ranking = new Chart(document.getElementById("chartRanking"), {
+          type: "bar",
+          data: {
+            labels: ranking.map((x) => x.nome),
+            datasets: [{
+              label: "Taxa reprovação %",
+              data: ranking.map((x) => x.pct),
+              backgroundColor: SKY.red,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                labels: {
+                  pct: {
+                    clip: false,
+                    anchor: "center",
+                    align: "center",
+                    offset: 0,
+                    color: "#ffffff",
+                    font: { weight: "700", size: 10 },
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
+                  },
+                  qtd: {
+                    ...dataLabelBase,
+                    color: SKY.red,
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (_v, ctx) => {
+                      const row = ranking[ctx.dataIndex];
+                      return row ? `${row.reprov}/${row.total}` : "";
+                    }
+                  }
+                }
+              }
+            },
+            elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
+            scales: {
+              x: {
+                ...xPctScale,
+                title: { display: false }
+              },
+              y: yBarScale(ranking.length)
+            },
+            onClick: (_, elems) => {
+              if (!elems.length) return;
+              const nome = ranking[elems[0].index].nome;
+              openDrill(
+                `${nome} — reprovações`,
+                reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
+              );
+            }
+          }
+        });
+        bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
+          reprovContaveis.filter((r) =>
+            YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
+          )
+        );
+      }
 
       const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
       destroyChart("marca");
