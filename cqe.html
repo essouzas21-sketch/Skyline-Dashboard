@@ -764,19 +764,6 @@
       display: none;
     }
 
-    .gm-panel--motivos .motivos-empty {
-      display: flex;
-      flex: 1 1 0;
-      min-height: 72px;
-      align-items: center;
-      justify-content: center;
-      color: var(--gm-muted);
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-align: center;
-      padding: 8px;
-    }
-
     .motivos-funnel-step {
       clip-path: none;
       border-radius: 6px;
@@ -1097,7 +1084,6 @@
         <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
         <p class="panel-note">Barras: quantidade por motivo</p>
         <div class="motivos-funnel" id="motivosFunnel" hidden></div>
-        <div class="motivos-empty" id="motivosEmpty" hidden>Sem reprovações no período</div>
         <div class="chart-box" id="motivosChartBox"><canvas id="chartMotivos"></canvas></div>
       </div>
       <div class="gm-panel gm-panel--ranking">
@@ -1824,7 +1810,6 @@
 
     function renderMotivosBars(reprovados, chartOpts) {
       const title = document.getElementById("motivosFunnelTitle");
-      const emptyEl = document.getElementById("motivosEmpty");
       const chartBox = document.getElementById("motivosChartBox");
       const motivosAll = YardexDash.aggregateCount(
         reprovados,
@@ -1842,11 +1827,9 @@
       if (!motivos.length) {
         title.textContent = "Motivos de reprovação";
         destroyChart("motivos");
-        if (emptyEl) emptyEl.hidden = false;
-        if (chartBox) chartBox.hidden = true;
+        if (chartBox) chartBox.hidden = false;
         return;
       }
-      if (emptyEl) emptyEl.hidden = true;
       if (chartBox) chartBox.hidden = false;
       title.textContent = `Motivos de reprovação (${motivosAll.length})`;
 
