@@ -127,6 +127,38 @@
       flex-wrap: wrap;
     }
 
+    .filters-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 4px;
+      min-width: 160px;
+    }
+
+    .filter-field label {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .filter-field select {
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
+
     .back {
       color: var(--muted);
       text-decoration: none;
@@ -374,6 +406,21 @@
       </div>
     </div>
 
+    <div class="filters-row">
+      <div class="filter-field">
+        <label for="filterMarca">Marca</label>
+        <select id="filterMarca">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filterQualidade">Qualidade</label>
+        <select id="filterQualidade">
+          <option value="">Todas</option>
+        </select>
+      </div>
+    </div>
+
     <div class="status" id="statusMsg">Carregando…</div>
 
     <section class="hero-stats">
@@ -468,23 +515,41 @@
       el.classList.toggle("err", Boolean(isError));
     }
 
+    function fillSelect(id, values) {
+      const el = document.getElementById(id);
+      const cur = el.value;
+      const sorted = [...new Set(values.filter((v) => v && v !== "—"))]
+        .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+      el.innerHTML = `<option value="">Todas</option>` + sorted.map((v) =>
+        `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`
+      ).join("");
+      if (cur && sorted.includes(cur)) el.value = cur;
+    }
+
+    function fillFilterOptions() {
+      fillSelect("filterMarca", allRows.map((r) => r.marca));
+      fillSelect("filterQualidade", allRows.map((r) => r.qualidade));
+    }
+
     function applyFilter() {
       const q = String(document.getElementById("filterSearch").value || "")
         .trim()
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
-      if (!q) {
-        viewRows = allRows.slice();
-      } else {
-        viewRows = allRows.filter((r) => {
-          const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
-          return blob.includes(q);
-        });
-      }
+      const marca = document.getElementById("filterMarca").value;
+      const qualidade = document.getElementById("filterQualidade").value;
+
+      viewRows = allRows.filter((r) => {
+        if (marca && r.marca !== marca) return false;
+        if (qualidade && r.qualidade !== qualidade) return false;
+        if (!q) return true;
+        const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        return blob.includes(q);
+      });
       renderTable();
     }
 
@@ -625,12 +690,14 @@
           );
         document.getElementById("metaStamp").textContent =
           `${allRows.length} item(ns) · atualizado ${new Date().toLocaleString("pt-BR")}`;
+        fillFilterOptions();
         applyFilter();
         setStatus(`${allRows.length} item(ns) carregado(s).`);
         YardexDash.markRefresh?.();
       } catch (err) {
         allRows = [];
         viewRows = [];
+        fillFilterOptions();
         renderTable();
         setStatus(`Erro: ${err.message}`, true);
         document.getElementById("tableBody").innerHTML =
@@ -644,6 +711,8 @@
     document.getElementById("btnReload").addEventListener("click", loadData);
     document.getElementById("btnExcel").addEventListener("click", downloadExcel);
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
+    document.getElementById("filterMarca").addEventListener("change", applyFilter);
+    document.getElementById("filterQualidade").addEventListener("change", applyFilter);
 
     loadData();
   </script>
