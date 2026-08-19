@@ -415,7 +415,7 @@
     <div class="brand">
       <img
         class="brand-logo"
-        src="assets/skyline-logo-wordmark.png"
+        src="assets/skyline-logo-wordmark.jpg"
         alt="Skyline mobile"
         width="108"
         height="34"
@@ -490,7 +490,7 @@
 
     <section class="card">
       <div class="sheet-brand">
-        <img src="assets/skyline-logo-wordmark.png" alt="Skyline mobile" width="120" height="38" />
+        <img src="assets/skyline-logo-wordmark.jpg" alt="Skyline mobile" width="120" height="38" />
       </div>
       <div class="table-wrap">
         <table>
@@ -659,183 +659,111 @@
         .replace(/"/g, "&quot;");
     }
 
-    function excelCellText(value, styleId) {
-      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
-      return `<Cell${style}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+    const LOGO_JPG = "assets/skyline-logo-wordmark.jpg";
+    let logoDataUri = "";
+
+    async function ensureLogoDataUri() {
+      if (logoDataUri) return logoDataUri;
+      const url = new URL(LOGO_JPG, window.location.href).href;
+      const res = await fetch(url, { cache: "force-cache" });
+      if (!res.ok) throw new Error(`Logo HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      logoDataUri = `data:image/jpeg;base64,${btoa(binary)}`;
+      return logoDataUri;
     }
 
-    function excelCellNumber(value, styleId) {
-      if (value == null || !Number.isFinite(value)) {
-        return excelCellText("", styleId);
-      }
-      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
-      return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
-    }
-
-    function gradeExcelStyle(qualidade) {
+    function gradeHtmlClass(qualidade) {
       const cls = gradeClass(qualidade);
-      if (cls === "grade-a") return "GradeA";
-      if (cls === "grade-b") return "GradeB";
-      if (cls === "grade-outlet") return "GradeOutlet";
-      return "Body";
+      if (cls === "grade-a") return "grade-a";
+      if (cls === "grade-b") return "grade-b";
+      if (cls === "grade-outlet") return "grade-outlet";
+      return "";
     }
 
-    function downloadExcel() {
+    async function downloadExcel() {
       const rows = viewRows.length ? viewRows : allRows;
       if (!rows.length) {
         alert("Nenhum item para exportar.");
         return;
       }
 
-      const header = [
-        "SKU",
-        "Descrição",
-        "Marca",
-        "Qualidade",
-        "Valor do produto"
-      ].map((h) => excelCellText(h, "Header")).join("");
+      let logoSrc = "";
+      try {
+        logoSrc = await ensureLogoDataUri();
+      } catch (err) {
+        console.warn("Logo no Excel:", err);
+        logoSrc = new URL(LOGO_JPG, window.location.href).href;
+      }
 
       const body = rows.map((r) => {
-        const gStyle = gradeExcelStyle(r.qualidade);
-        const cells = [
-          excelCellText(r.sku, "BodyLeft"),
-          excelCellText(r.descricao, "BodyLeft"),
-          excelCellText(r.marca, "Body"),
-          excelCellText(r.qualidade, gStyle),
-          excelCellNumber(r.valor, "Money")
-        ].join("");
-        return `<Row>${cells}</Row>`;
+        const g = gradeHtmlClass(r.qualidade);
+        const valor = r.valor == null || !Number.isFinite(r.valor)
+          ? ""
+          : Number(r.valor).toFixed(2);
+        return `<tr>
+          <td class="left">${escapeHtml(r.sku)}</td>
+          <td class="left">${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.marca)}</td>
+          <td class="${g}">${escapeHtml(r.qualidade)}</td>
+          <td class="money">${escapeHtml(valor)}</td>
+        </tr>`;
       }).join("");
 
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `lista-precos-${stamp}.xls`;
 
-      /* Layout do cabeçalho (logo + faixa) — textos da legenda omitidos de propósito. */
-      const xml = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
  xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Title>Lista de Preços</Title>
-  <Author>Skyline Mission Control</Author>
- </DocumentProperties>
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Vertical="Center"/>
-   <Font ss:FontName="Calibri" ss:Size="11"/>
-  </Style>
-  <Style ss:ID="Brand">
-   <Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#4B2E83"/>
-   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
-  </Style>
-  <Style ss:ID="TopBar">
-   <Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#4B2E83" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="Header">
-   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#4B2E83" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="Body">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="BodyLeft">
-   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="Money">
-   <NumberFormat ss:Format="R$ #,##0.00"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Font ss:Bold="1" ss:Color="#4B2E83"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="GradeA">
-   <Font ss:Bold="1" ss:Color="#1F7A1F"/>
-   <Interior ss:Color="#D9F2D0" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="GradeB">
-   <Font ss:Bold="1" ss:Color="#1F4F9A"/>
-   <Interior ss:Color="#D6E8FB" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="GradeOutlet">
-   <Font ss:Bold="1" ss:Color="#C45A12"/>
-   <Interior ss:Color="#FDE7C7" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
-   </Borders>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Lista de Precos">
-  <Table>
-   <Column ss:Width="150"/>
-   <Column ss:Width="260"/>
-   <Column ss:Width="90"/>
-   <Column ss:Width="110"/>
-   <Column ss:Width="110"/>
-   <Row ss:Height="28">
-    <Cell ss:MergeAcross="4" ss:StyleID="Brand"><Data ss:Type="String">Skyline mobile</Data></Cell>
-   </Row>
-   <Row ss:Height="10">
-    <Cell ss:MergeAcross="4" ss:StyleID="TopBar"><Data ss:Type="String"></Data></Cell>
-   </Row>
-   <Row ss:Height="28" ss:StyleID="Header">${header}</Row>
-   ${body}
-  </Table>
- </Worksheet>
-</Workbook>`;
+ xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8" />
+<!--[if gte mso 9]><xml>
+ <x:ExcelWorkbook>
+  <x:ExcelWorksheets>
+   <x:ExcelWorksheet>
+    <x:Name>Lista de Precos</x:Name>
+    <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+   </x:ExcelWorksheet>
+  </x:ExcelWorksheets>
+ </x:ExcelWorkbook>
+</xml><![endif]-->
+<style>
+  table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+  td, th { border: 1px solid #D9D2E8; padding: 6px 8px; vertical-align: middle; text-align: center; }
+  th { background: #4B2E83; color: #FFFFFF; font-weight: 800; text-transform: uppercase; }
+  td.left { text-align: left; }
+  td.money { font-weight: 700; color: #4B2E83; mso-number-format:'R$ '#,##0.00'; }
+  td.grade-a { background: #D9F2D0; color: #1F7A1F; font-weight: 800; }
+  td.grade-b { background: #D6E8FB; color: #1F4F9A; font-weight: 800; }
+  td.grade-outlet { background: #FDE7C7; color: #C45A12; font-weight: 800; }
+  .logo-row td { border: none; text-align: left; padding: 8px 0 12px; }
+  .bar-row td { border: none; background: #4B2E83; height: 8px; font-size: 1px; }
+</style>
+</head>
+<body>
+<table>
+  <tr class="logo-row">
+    <td colspan="5">
+      <img src="${logoSrc}" width="171" height="54" alt="Skyline mobile" />
+    </td>
+  </tr>
+  <tr class="bar-row"><td colspan="5">&nbsp;</td></tr>
+  <tr>
+    <th>SKU</th>
+    <th>Descrição</th>
+    <th>Marca</th>
+    <th>Qualidade</th>
+    <th>Valor do produto</th>
+  </tr>
+  ${body}
+</table>
+</body>
+</html>`;
 
-      const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -882,11 +810,16 @@
     }
 
     document.getElementById("btnReload").addEventListener("click", loadData);
-    document.getElementById("btnExcel").addEventListener("click", downloadExcel);
+    document.getElementById("btnExcel").addEventListener("click", () => {
+      downloadExcel().catch((err) => {
+        console.error(err);
+        alert(`Falha ao exportar Excel: ${err.message || err}`);
+      });
+    });
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
     document.getElementById("filterMarca").addEventListener("change", applyFilter);
     document.getElementById("filterQualidade").addEventListener("change", applyFilter);
-
+    ensureLogoDataUri().catch(() => {});
     loadData();
   </script>
 </body>
