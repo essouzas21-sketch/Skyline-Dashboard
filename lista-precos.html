@@ -496,16 +496,15 @@
         <table>
           <thead>
             <tr>
-              <th>Código / IMEI</th>
+              <th>SKU</th>
+              <th>Descrição</th>
               <th>Marca</th>
-              <th>Descrição do modelo</th>
-              <th>Grade</th>
-              <th>Qtd</th>
-              <th>Valor atacado</th>
+              <th>Qualidade</th>
+              <th>Valor do produto</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="6" class="loading">Carregando lista…</td></tr>
+            <tr><td colspan="5" class="loading">Carregando lista…</td></tr>
           </tbody>
         </table>
       </div>
@@ -552,15 +551,12 @@
 
     function mapRow(raw) {
       const valor = parseMoney(raw["Preco Tabela 1"] ?? raw.preco_tabela_1 ?? raw.PrecoTabela1);
-      const qtdRaw = raw.Saldo_Principal ?? raw.saldo_principal ?? raw.QTD ?? raw.qtd;
-      const qtdNum = Number(qtdRaw);
       return {
         sku: String(raw.SKU ?? raw.sku ?? "").trim(),
         descricao: shortDescricao(raw.Produto ?? raw.produto ?? raw.descricao),
         produtoFull: String(raw.Produto ?? raw.produto ?? "").trim(),
         marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
         qualidade: String(raw.Qualidade ?? raw.qualidade ?? "").trim() || "—",
-        qtd: Number.isFinite(qtdNum) ? qtdNum : null,
         valor
       };
     }
@@ -637,7 +633,7 @@
       const tbody = document.getElementById("tableBody");
       renderKpis();
       if (!viewRows.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty">${
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">${
           allRows.length ? "Nenhum item no filtro." : "Sem itens na lista de preços."
         }</td></tr>`;
         return;
@@ -647,10 +643,9 @@
         return `
         <tr>
           <td class="sku">${escapeHtml(r.sku || "—")}</td>
-          <td>${escapeHtml(r.marca)}</td>
           <td class="desc">${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.marca)}</td>
           <td class="${gClass}">${escapeHtml(r.qualidade)}</td>
-          <td class="qtd">${r.qtd == null ? "—" : escapeHtml(String(r.qtd))}</td>
           <td class="money">${escapeHtml(formatMoney(r.valor))}</td>
         </tr>`;
       }).join("");
@@ -693,22 +688,20 @@
       }
 
       const header = [
-        "CÓDIGO / IMEI",
-        "MARCA",
-        "DESCRIÇÃO DO MODELO",
-        "GRADE",
-        "QTD",
-        "VALOR ATACADO"
+        "SKU",
+        "Descrição",
+        "Marca",
+        "Qualidade",
+        "Valor do produto"
       ].map((h) => excelCellText(h, "Header")).join("");
 
       const body = rows.map((r) => {
         const gStyle = gradeExcelStyle(r.qualidade);
         const cells = [
           excelCellText(r.sku, "BodyLeft"),
-          excelCellText(r.marca, "Body"),
           excelCellText(r.descricao, "BodyLeft"),
+          excelCellText(r.marca, "Body"),
           excelCellText(r.qualidade, gStyle),
-          excelCellNumber(r.qtd, "Body"),
           excelCellNumber(r.valor, "Money")
         ].join("");
         return `<Row>${cells}</Row>`;
@@ -826,16 +819,15 @@
  <Worksheet ss:Name="Lista de Precos">
   <Table>
    <Column ss:Width="150"/>
-   <Column ss:Width="90"/>
    <Column ss:Width="260"/>
+   <Column ss:Width="90"/>
    <Column ss:Width="110"/>
-   <Column ss:Width="60"/>
    <Column ss:Width="110"/>
    <Row ss:Height="28">
-    <Cell ss:MergeAcross="5" ss:StyleID="Brand"><Data ss:Type="String">Skyline mobile</Data></Cell>
+    <Cell ss:MergeAcross="4" ss:StyleID="Brand"><Data ss:Type="String">Skyline mobile</Data></Cell>
    </Row>
    <Row ss:Height="10">
-    <Cell ss:MergeAcross="5" ss:StyleID="TopBar"><Data ss:Type="String"></Data></Cell>
+    <Cell ss:MergeAcross="4" ss:StyleID="TopBar"><Data ss:Type="String"></Data></Cell>
    </Row>
    <Row ss:Height="28" ss:StyleID="Header">${header}</Row>
    ${body}
@@ -882,7 +874,7 @@
         renderTable();
         setStatus(`Erro: ${err.message}`, true);
         document.getElementById("tableBody").innerHTML =
-          `<tr><td colspan="6" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+          `<tr><td colspan="5" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
       } finally {
         document.getElementById("btnReload").disabled = false;
         document.getElementById("btnExcel").disabled = false;
