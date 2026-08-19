@@ -376,6 +376,12 @@
       font-weight: 800;
     }
 
+    td.grade-bom {
+      background: #ebe4f7;
+      color: #5b3d8f;
+      font-weight: 800;
+    }
+
     td.grade-outlet {
       background: #fde7c7;
       color: #c45a12;
@@ -415,18 +421,11 @@
       position: static;
     }
 
-    .legend-table td.cat {
-      text-align: center;
-      font-weight: 800;
-      white-space: nowrap;
-      width: 140px;
-    }
-
     .legend-table td.grade {
       text-align: center;
       font-weight: 800;
       white-space: nowrap;
-      width: 160px;
+      width: 140px;
     }
 
     .legend-table td.note {
@@ -547,7 +546,6 @@
         <table class="legend-table" id="gradeLegendTable">
           <thead>
             <tr>
-              <th>Categoria</th>
               <th>Grade</th>
               <th>Condição estética</th>
               <th>Condição funcional</th>
@@ -580,25 +578,28 @@
     let allRows = [];
     let viewRows = [];
 
-    /** Legenda de grades — texto provisório da referência (atualiza quando mandar o definitivo). */
+    /** Legenda de grades — textos de condição provisórios (atualiza quando mandar o definitivo). */
     const GRADE_LEGEND = [
       {
-        categoria: "Skyline Premium",
-        grade: "Grade A (Excelente)",
+        grade: "Excelente",
         gradeStyle: "grade-a",
         estetica: "Aparelho impecável, totalmente sem avarias ou marcas estéticas.",
         funcional: "100% testado e funcional, pronto para uso imediato."
       },
       {
-        categoria: "Skyline Premium",
-        grade: "Grade B (Muito Bom)",
+        grade: "Muito Bom",
         gradeStyle: "grade-b",
         estetica: "Pode conter detalhes estéticos leves (como arranhões superficiais ou pequenos amassados).",
         funcional: "100% funcional. Todos os recursos operam perfeitamente."
       },
       {
-        categoria: "Skyline Outlet",
-        grade: "Skyline Outlet",
+        grade: "Bom",
+        gradeStyle: "grade-bom",
+        estetica: "Pode apresentar marcas de uso visíveis, arranhões ou pequenos amassados.",
+        funcional: "100% funcional. Todos os recursos operam normalmente."
+      },
+      {
+        grade: "Outlet",
         gradeStyle: "grade-outlet",
         estetica: "Pode possuir marcas de uso mais evidentes, leves avarias ou pequenas manchas no display.",
         funcional: "Preço super reduzido. Pode possuir alguma função inoperante (como desbloqueio por reconhecimento facial ou leitor digital)."
@@ -610,7 +611,6 @@
       if (!tbody) return;
       tbody.innerHTML = GRADE_LEGEND.map((r) => `
         <tr>
-          <td class="cat">${escapeHtml(r.categoria)}</td>
           <td class="grade ${r.gradeStyle}">${escapeHtml(r.grade)}</td>
           <td class="note">${escapeHtml(r.estetica)}</td>
           <td class="note">${escapeHtml(r.funcional)}</td>
@@ -671,12 +671,9 @@
         .replace(/[\u0300-\u036f]/g, "");
       if (!k || k === "—") return "";
       if (k.includes("outlet")) return "grade-outlet";
-      if (k.includes("excelente") || /(^|\s)a(\s|$)/.test(k) || k.includes("premium a") || k.includes("grade a")) {
-        return "grade-a";
-      }
-      if (k.includes("muito bom") || /(^|\s)b(\s|$)/.test(k) || k.includes("premium b") || k.includes("grade b")) {
-        return "grade-b";
-      }
+      if (k.includes("excelente") || k.includes("grade a") || k.includes("premium a")) return "grade-a";
+      if (k.includes("muito bom") || k.includes("grade b") || k.includes("premium b")) return "grade-b";
+      if (k === "bom" || k.includes("grade c") || /(^|\s)bom(\s|$)/.test(k)) return "grade-bom";
       return "";
     }
 
@@ -778,28 +775,29 @@
       const cls = gradeClass(qualidade);
       if (cls === "grade-a") return "GradeA";
       if (cls === "grade-b") return "GradeB";
+      if (cls === "grade-bom") return "GradeBom";
       if (cls === "grade-outlet") return "GradeOutlet";
       return "Body";
     }
 
     function legendExcelRows() {
       const head = [
-        excelCellText("CATEGORIA", "Header"),
         excelCellText("GRADE", "Header"),
         `<Cell ss:MergeAcross="1" ss:StyleID="Header"><Data ss:Type="String">CONDIÇÃO ESTÉTICA</Data></Cell>`,
-        excelCellText("CONDIÇÃO FUNCIONAL", "Header")
+        `<Cell ss:MergeAcross="1" ss:StyleID="Header"><Data ss:Type="String">CONDIÇÃO FUNCIONAL</Data></Cell>`
       ].join("");
       const rows = GRADE_LEGEND.map((r) => {
         const gStyle = r.gradeStyle === "grade-a"
           ? "GradeA"
           : r.gradeStyle === "grade-b"
             ? "GradeB"
-            : "GradeOutlet";
+            : r.gradeStyle === "grade-bom"
+              ? "GradeBom"
+              : "GradeOutlet";
         return `<Row ss:Height="42">${[
-          excelCellText(r.categoria, "BodyBold"),
           excelCellText(r.grade, gStyle),
           `<Cell ss:MergeAcross="1" ss:StyleID="BodyLeft"><Data ss:Type="String">${xmlEscape(r.estetica)}</Data></Cell>`,
-          excelCellText(r.funcional, "BodyLeft")
+          `<Cell ss:MergeAcross="1" ss:StyleID="BodyLeft"><Data ss:Type="String">${xmlEscape(r.funcional)}</Data></Cell>`
         ].join("")}</Row>`;
       }).join("");
       return `<Row ss:Height="26">${head}</Row>${rows}`;
@@ -930,6 +928,17 @@
   <Style ss:ID="GradeB">
    <Font ss:Bold="1" ss:Color="#1F4F9A"/>
    <Interior ss:Color="#D6E8FB" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="GradeBom">
+   <Font ss:Bold="1" ss:Color="#5B3D8F"/>
+   <Interior ss:Color="#EBE4F7" ss:Pattern="Solid"/>
    <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
