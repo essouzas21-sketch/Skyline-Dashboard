@@ -197,6 +197,8 @@ const YardexDash = {
 
   /** Etapas/operações consideradas na triagem e gestão de peças. */
   ETAPAS_OPERACAO: new Set(["reparo", "gestao_pecas"]),
+  /** Triagem completa (espelha triagem.html): reparo + gestão peças + limpeza. */
+  ETAPAS_TRIAGEM: new Set(["reparo", "gestao_pecas", "limpeza"]),
 
   resolveOperacao(raw) {
     if (!raw || typeof raw !== "object") return "";
@@ -255,13 +257,13 @@ const YardexDash = {
     );
   },
 
-  /** Triagem: Data Triagem + operação; Sankhya opcional (por padrão exige sucesso se preenchido). */
-  passesTriagemRaw(raw, etapas = this.ETAPAS_OPERACAO, opts = {}) {
+  /** Triagem: Data Triagem + operação; Sankhya opcional (triagem.html: requireSankhyaSucesso=false). */
+  passesTriagemRaw(raw, etapas = this.ETAPAS_TRIAGEM, opts = {}) {
     if (!raw || typeof raw !== "object") return false;
     const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
     if (!dataTriagem) return false;
     if (!etapas.has(this.resolveOperacao(raw))) return false;
-    const requireSankhyaSucesso = opts.requireSankhyaSucesso !== false;
+    const requireSankhyaSucesso = opts.requireSankhyaSucesso === true;
     if (requireSankhyaSucesso) {
       const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
       if (

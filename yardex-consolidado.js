@@ -11,7 +11,8 @@
  */
 const ConsolidadoDash = {
   GRUPO_FILTRO: "6151",
-  ETAPAS_TRIAGEM: YardexDash.ETAPAS_OPERACAO,
+  /** Espelha triagem.html (reparo + gestão peças + limpeza). */
+  ETAPAS_TRIAGEM: YardexDash.ETAPAS_TRIAGEM,
   ETAPAS_GESTAO: YardexDash.ETAPAS_OPERACAO,
 
   mapRecebimento(raw) {
@@ -49,7 +50,9 @@ const ConsolidadoDash = {
 
   loadTriagemRows(json) {
     return YardexDash.normalizeRows(json)
-      .filter((raw) => YardexDash.passesTriagemRaw(raw, this.ETAPAS_TRIAGEM))
+      .filter((raw) => YardexDash.passesTriagemRaw(raw, this.ETAPAS_TRIAGEM, {
+        requireSankhyaSucesso: false
+      }))
       .map((raw) => this.mapTriagem(raw));
   },
 
