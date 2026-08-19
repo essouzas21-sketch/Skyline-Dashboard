@@ -7,59 +7,59 @@ const ProducaoGestao = {
     1: {
       id: "p1",
       title: "Produção 1",
-      subtitle: "Karoline · Renato · Thais",
+      subtitle: "Karoline · Thais · Renato",
       users: [
         { match: "Karoline", label: "Karoline" },
-        { match: "Renato", label: "Renato" },
-        { match: "thais", label: "Thais" }
+        { match: "thais", label: "Thais" },
+        { match: "Renato", label: "Renato" }
       ]
     },
     2: {
       id: "p2",
       title: "Produção 2",
-      subtitle: "Rafael · Vinicius · Andre",
+      subtitle: "André · Rafael · Vidal",
       users: [
+        { match: "Andre Guilherme", label: "André" },
         { match: "Rafael", label: "Rafael" },
-        { match: "Vinicius", label: "Vinicius" },
-        { match: "Andre", label: "Andre" }
+        { match: "Vidal", label: "Vidal" }
       ]
     },
     3: {
       id: "p3",
       title: "Produção 3",
-      subtitle: "Fernanda · Keithman · Jorge",
+      subtitle: "Jorge · Keytman · Fernanda",
       users: [
-        { match: "fernanda", label: "Fernanda" },
-        { match: "keytman", label: "Keithman" },
-        { match: "Jorge", label: "Jorge" }
+        { match: "Jorge", label: "Jorge" },
+        { match: "keytman", label: "Keytman" },
+        { match: "fernanda", label: "Fernanda" }
       ]
     },
     4: {
       id: "p4",
       title: "Produção 4",
-      subtitle: "Fran · Diego · Noemi",
+      subtitle: "Fran · Noemi · Diego",
       users: [
         { match: "fran dias", label: "Fran" },
-        { match: "Diego", label: "Diego" },
-        { match: "noemi", label: "Noemi" }
+        { match: "noemi", label: "Noemi" },
+        { match: "Diego", label: "Diego" }
       ]
     },
     5: {
       id: "p5",
       title: "Produção 5",
-      subtitle: "Claudia · Marcos · Vidal",
+      subtitle: "Vinicius · Hewerton · Claudia",
       users: [
-        { match: "claudia", label: "Claudia" },
-        { match: "Marcos", label: "Marcos" },
-        { match: "Vidal", label: "Vidal" }
+        { match: "Vinicius", label: "Vinicius" },
+        { match: "Heverton", label: "Hewerton" },
+        { match: "claudia", label: "Claudia" }
       ]
     },
     6: {
       id: "p6",
       title: "Produção 6",
-      subtitle: "Heverton · Almir · Kauan",
+      subtitle: "Marcos · Almir · Kauan",
       users: [
-        { match: "Heverton", label: "Heverton" },
+        { match: "Marcos Silva", label: "Marcos" },
         { match: "Almir", label: "Almir" },
         { match: "Kauan", label: "Kauan" }
       ]
