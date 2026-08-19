@@ -291,8 +291,22 @@
       flex: 1;
       min-height: 360px;
       max-height: calc(100vh - 280px);
-      border: 1px solid var(--line);
-      border-radius: 12px;
+      border: 1px solid #d9d2e8;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .sheet-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 4px 14px;
+    }
+
+    .sheet-brand img {
+      height: 36px;
+      width: auto;
+      display: block;
     }
 
     table {
@@ -302,44 +316,80 @@
     }
 
     th, td {
-      text-align: left;
+      text-align: center;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
+      border: 1px solid #d9d2e8;
+      vertical-align: middle;
     }
 
     th {
       position: sticky;
       top: 0;
       z-index: 1;
-      background: var(--panel-2);
-      color: var(--muted);
-      font-size: 0.64rem;
-      letter-spacing: 0.08em;
+      background: #4b2e83;
+      color: #ffffff;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
+      font-weight: 800;
       white-space: nowrap;
+    }
+
+    td {
+      background: #ffffff;
+      color: #2b2438;
     }
 
     td.sku {
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.02em;
       white-space: nowrap;
+      text-align: left;
+    }
+
+    td.desc {
+      text-align: left;
+      font-weight: 600;
     }
 
     td.money {
       font-variant-numeric: tabular-nums;
       font-weight: 700;
       white-space: nowrap;
-      color: var(--cyan);
+      color: #4b2e83;
     }
 
-    tr:hover td { background: rgba(11, 142, 196, 0.06); }
+    td.qtd {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    td.grade-a {
+      background: #d9f2d0;
+      color: #1f7a1f;
+      font-weight: 800;
+    }
+
+    td.grade-b {
+      background: #d6e8fb;
+      color: #1f4f9a;
+      font-weight: 800;
+    }
+
+    td.grade-outlet {
+      background: #fde7c7;
+      color: #c45a12;
+      font-weight: 800;
+    }
+
+    tr:hover td:not([class*="grade-"]) { background: #f7f3fc; }
 
     .empty, .loading, .error {
       padding: 36px 20px;
       text-align: center;
       color: var(--muted);
       font-size: 0.92rem;
+      border: 0 !important;
     }
 
     .error { color: #e03131; }
@@ -439,20 +489,23 @@
     </section>
 
     <section class="card">
-      <h2>Planilha de preços</h2>
+      <div class="sheet-brand">
+        <img src="assets/skyline-logo-wordmark.png" alt="Skyline mobile" width="120" height="38" />
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>SKU</th>
-              <th>Descrição</th>
+              <th>Código / IMEI</th>
               <th>Marca</th>
-              <th>Qualidade</th>
-              <th>Valor do produto</th>
+              <th>Descrição do modelo</th>
+              <th>Grade</th>
+              <th>Qtd</th>
+              <th>Valor atacado</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="5" class="loading">Carregando lista…</td></tr>
+            <tr><td colspan="6" class="loading">Carregando lista…</td></tr>
           </tbody>
         </table>
       </div>
@@ -499,14 +552,34 @@
 
     function mapRow(raw) {
       const valor = parseMoney(raw["Preco Tabela 1"] ?? raw.preco_tabela_1 ?? raw.PrecoTabela1);
+      const qtdRaw = raw.Saldo_Principal ?? raw.saldo_principal ?? raw.QTD ?? raw.qtd;
+      const qtdNum = Number(qtdRaw);
       return {
         sku: String(raw.SKU ?? raw.sku ?? "").trim(),
         descricao: shortDescricao(raw.Produto ?? raw.produto ?? raw.descricao),
         produtoFull: String(raw.Produto ?? raw.produto ?? "").trim(),
         marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
         qualidade: String(raw.Qualidade ?? raw.qualidade ?? "").trim() || "—",
+        qtd: Number.isFinite(qtdNum) ? qtdNum : null,
         valor
       };
+    }
+
+    function gradeClass(qualidade) {
+      const k = String(qualidade || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (!k || k === "—") return "";
+      if (k.includes("outlet")) return "grade-outlet";
+      if (k.includes("excelente") || /(^|\s)a(\s|$)/.test(k) || k.includes("premium a") || k.includes("grade a")) {
+        return "grade-a";
+      }
+      if (k.includes("muito bom") || /(^|\s)b(\s|$)/.test(k) || k.includes("premium b") || k.includes("grade b")) {
+        return "grade-b";
+      }
+      return "";
     }
 
     function setStatus(msg, isError = false) {
@@ -564,20 +637,23 @@
       const tbody = document.getElementById("tableBody");
       renderKpis();
       if (!viewRows.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="empty">${
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">${
           allRows.length ? "Nenhum item no filtro." : "Sem itens na lista de preços."
         }</td></tr>`;
         return;
       }
-      tbody.innerHTML = viewRows.map((r) => `
+      tbody.innerHTML = viewRows.map((r) => {
+        const gClass = gradeClass(r.qualidade);
+        return `
         <tr>
           <td class="sku">${escapeHtml(r.sku || "—")}</td>
-          <td>${escapeHtml(r.descricao)}</td>
           <td>${escapeHtml(r.marca)}</td>
-          <td>${escapeHtml(r.qualidade)}</td>
+          <td class="desc">${escapeHtml(r.descricao)}</td>
+          <td class="${gClass}">${escapeHtml(r.qualidade)}</td>
+          <td class="qtd">${r.qtd == null ? "—" : escapeHtml(String(r.qtd))}</td>
           <td class="money">${escapeHtml(formatMoney(r.valor))}</td>
-        </tr>
-      `).join("");
+        </tr>`;
+      }).join("");
     }
 
     function xmlEscape(s) {
@@ -588,16 +664,25 @@
         .replace(/"/g, "&quot;");
     }
 
-    function excelCellText(value) {
-      return `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+    function excelCellText(value, styleId) {
+      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+      return `<Cell${style}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
     }
 
     function excelCellNumber(value, styleId) {
       if (value == null || !Number.isFinite(value)) {
-        return `<Cell><Data ss:Type="String"></Data></Cell>`;
+        return excelCellText("", styleId);
       }
       const style = styleId ? ` ss:StyleID="${styleId}"` : "";
       return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
+    }
+
+    function gradeExcelStyle(qualidade) {
+      const cls = gradeClass(qualidade);
+      if (cls === "grade-a") return "GradeA";
+      if (cls === "grade-b") return "GradeB";
+      if (cls === "grade-outlet") return "GradeOutlet";
+      return "Body";
     }
 
     function downloadExcel() {
@@ -608,19 +693,22 @@
       }
 
       const header = [
-        "SKU",
-        "Descrição",
-        "Marca",
-        "Qualidade",
-        "Valor do produto"
-      ].map(excelCellText).join("");
+        "CÓDIGO / IMEI",
+        "MARCA",
+        "DESCRIÇÃO DO MODELO",
+        "GRADE",
+        "QTD",
+        "VALOR ATACADO"
+      ].map((h) => excelCellText(h, "Header")).join("");
 
       const body = rows.map((r) => {
+        const gStyle = gradeExcelStyle(r.qualidade);
         const cells = [
-          excelCellText(r.sku),
-          excelCellText(r.descricao),
-          excelCellText(r.marca),
-          excelCellText(r.qualidade),
+          excelCellText(r.sku, "BodyLeft"),
+          excelCellText(r.marca, "Body"),
+          excelCellText(r.descricao, "BodyLeft"),
+          excelCellText(r.qualidade, gStyle),
+          excelCellNumber(r.qtd, "Body"),
           excelCellNumber(r.valor, "Money")
         ].join("");
         return `<Row>${cells}</Row>`;
@@ -629,6 +717,7 @@
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `lista-precos-${stamp}.xls`;
 
+      /* Layout do cabeçalho (logo + faixa) — textos da legenda omitidos de propósito. */
       const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -641,22 +730,114 @@
   <Author>Skyline Mission Control</Author>
  </DocumentProperties>
  <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" ss:Size="11"/>
+  </Style>
+  <Style ss:ID="Brand">
+   <Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#4B2E83"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="TopBar">
+   <Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#4B2E83" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
   <Style ss:ID="Header">
-   <Font ss:Bold="1"/>
-   <Interior ss:Color="#E8F4FA" ss:Pattern="Solid"/>
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#4B2E83" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="Body">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="BodyLeft">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
   </Style>
   <Style ss:ID="Money">
    <NumberFormat ss:Format="R$ #,##0.00"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:Bold="1" ss:Color="#4B2E83"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="GradeA">
+   <Font ss:Bold="1" ss:Color="#1F7A1F"/>
+   <Interior ss:Color="#D9F2D0" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="GradeB">
+   <Font ss:Bold="1" ss:Color="#1F4F9A"/>
+   <Interior ss:Color="#D6E8FB" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="GradeOutlet">
+   <Font ss:Bold="1" ss:Color="#C45A12"/>
+   <Interior ss:Color="#FDE7C7" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
   </Style>
  </Styles>
  <Worksheet ss:Name="Lista de Precos">
   <Table>
-   <Column ss:Width="140"/>
-   <Column ss:Width="260"/>
+   <Column ss:Width="150"/>
    <Column ss:Width="90"/>
-   <Column ss:Width="100"/>
+   <Column ss:Width="260"/>
    <Column ss:Width="110"/>
-   <Row ss:StyleID="Header">${header}</Row>
+   <Column ss:Width="60"/>
+   <Column ss:Width="110"/>
+   <Row ss:Height="28">
+    <Cell ss:MergeAcross="5" ss:StyleID="Brand"><Data ss:Type="String">Skyline mobile</Data></Cell>
+   </Row>
+   <Row ss:Height="10">
+    <Cell ss:MergeAcross="5" ss:StyleID="TopBar"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   <Row ss:Height="28" ss:StyleID="Header">${header}</Row>
    ${body}
   </Table>
  </Worksheet>
@@ -701,7 +882,7 @@
         renderTable();
         setStatus(`Erro: ${err.message}`, true);
         document.getElementById("tableBody").innerHTML =
-          `<tr><td colspan="5" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+          `<tr><td colspan="6" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
       } finally {
         document.getElementById("btnReload").disabled = false;
         document.getElementById("btnExcel").disabled = false;
