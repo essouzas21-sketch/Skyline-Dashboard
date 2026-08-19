@@ -369,7 +369,8 @@ const ProducaoDash = {
     return userFilter.some((u) => norm.includes(fold(u)));
   },
 
-  /** Consolidado: iPhone = descrição contém "Apple"; restante = Android. */
+  /** Consolidado: iPhone = descrição contém "Apple"; restante = Android.
+   *  Só técnicos das Produções 1–6 (mesmas equipes das telas de gestão). */
   isAppleIphoneDescricao(descricao) {
     const fold = String(descricao || "")
       .trim()
@@ -379,8 +380,21 @@ const ProducaoDash = {
     return fold.includes("apple");
   },
 
+  gestaoEquipeMatches() {
+    if (typeof ProducaoGestao === "undefined" || !ProducaoGestao.GESTAO_PANELS) {
+      return [];
+    }
+    return Object.values(ProducaoGestao.GESTAO_PANELS).flatMap((p) =>
+      (p.users || []).map((u) => u.match).filter(Boolean)
+    );
+  },
+
   filterRowsByProduto(allRows, start, end, linha) {
     let filtered = YardexDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
+    const team = this.gestaoEquipeMatches();
+    if (team.length) {
+      filtered = filtered.filter((row) => this.matchesUserFilter(row.user, team));
+    }
     if (linha === "iphone") {
       filtered = filtered.filter((row) => this.isAppleIphoneDescricao(row.descricao));
     } else if (linha === "android") {
