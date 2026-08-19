@@ -369,6 +369,26 @@ const ProducaoDash = {
     return userFilter.some((u) => norm.includes(fold(u)));
   },
 
+  /** Consolidado: iPhone = descrição contém "Apple iPhone"; restante = Android. */
+  isAppleIphoneDescricao(descricao) {
+    const fold = String(descricao || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    return fold.includes("apple iphone");
+  },
+
+  filterRowsByProduto(allRows, start, end, linha) {
+    let filtered = YardexDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
+    if (linha === "iphone") {
+      filtered = filtered.filter((row) => this.isAppleIphoneDescricao(row.descricao));
+    } else if (linha === "android") {
+      filtered = filtered.filter((row) => !this.isAppleIphoneDescricao(row.descricao));
+    }
+    return filtered;
+  },
+
   filterRows(allRows, start, end, moduleKey, userFilterOverride = undefined) {
     const userFilter =
       userFilterOverride !== undefined

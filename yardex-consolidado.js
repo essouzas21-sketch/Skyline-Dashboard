@@ -6,6 +6,8 @@
  *   triagem.html         → mapTriagem / passesTriagem / kpiTriagem
  *   gestao-produto.html  → mapGestao / passesGestao / kpiGestao
  *   producao-*.html      → ProducaoDash (yardex-producao.js)
+ *     consolidado Android/iPhone: filterRowsByProduto (descrição "Apple iPhone")
+ *     TVs por técnico: USER_FILTERS / painéis
  *   cqe.html             → mapCqe / loadCqeRows / kpiCqe (+ processCqeRows em yardex-dash.js)
  *   consolidado.html     → labels/hints das seções
  */
@@ -143,7 +145,12 @@ const ConsolidadoDash = {
   },
 
   kpiProducaoAndroid(rows, start, end) {
-    const filtered = ProducaoDash.filterRows(rows, start, end, "android");
+    const filtered = ProducaoDash.filterRowsByProduto(rows, start, end, "android");
+    return ProducaoDash.computeTotals(filtered);
+  },
+
+  kpiProducaoIphone(rows, start, end) {
+    const filtered = ProducaoDash.filterRowsByProduto(rows, start, end, "iphone");
     return ProducaoDash.computeTotals(filtered);
   },
 
@@ -199,9 +206,7 @@ const ConsolidadoDash = {
         gestaoMes: this.kpiGestao(gestaoRows, month.start, month.end),
         gestaoMonthLabel: `Acumulado do mês — ${this.monthLabel(end)}`,
         producaoAndroid: this.kpiProducaoAndroid(prodRows, start, end),
-        producaoIphone: ProducaoDash.computeTotals(
-          ProducaoDash.filterRows(prodRows, start, end, "iphone")
-        ),
+        producaoIphone: this.kpiProducaoIphone(prodRows, start, end),
         cqe: this.kpiCqe(cqeRows, start, end)
       };
 
