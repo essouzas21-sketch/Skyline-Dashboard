@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lista de Preços — Skyline Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="yardex-version.js?v=2"></script>
+  <script src="yardex-dash.js?v=68"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-2: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #f7f9fc;
+      --line: rgba(15, 40, 70, 0.12);
+      --text: #15202b;
+      --muted: #5b6b7f;
+      --cyan: #0b8ec4;
+      --cyan-dim: rgba(11, 142, 196, 0.12);
+      --soft: rgba(15, 40, 70, 0.04);
+      --radius: 14px;
+      --shadow: 0 8px 28px rgba(15, 40, 70, 0.08);
+      --font-display: "Orbitron", sans-serif;
+      --font-body: "Exo 2", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(11, 142, 196, 0.06), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgba(112, 72, 232, 0.05), transparent 50%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    .side {
+      border-right: 1px solid var(--line);
+      background: #ffffff;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 6px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand-logo {
+      display: block;
+      height: 34px;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: left center;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav a, .nav button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      text-decoration: none;
+      text-align: left;
+      font: inherit;
+      font-size: 0.84rem;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .nav a:hover, .nav button:hover { color: var(--text); background: var(--soft); }
+    .nav a.active, .nav button.active {
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      box-shadow: inset 0 0 0 1px rgba(11, 142, 196, 0.25);
+    }
+
+    .side-foot {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .back {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .back:hover { color: var(--text); border-color: rgba(11,142,196,0.4); }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .search-box input {
+      flex: 1;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+      font-size: 0.95rem;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: rgba(11, 142, 196, 0.55);
+      box-shadow: 0 0 0 3px rgba(11, 142, 196, 0.12);
+    }
+
+    .btn {
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #0b8ec4, #3ec6ff);
+      color: #ffffff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .meta-right {
+      margin-left: auto;
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .meta-right strong {
+      display: block;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+
+    .stat .lab {
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat .val {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: 0.03em;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      flex: 1;
+      min-height: 360px;
+      max-height: calc(100vh - 280px);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    td.sku {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    td.money {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--cyan);
+    }
+
+    tr:hover td { background: rgba(11, 142, 196, 0.06); }
+
+    .empty, .loading, .error {
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .error { color: #e03131; }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+
+    .status.err { color: #e03131; }
+
+    @media (max-width: 980px) {
+      body { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .hero-stats { grid-template-columns: 1fr; }
+      .table-wrap { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <img
+        class="brand-logo"
+        src="assets/skyline-logo-wordmark.png"
+        alt="Skyline mobile"
+        width="108"
+        height="34"
+      />
+    </div>
+
+    <nav class="nav">
+      <a class="active" href="lista-precos.html">Lista de Preços</a>
+      <a href="nr-timeline.html">NR Timeline</a>
+      <a href="consolidado.html">Consolidado</a>
+      <a href="menu.html">Menu</a>
+    </nav>
+
+    <div class="side-foot">
+      Fonte: webhook <code>listaprecos</code><br />
+      Descrição até o hífen do produto.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="search-box">
+        <input
+          id="filterSearch"
+          type="search"
+          placeholder="Buscar SKU, descrição, marca ou qualidade…"
+          autocomplete="off"
+        />
+        <button class="btn" type="button" id="btnReload">Atualizar</button>
+        <button class="btn ghost" type="button" id="btnExcel" title="Exportar planilha Excel">
+          Excel
+        </button>
+      </div>
+      <div class="meta-right">
+        <strong>LISTA DE PREÇOS</strong>
+        <span id="metaStamp">—</span>
+      </div>
+    </div>
+
+    <div class="status" id="statusMsg">Carregando…</div>
+
+    <section class="hero-stats">
+      <div class="stat">
+        <div class="lab">Itens listados</div>
+        <div class="val" id="kpiTotal">0</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Marcas</div>
+        <div class="val" id="kpiMarcas">0</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Exibindo (filtro)</div>
+        <div class="val" id="kpiVisible">0</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Planilha de preços</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Descrição</th>
+              <th>Marca</th>
+              <th>Qualidade</th>
+              <th>Valor do produto</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="5" class="loading">Carregando lista…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API_URL = YardexDash.API_LISTA_PRECOS;
+    let allRows = [];
+    let viewRows = [];
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function shortDescricao(produto) {
+      const s = String(produto || "").trim();
+      if (!s) return "—";
+      const idx = s.indexOf("-");
+      if (idx < 0) return s;
+      const left = s.slice(0, idx).trim();
+      return left || s;
+    }
+
+    function parseMoney(v) {
+      if (v == null || v === "") return null;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      let s = String(v).trim().replace(/R\$\s?/gi, "").replace(/\s/g, "");
+      if (!s) return null;
+      if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+      else if (s.includes(",")) s = s.replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatMoney(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function mapRow(raw) {
+      const valor = parseMoney(raw["Preco Tabela 1"] ?? raw.preco_tabela_1 ?? raw.PrecoTabela1);
+      return {
+        sku: String(raw.SKU ?? raw.sku ?? "").trim(),
+        descricao: shortDescricao(raw.Produto ?? raw.produto ?? raw.descricao),
+        produtoFull: String(raw.Produto ?? raw.produto ?? "").trim(),
+        marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
+        qualidade: String(raw.Qualidade ?? raw.qualidade ?? "").trim() || "—",
+        valor
+      };
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById("statusMsg");
+      el.textContent = msg || "";
+      el.classList.toggle("err", Boolean(isError));
+    }
+
+    function applyFilter() {
+      const q = String(document.getElementById("filterSearch").value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (!q) {
+        viewRows = allRows.slice();
+      } else {
+        viewRows = allRows.filter((r) => {
+          const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+          return blob.includes(q);
+        });
+      }
+      renderTable();
+    }
+
+    function renderKpis() {
+      document.getElementById("kpiTotal").textContent = String(allRows.length);
+      document.getElementById("kpiVisible").textContent = String(viewRows.length);
+      const marcas = new Set(allRows.map((r) => r.marca).filter((m) => m && m !== "—"));
+      document.getElementById("kpiMarcas").textContent = String(marcas.size);
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("tableBody");
+      renderKpis();
+      if (!viewRows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">${
+          allRows.length ? "Nenhum item no filtro." : "Sem itens na lista de preços."
+        }</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = viewRows.map((r) => `
+        <tr>
+          <td class="sku">${escapeHtml(r.sku || "—")}</td>
+          <td>${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.marca)}</td>
+          <td>${escapeHtml(r.qualidade)}</td>
+          <td class="money">${escapeHtml(formatMoney(r.valor))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function xmlEscape(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function excelCellText(value) {
+      return `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+    }
+
+    function excelCellNumber(value, styleId) {
+      if (value == null || !Number.isFinite(value)) {
+        return `<Cell><Data ss:Type="String"></Data></Cell>`;
+      }
+      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+      return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
+    }
+
+    function downloadExcel() {
+      const rows = viewRows.length ? viewRows : allRows;
+      if (!rows.length) {
+        alert("Nenhum item para exportar.");
+        return;
+      }
+
+      const header = [
+        "SKU",
+        "Descrição",
+        "Marca",
+        "Qualidade",
+        "Valor do produto"
+      ].map(excelCellText).join("");
+
+      const body = rows.map((r) => {
+        const cells = [
+          excelCellText(r.sku),
+          excelCellText(r.descricao),
+          excelCellText(r.marca),
+          excelCellText(r.qualidade),
+          excelCellNumber(r.valor, "Money")
+        ].join("");
+        return `<Row>${cells}</Row>`;
+      }).join("");
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const filename = `lista-precos-${stamp}.xls`;
+
+      const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>Lista de Preços</Title>
+  <Author>Skyline Mission Control</Author>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1"/>
+   <Interior ss:Color="#E8F4FA" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="Money">
+   <NumberFormat ss:Format="R$ #,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Lista de Precos">
+  <Table>
+   <Column ss:Width="140"/>
+   <Column ss:Width="260"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="110"/>
+   <Row ss:StyleID="Header">${header}</Row>
+   ${body}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+      const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    }
+
+    async function loadData() {
+      setStatus("Carregando lista de preços…");
+      document.getElementById("btnReload").disabled = true;
+      document.getElementById("btnExcel").disabled = true;
+      try {
+        const json = await YardexDash.fetchWebhook(API_URL);
+        const rawRows = YardexDash.normalizeRows(json);
+        allRows = rawRows
+          .map(mapRow)
+          .filter((r) => r.sku || r.descricao !== "—")
+          .sort((a, b) =>
+            String(a.marca).localeCompare(String(b.marca), "pt-BR") ||
+            String(a.descricao).localeCompare(String(b.descricao), "pt-BR") ||
+            String(a.sku).localeCompare(String(b.sku), "pt-BR")
+          );
+        document.getElementById("metaStamp").textContent =
+          `${allRows.length} item(ns) · atualizado ${new Date().toLocaleString("pt-BR")}`;
+        applyFilter();
+        setStatus(`${allRows.length} item(ns) carregado(s).`);
+        YardexDash.markRefresh?.();
+      } catch (err) {
+        allRows = [];
+        viewRows = [];
+        renderTable();
+        setStatus(`Erro: ${err.message}`, true);
+        document.getElementById("tableBody").innerHTML =
+          `<tr><td colspan="5" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+      } finally {
+        document.getElementById("btnReload").disabled = false;
+        document.getElementById("btnExcel").disabled = false;
+      }
+    }
+
+    document.getElementById("btnReload").addEventListener("click", loadData);
+    document.getElementById("btnExcel").addEventListener("click", downloadExcel);
+    document.getElementById("filterSearch").addEventListener("input", applyFilter);
+
+    loadData();
+  </script>
+</body>
+</html>
