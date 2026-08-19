@@ -369,14 +369,14 @@ const ProducaoDash = {
     return userFilter.some((u) => norm.includes(fold(u)));
   },
 
-  /** Consolidado: iPhone = descrição contém "Apple iPhone"; restante = Android. */
+  /** Consolidado: iPhone = descrição contém "Apple"; restante = Android. */
   isAppleIphoneDescricao(descricao) {
     const fold = String(descricao || "")
       .trim()
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
-    return fold.includes("apple iphone");
+    return fold.includes("apple");
   },
 
   filterRowsByProduto(allRows, start, end, linha) {

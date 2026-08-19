@@ -6,7 +6,7 @@
  *   triagem.html         → mapTriagem / passesTriagem / kpiTriagem
  *   gestao-produto.html  → mapGestao / passesGestao / kpiGestao
  *   producao-*.html      → ProducaoDash (yardex-producao.js)
- *     consolidado Android/iPhone: filterRowsByProduto (descrição "Apple iPhone")
+ *     consolidado Android/iPhone: filterRowsByProduto (descrição com "Apple")
  *     TVs por técnico: USER_FILTERS / painéis
  *   cqe.html             → mapCqe / loadCqeRows / kpiCqe (+ processCqeRows em yardex-dash.js)
  *   consolidado.html     → labels/hints das seções
