@@ -384,6 +384,57 @@
 
     tr:hover td:not([class*="grade-"]) { background: #f7f3fc; }
 
+    .legend-wrap {
+      margin: 0 0 14px;
+      overflow: auto;
+      border: 1px solid #d9d2e8;
+      border-radius: 8px;
+    }
+
+    .legend-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    .legend-table th,
+    .legend-table td {
+      border: 1px solid #d9d2e8;
+      padding: 8px 10px;
+      vertical-align: middle;
+    }
+
+    .legend-table th {
+      background: #4b2e83;
+      color: #fff;
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 800;
+      text-align: center;
+      position: static;
+    }
+
+    .legend-table td.cat {
+      text-align: center;
+      font-weight: 800;
+      white-space: nowrap;
+      width: 140px;
+    }
+
+    .legend-table td.grade {
+      text-align: center;
+      font-weight: 800;
+      white-space: nowrap;
+      width: 160px;
+    }
+
+    .legend-table td.note {
+      text-align: left;
+      color: #2b2438;
+      line-height: 1.35;
+    }
+
     .empty, .loading, .error {
       padding: 36px 20px;
       text-align: center;
@@ -492,6 +543,19 @@
       <div class="sheet-brand">
         <img src="assets/skyline-logo-wordmark.png" alt="Skyline mobile" width="120" height="38" />
       </div>
+      <div class="legend-wrap">
+        <table class="legend-table" id="gradeLegendTable">
+          <thead>
+            <tr>
+              <th>Categoria</th>
+              <th>Grade</th>
+              <th>Condição estética</th>
+              <th>Condição funcional</th>
+            </tr>
+          </thead>
+          <tbody id="gradeLegendBody"></tbody>
+        </table>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -515,6 +579,44 @@
     const API_URL = YardexDash.API_LISTA_PRECOS;
     let allRows = [];
     let viewRows = [];
+
+    /** Legenda de grades — texto provisório da referência (atualiza quando mandar o definitivo). */
+    const GRADE_LEGEND = [
+      {
+        categoria: "Skyline Premium",
+        grade: "Grade A (Excelente)",
+        gradeStyle: "grade-a",
+        estetica: "Aparelho impecável, totalmente sem avarias ou marcas estéticas.",
+        funcional: "100% testado e funcional, pronto para uso imediato."
+      },
+      {
+        categoria: "Skyline Premium",
+        grade: "Grade B (Muito Bom)",
+        gradeStyle: "grade-b",
+        estetica: "Pode conter detalhes estéticos leves (como arranhões superficiais ou pequenos amassados).",
+        funcional: "100% funcional. Todos os recursos operam perfeitamente."
+      },
+      {
+        categoria: "Skyline Outlet",
+        grade: "Skyline Outlet",
+        gradeStyle: "grade-outlet",
+        estetica: "Pode possuir marcas de uso mais evidentes, leves avarias ou pequenas manchas no display.",
+        funcional: "Preço super reduzido. Pode possuir alguma função inoperante (como desbloqueio por reconhecimento facial ou leitor digital)."
+      }
+    ];
+
+    function renderGradeLegend() {
+      const tbody = document.getElementById("gradeLegendBody");
+      if (!tbody) return;
+      tbody.innerHTML = GRADE_LEGEND.map((r) => `
+        <tr>
+          <td class="cat">${escapeHtml(r.categoria)}</td>
+          <td class="grade ${r.gradeStyle}">${escapeHtml(r.grade)}</td>
+          <td class="note">${escapeHtml(r.estetica)}</td>
+          <td class="note">${escapeHtml(r.funcional)}</td>
+        </tr>
+      `).join("");
+    }
 
     function escapeHtml(s) {
       return String(s ?? "")
@@ -680,6 +782,29 @@
       return "Body";
     }
 
+    function legendExcelRows() {
+      const head = [
+        excelCellText("CATEGORIA", "Header"),
+        excelCellText("GRADE", "Header"),
+        `<Cell ss:MergeAcross="1" ss:StyleID="Header"><Data ss:Type="String">CONDIÇÃO ESTÉTICA</Data></Cell>`,
+        excelCellText("CONDIÇÃO FUNCIONAL", "Header")
+      ].join("");
+      const rows = GRADE_LEGEND.map((r) => {
+        const gStyle = r.gradeStyle === "grade-a"
+          ? "GradeA"
+          : r.gradeStyle === "grade-b"
+            ? "GradeB"
+            : "GradeOutlet";
+        return `<Row ss:Height="42">${[
+          excelCellText(r.categoria, "BodyBold"),
+          excelCellText(r.grade, gStyle),
+          `<Cell ss:MergeAcross="1" ss:StyleID="BodyLeft"><Data ss:Type="String">${xmlEscape(r.estetica)}</Data></Cell>`,
+          excelCellText(r.funcional, "BodyLeft")
+        ].join("")}</Row>`;
+      }).join("");
+      return `<Row ss:Height="26">${head}</Row>${rows}`;
+    }
+
     function downloadExcel() {
       const rows = viewRows.length ? viewRows : allRows;
       if (!rows.length) {
@@ -710,7 +835,6 @@
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `lista-precos-${stamp}.xls`;
 
-      /* Layout do cabeçalho (logo + faixa) — textos da legenda omitidos de propósito. */
       const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -754,7 +878,17 @@
    </Borders>
   </Style>
   <Style ss:ID="Body">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="BodyBold">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Font ss:Bold="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
@@ -763,7 +897,7 @@
    </Borders>
   </Style>
   <Style ss:ID="BodyLeft">
-   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
@@ -785,7 +919,7 @@
   <Style ss:ID="GradeA">
    <Font ss:Bold="1" ss:Color="#1F7A1F"/>
    <Interior ss:Color="#D9F2D0" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
@@ -796,7 +930,7 @@
   <Style ss:ID="GradeB">
    <Font ss:Bold="1" ss:Color="#1F4F9A"/>
    <Interior ss:Color="#D6E8FB" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
@@ -807,7 +941,7 @@
   <Style ss:ID="GradeOutlet">
    <Font ss:Bold="1" ss:Color="#C45A12"/>
    <Interior ss:Color="#FDE7C7" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
    <Borders>
     <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
     <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D2E8"/>
@@ -819,15 +953,19 @@
  <Worksheet ss:Name="Lista de Precos">
   <Table>
    <Column ss:Width="150"/>
-   <Column ss:Width="260"/>
-   <Column ss:Width="90"/>
-   <Column ss:Width="110"/>
-   <Column ss:Width="110"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="220"/>
    <Row ss:Height="28">
     <Cell ss:MergeAcross="4" ss:StyleID="Brand"><Data ss:Type="String">Skyline mobile</Data></Cell>
    </Row>
-   <Row ss:Height="10">
+   <Row ss:Height="8">
     <Cell ss:MergeAcross="4" ss:StyleID="TopBar"><Data ss:Type="String"></Data></Cell>
+   </Row>
+   ${legendExcelRows()}
+   <Row ss:Height="10">
+    <Cell ss:MergeAcross="4"><Data ss:Type="String"></Data></Cell>
    </Row>
    <Row ss:Height="28" ss:StyleID="Header">${header}</Row>
    ${body}
@@ -887,6 +1025,7 @@
     document.getElementById("filterMarca").addEventListener("change", applyFilter);
     document.getElementById("filterQualidade").addEventListener("change", applyFilter);
 
+    renderGradeLegend();
     loadData();
   </script>
 </body>
