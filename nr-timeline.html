@@ -1161,7 +1161,7 @@
     <div class="topbar">
       <a class="back" href="menu.html">← Menu</a>
       <form class="search-box" id="nrForm">
-        <input id="nrInput" type="search" inputmode="numeric" placeholder="NR ou várias: 64561, 64012…" value="64561" autocomplete="off" />
+        <input id="nrInput" type="search" inputmode="numeric" placeholder="NR, várias (vírgula) ou vazio = todas" value="64561" autocomplete="off" />
         <button class="btn" type="submit">Rastrear</button>
         <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
         <button class="btn ghost" type="button" id="btnPrintNrAprovados" title="Relatório dos aparelhos com CQE aprovado">Relatório CQE</button>
@@ -1446,6 +1446,7 @@
       selectedHu: null,
       nr: "64561",
       nrs: ["64561"],
+      loadAll: false,
       loadedAt: null,
       joinHits: 0,
       moveHits: 0,
@@ -3454,11 +3455,15 @@
       const last = [...state.devices].sort((a, b) => String(b.data_recebimento || "").localeCompare(String(a.data_recebimento || "")))[0];
       const dom = dominantStep();
 
-      document.getElementById("nrLabel").textContent = formatNrLabel(state.nrs);
+      document.getElementById("nrLabel").textContent = state.loadAll
+        ? "Todas"
+        : formatNrLabel(state.nrs);
       const nrCount = (state.nrs || []).length;
-      document.getElementById("nrTitle").textContent = nrCount > 1
-        ? `${nrCount} NRs · ${total} aparelhos`
-        : `NR ${formatNrLabel(state.nrs)} · ${total} aparelhos`;
+      document.getElementById("nrTitle").textContent = state.loadAll
+        ? `Todas as NRs (${nrCount}) · ${total} aparelhos`
+        : nrCount > 1
+          ? `${nrCount} NRs · ${total} aparelhos`
+          : `NR ${formatNrLabel(state.nrs)} · ${total} aparelhos`;
       document.getElementById("nrTotal").textContent = String(total);
       document.getElementById("nrJoin").textContent = String(state.joinHits);
       document.getElementById("nrModels").textContent = String(models);
@@ -3614,25 +3619,31 @@
 
     async function loadNr(nr) {
       const nrs = parseNrList(nr);
-      if (!nrs.length) {
-        setStateMessage("Informe uma ou mais NRs (separadas por vírgula).", "error");
-        return;
-      }
-      const targetLabel = nrs.join(", ");
+      const loadAll = !nrs.length;
+      const targetLabel = loadAll ? "Todas" : nrs.join(", ");
+      state.loadAll = loadAll;
       state.nrs = nrs;
-      state.nr = targetLabel;
-      document.getElementById("nrInput").value = targetLabel;
+      state.nr = loadAll ? "" : targetLabel;
+      document.getElementById("nrInput").value = loadAll ? "" : targetLabel;
       const url = new URL(location.href);
-      url.searchParams.set("nr", targetLabel);
+      if (loadAll) {
+        url.searchParams.delete("nr");
+        url.searchParams.set("all", "1");
+      } else {
+        url.searchParams.delete("all");
+        url.searchParams.set("nr", targetLabel);
+      }
       if (!url.searchParams.has("prod") && !url.searchParams.has("homolog")) {
         url.searchParams.set("prod", "1");
       }
       history.replaceState({}, "", url);
 
       setStateMessage(
-        nrs.length > 1
-          ? `Rastreando ${nrs.length} NRs · recebimento + movimentações + peças + reparo…`
-          : "Rastreando NR · recebimento + movimentações + peças + reparo…"
+        loadAll
+          ? "Rastreando todas as NRs · recebimento + movimentações + peças + reparo…"
+          : nrs.length > 1
+            ? `Rastreando ${nrs.length} NRs · recebimento + movimentações + peças + reparo…`
+            : "Rastreando NR · recebimento + movimentações + peças + reparo…"
       );
       try {
         const apiMov =
@@ -3668,18 +3679,29 @@
         const payloadMov = movS.status === "fulfilled" ? movS.value : {};
         const payloadPecas = pecS.status === "fulfilled" ? pecS.value : {};
 
-        const nrSet = new Set(nrs.map(String));
-        const rows = YardexDash.normalizeRows(payloadRec).filter((r) =>
-          nrSet.has(String(r.numero || "").trim())
-        );
-        const found = [...new Set(rows.map((r) => String(r.numero || "").trim()).filter(Boolean))];
-        const missing = nrs.filter((n) => !found.includes(n));
-        if (!rows.length) {
-          setStateMessage(`NR(s) <strong>${targetLabel}</strong> não encontrada(s) no webhook de recebimento.`, "error");
-          return;
-        }
-        if (missing.length) {
-          console.warn("[NR Timeline] NRs sem retorno no recebimento:", missing.join(", "));
+        const allRecRows = YardexDash.normalizeRows(payloadRec);
+        let rows;
+        let found;
+        let missing = [];
+        if (loadAll) {
+          rows = allRecRows.filter((r) => String(r.numero || "").trim());
+          found = [...new Set(rows.map((r) => String(r.numero || "").trim()).filter(Boolean))];
+          if (!rows.length) {
+            setStateMessage("Nenhuma NR encontrada no webhook de recebimento.", "error");
+            return;
+          }
+        } else {
+          const nrSet = new Set(nrs.map(String));
+          rows = allRecRows.filter((r) => nrSet.has(String(r.numero || "").trim()));
+          found = [...new Set(rows.map((r) => String(r.numero || "").trim()).filter(Boolean))];
+          missing = nrs.filter((n) => !found.includes(n));
+          if (!rows.length) {
+            setStateMessage(`NR(s) <strong>${targetLabel}</strong> não encontrada(s) no webhook de recebimento.`, "error");
+            return;
+          }
+          if (missing.length) {
+            console.warn("[NR Timeline] NRs sem retorno no recebimento:", missing.join(", "));
+          }
         }
         const reparoRows = YardexDash.normalizeRows(payloadRep);
         const moveRows = YardexDash.normalizeRows(payloadMov);
@@ -3693,7 +3715,7 @@
         state.moveRows = moveRows;
         state.pecaRows = pecaRows;
         state.nrs = found.length ? found : nrs;
-        state.nr = (found.length ? found : nrs).join(", ");
+        state.nr = loadAll ? "" : (found.length ? found : nrs).join(", ");
         state.missingNrs = missing;
         state.devices = buildDevices(rows, reparoByHu, moveByHu, pecasBySerial, pecasById);
         state.selectedHu = null;
@@ -3718,7 +3740,9 @@
       loadNr(document.getElementById("nrInput").value);
     });
 
-    document.getElementById("btnRefresh").addEventListener("click", () => loadNr(state.nr));
+    document.getElementById("btnRefresh").addEventListener("click", () =>
+      loadNr(document.getElementById("nrInput").value)
+    );
     document.getElementById("btnPrintNrAprovados").addEventListener("click", () => {
       printNrAprovadosReport(state.devices);
     });
@@ -3767,7 +3791,11 @@
     }
 
     const params = new URLSearchParams(location.search);
-    loadNr(params.get("nr") || "64561");
+    const initialNr =
+      params.get("all") === "1" || (params.has("nr") && !String(params.get("nr") || "").trim())
+        ? ""
+        : params.get("nr") || "64561";
+    loadNr(initialNr);
   </script>
 </body>
 </html>
