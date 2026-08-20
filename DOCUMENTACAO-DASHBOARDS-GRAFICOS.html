@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="yardex-auth.js?v=1"></script>
+<meta charset="UTF-8" />
+  <title>Documentação dos Dashboards Skyline — Gráficos por Etapa</title>
+  <style>
+    @page { size: A4; margin: 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #15202b;
+      font-size: 11pt;
+      line-height: 1.45;
+    }
+    h1 { font-size: 20pt; margin: 0 0 6px; }
+    h2 {
+      font-size: 13pt;
+      margin: 22px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #0b6e99;
+      color: #0b6e99;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 11.5pt;
+      margin: 14px 0 6px;
+      color: #0f1720;
+      page-break-after: avoid;
+    }
+    p, li { margin: 0 0 6px; }
+    .sub { color: #5b6b7a; margin-bottom: 14px; }
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      background: #f3fafd;
+      border: 1px solid #d5e8f2;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 12px 0 18px;
+      font-size: 10pt;
+    }
+    .meta strong { color: #0b6e99; }
+    .callout {
+      background: #fff8e8;
+      border-left: 4px solid #d4a017;
+      padding: 10px 12px;
+      margin: 12px 0 18px;
+      font-size: 10pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #d5dee7;
+      padding: 7px 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #e8f4fa;
+      color: #0f1720;
+      font-weight: 700;
+    }
+    .stage {
+      page-break-inside: avoid;
+      margin-bottom: 8px;
+    }
+    .kpis {
+      background: #f7fafc;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10pt;
+      margin-top: 4px;
+    }
+    .file { color: #5b6b7a; font-size: 9.5pt; }
+    footer {
+      margin-top: 28px;
+      padding-top: 10px;
+      border-top: 1px dashed #c5d0da;
+      color: #7a8896;
+      font-size: 9pt;
+    }
+  </style>
+</head>
+<body>
+  <h1>Documentação dos Dashboards Skyline</h1>
+  <p class="sub">Gráficos e KPIs por etapa · Meta CQE 98% · Uso interno</p>
+
+  <div class="meta">
+    <div><strong>Sistema:</strong> Skyline Dashboard (Mission Control)</div>
+    <div><strong>Hub:</strong> menu.html</div>
+    <div><strong>Meta CQE:</strong> 98% de aprovação</div>
+    <div><strong>Status:</strong> Saudável ≥ 98% · Atenção ≥ 93% · Crítico &lt; 93%</div>
+    <div><strong>Princípio:</strong> Somente leitura (não altera ERP/WMS)</div>
+    <div><strong>Fontes:</strong> API_RECEBIMENTO · API_REPARO</div>
+  </div>
+
+  <div class="callout">
+    <strong>Meta atualizada:</strong> a aprovação CQE passou de 90% para 98% em
+    <code>cqe.html</code>, <code>cqe-gestao.html</code> e <code>consolidado.html</code>.
+  </div>
+
+  <h2>1. Mapa funil × painel</h2>
+  <table>
+    <thead>
+      <tr><th>Etapa do funil</th><th>Dashboard</th><th>Visualizações</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Recebimento</td><td>recebimento.html</td><td>4 gráficos + 4 KPIs</td></tr>
+      <tr><td>Carregamento</td><td>—</td><td>Sem painel (só NR Timeline)</td></tr>
+      <tr><td>Triagem</td><td>triagem.html</td><td>3 gráficos + 5 KPIs</td></tr>
+      <tr><td>Gestão de Peças</td><td>gestao-produto.html</td><td>2 gráficos + 5 KPIs</td></tr>
+      <tr><td>Reparo TV</td><td>producao-*.html</td><td>Tabela + 4 KPIs</td></tr>
+      <tr><td>Reparo Gestão</td><td>producao-*-gestao.html</td><td>4 gráficos + 5 KPIs</td></tr>
+      <tr><td>Qualidade (CQE)</td><td>cqe.html / cqe-gestao.html</td><td>Funil + rankings · meta 98%</td></tr>
+      <tr><td>Cofre</td><td>—</td><td>Sem painel (só NR Timeline)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="stage">
+    <h2>2. Recebimento</h2>
+    <p class="file">Arquivo: recebimento.html · Fonte: API_RECEBIMENTO (grupo 6151, data_recebimento)</p>
+    <p>Objetivo: monitorar volume de HUs recebidas no WMS (Log Smart), por marca e horário.</p>
+    <h3>Gráficos</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Volume por marca — evolução diária</td>
+          <td>Linha (multi-série)</td>
+          <td>Contagem diária no mês das top 5 marcas — tendência e picos de entrada.</td>
+        </tr>
+        <tr>
+          <td>Recebimentos por hora</td>
+          <td>Linha</td>
+          <td>Volume por hora 08h–17h no período — ritmo operacional do dia.</td>
+        </tr>
+        <tr>
+          <td>Volume por marca</td>
+          <td>Barras</td>
+          <td>Total no mês por marca (top 10) — mix de marcas recebidas.</td>
+        </tr>
+        <tr>
+          <td>Marca × colaborador</td>
+          <td>Heatmap</td>
+          <td>Cruzamento top marcas × top colaboradores no mês — quem recebe o quê.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis"><strong>KPIs:</strong> Recebidos hoje · Recebidos no mês · Recebidos no período · Marca líder (período)</div>
+  </div>
+
+  <div class="stage">
+    <h2>3. Triagem</h2>
+    <p class="file">Arquivo: triagem.html · Fonte: API_REPARO (Data Triagem · OS distintas)</p>
+    <p>Objetivo: medir volume e ritmo de triagens por colaborador, marca e hora.</p>
+    <h3>Gráficos</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Top colaboradores</td>
+          <td>Barras horizontais</td>
+          <td>Triagens por usuário (top 8). Clique abre IMEIs/OS daquele colaborador.</td>
+        </tr>
+        <tr>
+          <td>Principais marcas</td>
+          <td>Barras horizontais</td>
+          <td>Volume por marca (1ª palavra da descrição) — top 8 no período.</td>
+        </tr>
+        <tr>
+          <td>Triagens por hora · 08h–17h</td>
+          <td>Linha</td>
+          <td>Distribuição horária no período — filas e ociosidade.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis"><strong>KPIs:</strong> Triados no período · hoje (vs ontem) · mês (vs mês ant.) · Ritmo/hora · Colaboradores</div>
+  </div>
+
+  <div class="stage">
+    <h2>4. Gestão de Produto (Gestão de Peças)</h2>
+    <p class="file">Arquivo: gestao-produto.html · Fonte: API_REPARO (DATA_PEDIDO_SANKHYA)</p>
+    <p>Objetivo: acompanhar peças requisitadas no Sankhya — pedidos, aparelhos e tops.</p>
+    <h3>Gráficos</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Top peças solicitadas</td>
+          <td>Barras horizontais</td>
+          <td>Peças mais pedidas no período (top 8) — prioriza estoque e compra.</td>
+        </tr>
+        <tr>
+          <td>Top aparelhos</td>
+          <td>Barras horizontais</td>
+          <td>Modelos com mais OS distintas pedindo peça (top 8).</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis"><strong>KPIs:</strong> Peças no período/hoje/mês · Aparelhos no período/mês</div>
+  </div>
+
+  <div class="stage">
+    <h2>5. Reparo — TV (chão)</h2>
+    <p class="file">Arquivos: producao-diversas-1..5.html · producao-iphone.html · Fonte: API_REPARO</p>
+    <p>Objetivo: status da fila por técnico da equipe do painel (finalizado / andamento / pausado).</p>
+    <p><strong>Sem gráficos Chart.js.</strong> Visualização principal é a tabela operacional.</p>
+    <table>
+      <thead><tr><th>Visual</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Produção por colaborador</td>
+          <td>Tabela</td>
+          <td>Fin. / Andamento / Pausados / Total / Tempo trabalhado (expediente 07:00–16:48, almoço 12–13h).</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis"><strong>KPIs:</strong> Finalizados · Em andamento · Pausados · Total</div>
+    <h3>Equipes TV</h3>
+    <table>
+      <thead><tr><th>Painel</th><th>Arquivo</th><th>Equipe</th></tr></thead>
+      <tbody>
+        <tr><td>Android 1</td><td>producao-diversas-1.html</td><td>Karoline · Thaís</td></tr>
+        <tr><td>Android 2</td><td>producao-diversas-2.html</td><td>Viviane · Michele</td></tr>
+        <tr><td>Android 3</td><td>producao-diversas-3.html</td><td>Keytman · Fernanda</td></tr>
+        <tr><td>Android 4</td><td>producao-diversas-4.html</td><td>Reservado</td></tr>
+        <tr><td>Android 5</td><td>producao-diversas-5.html</td><td>Claudia</td></tr>
+        <tr><td>iPhone</td><td>producao-iphone.html</td><td>Noemi · Fran</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="stage">
+    <h2>6. Reparo — Gestão</h2>
+    <p class="file">Arquivos: producao-android*-gestao.html · producao-iphone-gestao.html · Fonte: API_REPARO</p>
+    <p>Objetivo: supervisão de tempo, peças e ritmo de finalização por técnico.</p>
+    <h3>Gráficos</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Distribuição tempo reparo</td>
+          <td>Histograma</td>
+          <td>Aparelhos nas faixas 0–10 / 10–20 / 20–30 / 30–60 / 60+ min — espalhamento do lead time.</td>
+        </tr>
+        <tr>
+          <td>Média peças / aparelho — por técnico</td>
+          <td>Barras horizontais</td>
+          <td>Consumo médio de peças por técnico.</td>
+        </tr>
+        <tr>
+          <td>Tempo médio em reparo — por técnico</td>
+          <td>Barras horizontais</td>
+          <td>Média em minutos; destaque acima da meta visual de 45 min.</td>
+        </tr>
+        <tr>
+          <td>Heatmap — finalizados por hora (7h–16h)</td>
+          <td>Heatmap</td>
+          <td>Contagem de fins de reparo por hora (pula 12h) — pico de saída da bancada.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis"><strong>KPIs:</strong> Aparelhos reparados · Total pausado · Técnicos · Tempo médio · Peças utilizadas</div>
+  </div>
+
+  <div class="stage">
+    <h2>7. Qualidade — CQE</h2>
+    <p class="file">Arquivos: cqe.html (TV) · cqe-gestao.html (supervisão) · Fonte: API_REPARO (decisão + Data_qualidade)</p>
+    <p>Objetivo: inspeção pós-reparo — taxa de aprovação, motivos, ranking e retrabalho vs meta <strong>98%</strong>.</p>
+    <h3>Gráficos</h3>
+    <table>
+      <thead><tr><th>Gráfico</th><th>Tipo</th><th>Como ler</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Fluxo de retrabalho</td>
+          <td>Funil</td>
+          <td>Entraram → Aprovados → Reprovados → Volta manutenção → Aprov. retrabalho → Sucata.</td>
+        </tr>
+        <tr>
+          <td>Qualidade — aprovados</td>
+          <td>Barras horizontais</td>
+          <td>Top 5 usuários com mais aprovações no período.</td>
+        </tr>
+        <tr>
+          <td>Motivos de reprovação</td>
+          <td>Barras (TV) / funil (Gestão)</td>
+          <td>Principais motivos. Ignora motivo “teste”.</td>
+        </tr>
+        <tr>
+          <td>Ranking reprovação</td>
+          <td>Barras %</td>
+          <td>Taxa reprovação por técnico. TV anonimiza nomes; Gestão mostra nome real.</td>
+        </tr>
+        <tr>
+          <td>Reprovações por marca</td>
+          <td>Barras horizontais</td>
+          <td>Volume de reprovações por marca (top 6).</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="kpis">
+      <strong>KPIs:</strong> Taxa aprovação · Inspecionados · Reprovados · Meta 98% · Status · Tendência (ontem / 7d / 30d)<br />
+      <strong>Status:</strong> Saudável ≥ 98% · Atenção 93–97,9% · Crítico &lt; 93%
+    </div>
+  </div>
+
+  <h2>8. Painéis transversais</h2>
+  <ul>
+    <li><strong>consolidado.html</strong> — visão roll-up das etapas (também usa meta CQE 98%).</li>
+    <li><strong>nr-timeline.html</strong> — funil completo da NR (recebimento → cofre), peças, custos e relatórios.</li>
+  </ul>
+
+  <footer>
+    Skyline Mobile · Documentação operacional dos dashboards · Gerado a partir do código do repositório Skyline-Dashboard · Documento interno
+  </footer>
+</body>
+</html>
