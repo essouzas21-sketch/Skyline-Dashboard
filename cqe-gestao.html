@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=66"></script>
+  <script src="yardex-dash.js?v=69"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -525,7 +525,7 @@
     .gm-tooltip {
       position: fixed;
       z-index: 300;
-      max-width: 320px;
+      max-width: min(420px, calc(100vw - 24px));
       background: #2d1f42;
       color: #fff;
       border-radius: 8px;
@@ -535,6 +535,9 @@
       pointer-events: none;
       box-shadow: var(--gm-shadow);
       display: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .gm-tooltip strong { color: var(--gm-accent); }
@@ -555,7 +558,7 @@
     .gm-modal {
       background: #fff;
       border-radius: 12px;
-      width: min(960px, 100%);
+      width: min(1100px, 100%);
       max-height: 85vh;
       display: flex;
       flex-direction: column;
@@ -565,7 +568,8 @@
     .gm-modal-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      gap: 12px;
       padding: 12px 16px;
       border-bottom: 1px solid var(--gm-border);
     }
@@ -573,6 +577,12 @@
     .gm-modal-head h3 {
       margin: 0;
       font-size: 0.92rem;
+      line-height: 1.35;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      flex: 1;
+      min-width: 0;
     }
 
     .gm-modal-head button {
@@ -602,6 +612,10 @@
       border-bottom: 1px solid var(--gm-border);
       text-align: left;
       color: #111827;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      vertical-align: top;
     }
 
     .gm-modal-body th {
@@ -613,6 +627,13 @@
     .gm-modal-body td.col-motivo {
       color: var(--gm-red);
       font-weight: 600;
+      min-width: 180px;
+      max-width: 360px;
+    }
+
+    .gm-modal-body td.col-modelo {
+      min-width: 160px;
+      max-width: 280px;
     }
 
     .empty-gm {
@@ -689,8 +710,8 @@
       position: relative;
       width: var(--funnel-w, 80%);
       flex: 0 0 auto;
-      height: 19px;
-      min-height: 19px;
+      height: auto;
+      min-height: 22px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -723,10 +744,13 @@
     .motivos-funnel-step .motivos-funnel-label {
       flex: 1;
       min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
       text-align: center;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .motivos-funnel-step .motivos-funnel-metrics {
@@ -1432,10 +1456,10 @@
         <div><strong>OS (NR):</strong> ${escapeHtml(row.nr)} · HU ${escapeHtml(row.hu)}</div>
         <div><strong>Técnico:</strong> ${escapeHtml(row.tecnico)}</div>
         <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
-        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo_curto)}</div>
+        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo || row.modelo_curto)}</div>
         <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? YardexDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
         <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? YardexDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
-        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo)}</div>
+        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo_raw || row.motivo)}</div>
         ${foto ? `<div><strong>Foto:</strong> disponível</div>` : ""}
         ${extra ? `<div style="margin-top:4px;color:${SKY.accent}">${extra}</div>` : ""}
       `;
@@ -1470,11 +1494,11 @@
           <tr>
             <td>${escapeHtml(r.serial)}</td>
             <td>${escapeHtml(r.nr)}</td>
-            <td>${escapeHtml(r.modelo_curto)}</td>
+            <td class="col-modelo">${escapeHtml(r.modelo || r.modelo_curto)}</td>
             <td>${escapeHtml(r.tecnico)}</td>
             <td>${escapeHtml(r.usuario)}</td>
             <td>${escapeHtml(r.decisao)}</td>
-            <td class="col-motivo">${escapeHtml(r.motivo)}</td>
+            <td class="col-motivo">${escapeHtml(r.motivo_raw || r.motivo)}</td>
             <td>${r.tempo_reparo_ms != null ? YardexDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
             <td>${r.tempo_ate_qc_ms != null ? YardexDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
           </tr>

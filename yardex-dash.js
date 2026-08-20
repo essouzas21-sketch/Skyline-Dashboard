@@ -429,15 +429,10 @@ const YardexDash = {
     };
   },
 
-  /** Gráfico/funil de motivos CQE — em homolog usa catálogo Categoria · Item. */
+  /** Gráfico/funil de motivos CQE — label completo (catálogo em homolog; texto integral em produção). */
   cqeMotivoChartKey(motivo) {
-    if (this.useHomologData()) {
-      return this.normalizeCqeMotivoReprovacao(motivo).label || "Sem motivo informado";
-    }
-    const s = String(motivo || "").trim();
-    if (!s) return "Sem";
-    const word = s.split(/\s+/)[0];
-    return word || "Sem";
+    const label = this.normalizeCqeMotivoReprovacao(motivo).label;
+    return String(label || motivo || "").trim() || "Sem motivo informado";
   },
 
   resolveCqeGravidade(motivo, categoria = null) {

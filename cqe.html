@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=66"></script>
+  <script src="yardex-dash.js?v=69"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -525,7 +525,7 @@
     .gm-tooltip {
       position: fixed;
       z-index: 300;
-      max-width: 320px;
+      max-width: min(420px, calc(100vw - 24px));
       background: #2d1f42;
       color: #fff;
       border-radius: 8px;
@@ -535,6 +535,9 @@
       pointer-events: none;
       box-shadow: var(--gm-shadow);
       display: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .gm-tooltip strong { color: var(--gm-accent); }
@@ -555,7 +558,7 @@
     .gm-modal {
       background: #fff;
       border-radius: 12px;
-      width: min(960px, 100%);
+      width: min(1100px, 100%);
       max-height: 85vh;
       display: flex;
       flex-direction: column;
@@ -565,7 +568,8 @@
     .gm-modal-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      gap: 12px;
       padding: 12px 16px;
       border-bottom: 1px solid var(--gm-border);
     }
@@ -573,6 +577,12 @@
     .gm-modal-head h3 {
       margin: 0;
       font-size: 0.92rem;
+      line-height: 1.35;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      flex: 1;
+      min-width: 0;
     }
 
     .gm-modal-head button {
@@ -602,6 +612,10 @@
       border-bottom: 1px solid var(--gm-border);
       text-align: left;
       color: #111827;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      vertical-align: top;
     }
 
     .gm-modal-body th {
@@ -613,6 +627,13 @@
     .gm-modal-body td.col-motivo {
       color: var(--gm-red);
       font-weight: 600;
+      min-width: 180px;
+      max-width: 360px;
+    }
+
+    .gm-modal-body td.col-modelo {
+      min-width: 160px;
+      max-width: 280px;
     }
 
     .empty-gm {
@@ -1724,10 +1745,10 @@
         <div><strong>OS (NR):</strong> ${escapeHtml(row.nr)} · HU ${escapeHtml(row.hu)}</div>
         <div><strong>Técnico:</strong> ${escapeHtml(tecnico)}</div>
         <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
-        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo_curto)}</div>
+        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo || row.modelo_curto)}</div>
         <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? YardexDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
         <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? YardexDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
-        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo)}</div>
+        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo_raw || row.motivo)}</div>
         ${foto ? `<div><strong>Foto:</strong> disponível</div>` : ""}
         ${extra ? `<div style="margin-top:4px;color:${SKY.accent}">${extra}</div>` : ""}
       `;
@@ -1766,11 +1787,11 @@
           <tr>
             <td>${escapeHtml(r.serial)}</td>
             <td>${escapeHtml(r.nr)}</td>
-            <td>${escapeHtml(r.modelo_curto)}</td>
+            <td class="col-modelo">${escapeHtml(r.modelo || r.modelo_curto)}</td>
             <td>${escapeHtml(opts.anonTecnico === false ? r.tecnico : aliasReprov(r.tecnico))}</td>
             <td>${escapeHtml(r.usuario)}</td>
             <td>${escapeHtml(r.decisao)}</td>
-            <td class="col-motivo">${escapeHtml(r.motivo)}</td>
+            <td class="col-motivo">${escapeHtml(r.motivo_raw || r.motivo)}</td>
             <td>${r.tempo_reparo_ms != null ? YardexDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
             <td>${r.tempo_ate_qc_ms != null ? YardexDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
           </tr>
@@ -1811,16 +1832,14 @@
     function renderMotivosBars(reprovados, chartOpts) {
       const title = document.getElementById("motivosFunnelTitle");
       const chartBox = document.getElementById("motivosChartBox");
-      const motivosAll = YardexDash.aggregateCount(
+      const motivos = YardexDash.aggregateCount(
         reprovados,
         (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
       );
-      const motivos = motivosAll.slice(0, 5);
       const {
         tickSmall,
         barLayoutPad,
         dataLabelCount,
-        yBarScale,
         xCountScale
       } = chartOpts;
 
@@ -1831,7 +1850,23 @@
         return;
       }
       if (chartBox) chartBox.hidden = false;
-      title.textContent = `Motivos de reprovação (${motivosAll.length})`;
+      title.textContent = `Motivos de reprovação (${motivos.length})`;
+
+      const yMotivosScale = {
+        offset: true,
+        ticks: {
+          ...tickSmall,
+          autoSkip: false,
+          padding: 4,
+          font: { size: motivos.length > 10 ? 9 : 10, weight: "600" },
+          callback: function (val) {
+            return String(this.getLabelForValue(val) || "");
+          }
+        },
+        afterFit: (scale) => {
+          scale.width = Math.min(220, Math.max(120, scale.width));
+        }
+      };
 
       destroyChart("motivos");
       charts.motivos = new Chart(document.getElementById("chartMotivos"), {
@@ -1843,19 +1878,25 @@
             data: motivos.map(([, qtd]) => qtd),
             backgroundColor: SKY.bg,
             borderRadius: 4,
-            barThickness: motivos.length > 4 ? 16 : 22,
-            maxBarThickness: 26
+            barThickness: motivos.length > 12 ? 10 : motivos.length > 6 ? 14 : 20,
+            maxBarThickness: 24
           }]
         },
         options: {
           indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: barLayoutPad },
+          layout: {
+            padding: {
+              ...barLayoutPad,
+              left: 4,
+              right: Math.max(28, barLayoutPad?.right || 28)
+            }
+          },
           plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.bg) },
           scales: {
             x: { ...xCountScale, title: { display: false } },
-            y: yBarScale(motivos.length)
+            y: yMotivosScale
           },
           onClick: (_, elems) => {
             if (!elems.length) return;
