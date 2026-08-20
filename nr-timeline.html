@@ -2201,6 +2201,23 @@
       return parseMoney(raw.prod_vuncom ?? raw.prod_vucom ?? raw.prod_Vuncom ?? null);
     }
 
+    /**
+     * Custos oficiais no webhook /fi (custo_entrada + custo_pecas = custo_total).
+     * Preferir sobre prod_vuncom do recebimento (às vezes placeholder 1.00).
+     */
+    function resolveCustosFromReparo(reparoRows) {
+      const sorted = sortReparoChrono(reparoRows || []).filter((r) => !isReparoCancelado(r));
+      let best = null;
+      for (const r of sorted) {
+        const entrada = parseMoney(r.custo_entrada ?? r.custoEntrada ?? null);
+        const pecas = parseMoney(r.custo_pecas ?? r.custoPecas ?? null);
+        const total = parseMoney(r.custo_total ?? r.custoTotal ?? null);
+        if (entrada == null && pecas == null && total == null) continue;
+        best = { entrada, pecas, total, row: r };
+      }
+      return best;
+    }
+
     function resolveGrade(raw) {
       if (!raw || typeof raw !== "object") return null;
       const v = raw.grade ?? raw.Grade ?? raw.GRADE ?? raw.grade_cqe ?? raw.Grade_CQE;
@@ -2930,11 +2947,19 @@
         const pecaByReparoId = new Map(
           pecaSolicitacoes.map((s) => [String(s.reparoId), s])
         );
-        const custoPecas = sumPecaValores(pecaSolicitacoes);
+        const custosFi = resolveCustosFromReparo(reparoRows);
+        let custoPecas = sumPecaValores(pecaSolicitacoes);
+        if (custosFi) {
+          if (custosFi.entrada != null) device.custoAquisicao = custosFi.entrada;
+          if (custosFi.pecas != null) custoPecas = custosFi.pecas;
+          else if (custosFi.total != null && custosFi.entrada != null) {
+            custoPecas = Math.round((custosFi.total - custosFi.entrada) * 10000) / 10000;
+          }
+        }
         const pecaDesc = pecaSolicitacoes.map((s) => s.descricoes).filter(Boolean).join(" | ");
         const pecaCodigos = pecaSolicitacoes.map((s) => s.codigos).filter(Boolean).join(" | ");
         let peca = pecaDesc || reparo?.peca_requisitada || null;
-        if (pecaSolicitacoes.length) pecaHits += 1;
+        if (pecaSolicitacoes.length || (custosFi && custosFi.pecas != null)) pecaHits += 1;
 
         // Reprovado em qualquer ciclo (para não prender local em Q.* no retorno ao reparo)
         const isReprov =
