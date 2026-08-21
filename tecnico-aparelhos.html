@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=71"></script>
+  <script src="skyline-dash.js?v=76"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -347,7 +347,7 @@
     }
 
     .pill.inicio { background: var(--violet-dim); color: var(--violet); }
-    .pill.reparo { background: var(--cyan-dim); color: var(--cyan); }
+    .pill.triagem { background: var(--cyan-dim); color: var(--cyan); }
     .pill.final { background: var(--green-dim); color: var(--green); }
     .pill.qualidade { background: var(--gold-dim); color: var(--gold); }
 
@@ -484,7 +484,7 @@
             <div class="stat">
               <div class="lab">Papéis no funil</div>
               <div class="val" id="statPapeis">—</div>
-              <div class="sub">início · reparo · final · qualidade</div>
+              <div class="sub">início · triagem · final · qualidade</div>
             </div>
             <div class="stat">
               <div class="lab">Na lista filtrada</div>
@@ -524,7 +524,7 @@
   <script>
     const TECH_FIELDS = [
       { key: "Usuario inicio", role: "inicio", label: "Início" },
-      { key: "Usuário reparo", role: "reparo", label: "Reparo" },
+      { key: "Usuário reparo", role: "triagem", label: "Triagem" },
       { key: "Usuario final", role: "final", label: "Final" },
       { key: "Usuario qualidade", role: "qualidade", label: "Qualidade" }
     ];
@@ -733,7 +733,7 @@
     }
 
     function rolePills(device) {
-      const order = ["inicio", "reparo", "final", "qualidade"];
+      const order = ["inicio", "triagem", "final", "qualidade"];
       return order
         .filter((r) => device.roles.has(r))
         .map((r) => {
@@ -748,7 +748,7 @@
       const all = selectedDevices();
       const models = new Set(all.map((d) => d.descricao).filter((d) => d && d !== "—")).size;
       const ciclos = all.reduce((sum, d) => sum + (d.ciclos || 0), 0);
-      const roleCounts = { inicio: 0, reparo: 0, final: 0, qualidade: 0 };
+      const roleCounts = { inicio: 0, triagem: 0, final: 0, qualidade: 0 };
       all.forEach((d) => {
         d.roles.forEach((r) => {
           if (roleCounts[r] != null) roleCounts[r] += 1;
@@ -765,7 +765,7 @@
       document.getElementById("statModelos").textContent = String(models);
       document.getElementById("statCiclos").textContent = String(ciclos);
       document.getElementById("statPapeis").textContent =
-        `${roleCounts.inicio}/${roleCounts.reparo}/${roleCounts.final}/${roleCounts.qualidade}`;
+        `${roleCounts.inicio}/${roleCounts.triagem}/${roleCounts.final}/${roleCounts.qualidade}`;
       document.getElementById("statFiltrado").textContent = String(state.filtered.length);
       document.getElementById("statFiltradoSub").textContent = qHint();
 
