@@ -50,7 +50,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "62",
+  CACHE_VERSION: "63",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
@@ -60,7 +60,11 @@ const SkylineDash = {
 
   isProductionHost() {
     const host = location.hostname.toLowerCase();
-    return host.endsWith(".github.io");
+    if (host === "localhost" || host === "127.0.0.1") return false;
+    // GitHub Pages + domínio customizado de produção
+    if (host.endsWith(".github.io")) return true;
+    if (host === "dashskyline.gruposkytech.com") return true;
+    return false;
   },
 
   useHomologData() {
@@ -68,6 +72,11 @@ const SkylineDash = {
     if (params.get("prod") === "1") return false;
     if (params.get("homolog") === "1") return true;
     return !this.isProductionHost();
+  },
+
+  /** true quando a URL força API real (?prod=1), mesmo fora de host de produção. */
+  forceProdQuery() {
+    return new URLSearchParams(location.search).get("prod") === "1";
   },
 
   homologFixtureFor(url) {
@@ -151,12 +160,31 @@ const SkylineDash = {
     return qs ? `${path}?${qs}` : path;
   },
 
+  withProdQuery(href) {
+    if (!this.forceProdQuery() || !href || href.startsWith("http") || href.startsWith("#")) return href;
+    const [path, query = ""] = href.split("?");
+    const params = new URLSearchParams(query);
+    if (!params.has("homolog") && !params.has("prod")) params.set("prod", "1");
+    const qs = params.toString();
+    return qs ? `${path}?${qs}` : path;
+  },
+
   bindHomologLinks(root = document) {
     if (!this.useHomologData()) return;
     root.querySelectorAll("a[href]").forEach((link) => {
       const href = link.getAttribute("href");
       if (!href || href.startsWith("http") || href.startsWith("#") || href.includes("prod=1")) return;
       link.setAttribute("href", this.withHomologQuery(href));
+    });
+  },
+
+  /** Mantém ?prod=1 ao navegar (ex.: menu com prod=1 → recebimento). */
+  bindProdLinks(root = document) {
+    if (!this.forceProdQuery()) return;
+    root.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("http") || href.startsWith("#") || href.includes("homolog=1")) return;
+      link.setAttribute("href", this.withProdQuery(href));
     });
   },
 
@@ -1389,6 +1417,7 @@ document.addEventListener("DOMContentLoaded", () => {
   SkylineDash.ensureCacheVersion();
   SkylineDash.initHomologBanner();
   SkylineDash.bindHomologLinks();
+  SkylineDash.bindProdLinks();
   if (typeof SkylineVersion !== "undefined") SkylineVersion.start(SkylineDash.REFRESH_SLOT_MS);
   const page = (location.pathname.split("/").pop() || "").split("?")[0];
   if (page === "menu.html" || page === "" || page === "index.html") {

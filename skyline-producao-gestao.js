@@ -103,7 +103,7 @@ const ProducaoGestao = {
       { id: "pecas", icon: "🔧", label: "Peças utilizadas", hint: "Linhas c/ peça" }
     ];
 
-    const homologOnly = config.homologOnly ?? !SkylineDash.isProductionHost();
+    const homologOnly = config.homologOnly ?? SkylineDash.useHomologData();
 
     const pageTitleEl = document.getElementById("pageTitle");
     if (pageTitleEl && config.pageTitle) {
