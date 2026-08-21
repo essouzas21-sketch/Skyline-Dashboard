@@ -157,6 +157,63 @@
       flex-wrap: wrap;
     }
 
+    .filters-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .filter-field label {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .filter-field input[type="date"] {
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      min-width: 150px;
+    }
+
+    .filter-field input[type="date"]:focus {
+      outline: none;
+      border-color: rgba(11, 142, 196, 0.55);
+      box-shadow: 0 0 0 3px rgba(11, 142, 196, 0.12);
+    }
+
+    .period-presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding-bottom: 1px;
+    }
+
+    .period-presets .btn {
+      height: 36px;
+      padding: 0 12px;
+      font-size: 0.78rem;
+    }
+
+    .period-presets .btn.active {
+      background: linear-gradient(135deg, #0b8ec4, #3ec6ff);
+      color: #fff;
+      border-color: transparent;
+    }
+
     .back {
       color: var(--muted);
       text-decoration: none;
@@ -464,6 +521,24 @@
       </div>
     </div>
 
+    <div class="filters-row">
+      <div class="filter-field">
+        <label for="dateStart">Início</label>
+        <input type="date" id="dateStart" />
+      </div>
+      <div class="filter-field">
+        <label for="dateEnd">Fim</label>
+        <input type="date" id="dateEnd" />
+      </div>
+      <div class="period-presets" id="periodPresets">
+        <button type="button" class="btn ghost active" data-period="all">Todos</button>
+        <button type="button" class="btn ghost" data-period="today">Hoje</button>
+        <button type="button" class="btn ghost" data-period="7">7 dias</button>
+        <button type="button" class="btn ghost" data-period="30">30 dias</button>
+        <button type="button" class="btn ghost" data-period="month">Este mês</button>
+      </div>
+    </div>
+
     <div id="appState" class="loading card">Carregando aparelhos do webhook de reparo…</div>
 
     <section id="dash" hidden>
@@ -597,6 +672,91 @@
         parseTs(r.DATA_PEDIDO_SANKHYA) ||
         0
       );
+    }
+
+    function tsToISO(ts) {
+      if (!ts) return null;
+      return SkylineDash.toLocalDateStr(ts);
+    }
+
+    function shiftISO(iso, days) {
+      const d = new Date(`${iso}T12:00:00`);
+      d.setDate(d.getDate() + days);
+      return SkylineDash.toLocalDateStr(d);
+    }
+
+    function monthStartISO(iso) {
+      return `${iso.slice(0, 7)}-01`;
+    }
+
+    function rowsInPeriod(rows) {
+      const start = document.getElementById("dateStart").value;
+      const end = document.getElementById("dateEnd").value;
+      if (!start && !end) return rows;
+      return rows.filter((r) => {
+        const iso = tsToISO(rowStamp(r));
+        if (!iso) return false;
+        if (start && iso < start) return false;
+        if (end && iso > end) return false;
+        return true;
+      });
+    }
+
+    function currentPeriodKey() {
+      const start = document.getElementById("dateStart").value;
+      const end = document.getElementById("dateEnd").value;
+      const today = SkylineDash.todayISO();
+      if (!start && !end) return "all";
+      if (start === today && end === today) return "today";
+      if (end === today && start === shiftISO(today, -6)) return "7";
+      if (end === today && start === shiftISO(today, -29)) return "30";
+      if (end === today && start === monthStartISO(today)) return "month";
+      return "";
+    }
+
+    function syncPeriodPresetButtons() {
+      const key = currentPeriodKey();
+      document.querySelectorAll("#periodPresets [data-period]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.period === key);
+      });
+    }
+
+    function setPeriodPreset(period) {
+      const end = SkylineDash.todayISO();
+      const startEl = document.getElementById("dateStart");
+      const endEl = document.getElementById("dateEnd");
+      if (period === "all") {
+        startEl.value = "";
+        endEl.value = "";
+      } else if (period === "today") {
+        startEl.value = end;
+        endEl.value = end;
+      } else if (period === "7") {
+        startEl.value = shiftISO(end, -6);
+        endEl.value = end;
+      } else if (period === "30") {
+        startEl.value = shiftISO(end, -29);
+        endEl.value = end;
+      } else if (period === "month") {
+        startEl.value = monthStartISO(end);
+        endEl.value = end;
+      }
+      syncPeriodPresetButtons();
+      rebuildTechIndex();
+    }
+
+    function rebuildTechIndex() {
+      const built = buildByTech(rowsInPeriod(state.rows));
+      state.byTech = built.byTech;
+      state.techNames = built.techNames;
+      if (state.selected && !state.byTech.has(state.selected)) {
+        const known = state.allTechNames?.find((t) => t.key === state.selected);
+        if (known) {
+          state.techNames = [{ key: known.key, name: known.name, count: 0 }, ...state.techNames];
+        }
+      }
+      fillTechSelects();
+      applyFilters();
     }
 
     function resolveDescricao(r) {
@@ -797,7 +957,14 @@
 
     function qHint() {
       const q = String(document.getElementById("filterSearch").value || "").trim();
-      return q ? `filtro: “${q}”` : "aparelhos visíveis";
+      const start = document.getElementById("dateStart").value;
+      const end = document.getElementById("dateEnd").value;
+      const bits = [];
+      if (start || end) {
+        bits.push(`período ${start || "…"} → ${end || "…"}`);
+      }
+      if (q) bits.push(`busca: “${q}”`);
+      return bits.length ? bits.join(" · ") : "aparelhos visíveis";
     }
 
     function selectTech(key) {
@@ -820,14 +987,15 @@
         const payload = await SkylineDash.fetchWebhook(SkylineDash.API_REPARO);
         const rows = SkylineDash.normalizeRows(payload);
         state.rows = rows;
-        const built = buildByTech(rows);
-        state.byTech = built.byTech;
-        state.techNames = built.techNames;
+        const builtAll = buildByTech(rows);
+        state.allTechNames = builtAll.techNames;
         state.loadedAt = new Date();
-        fillTechSelects();
 
         const params = new URLSearchParams(location.search);
         const fromUrl = norm(params.get("tech") || "");
+        if (fromUrl) state.selected = fromUrl;
+
+        rebuildTechIndex();
         if (fromUrl && state.byTech.has(fromUrl)) {
           state.selected = fromUrl;
         } else if (state.selected && state.byTech.has(state.selected)) {
@@ -860,6 +1028,19 @@
       applyFilters();
     });
     document.getElementById("btnRefresh").addEventListener("click", () => loadData());
+    document.getElementById("dateStart").addEventListener("change", () => {
+      syncPeriodPresetButtons();
+      rebuildTechIndex();
+    });
+    document.getElementById("dateEnd").addEventListener("change", () => {
+      syncPeriodPresetButtons();
+      rebuildTechIndex();
+    });
+    document.getElementById("periodPresets").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-period]");
+      if (!btn) return;
+      setPeriodPreset(btn.dataset.period);
+    });
 
     const _useHomolog = SkylineDash.useHomologData.bind(SkylineDash);
     SkylineDash.useHomologData = function useHomologForTechPage() {
