@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — Skyline Dashboard</title>
+  <title>Login — Lista de Preços Skyline</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-auth.js?v=3"></script>
   <style>
     :root {
-      --bg: #694992;
+      --bg: #4b2e83;
       --card: #ffffff;
       --text: #2d1f42;
       --muted: #6b5b7a;
@@ -114,7 +114,7 @@
       font-weight: 800;
       cursor: pointer;
       color: #fff;
-      background: linear-gradient(135deg, #694992, #8b6bb8);
+      background: linear-gradient(135deg, #4b2e83, #8b6bb8);
     }
 
     button:disabled {
@@ -139,8 +139,8 @@
   <div class="card">
     <div class="brand">
       <img src="assets/skyline-logo-wordmark.png" alt="Skyline mobile" width="120" height="38" />
-      <h1>Acesso ao Dashboard</h1>
-      <p class="sub">Entre com e-mail e senha</p>
+      <h1>Lista de Preços</h1>
+      <p class="sub">Entre com e-mail e senha para consultar</p>
     </div>
 
     <div class="error" id="errorBox"></div>
@@ -162,8 +162,8 @@
     (function () {
       const session = SkylineAuth.getSession();
       const params = new URLSearchParams(location.search);
-      const nextRaw = params.get("next") || "menu.html";
-      const next = /^[\w.\-]+\.html(\?.*)?(#.*)?$/i.test(nextRaw) ? nextRaw : "menu.html";
+      const nextRaw = params.get("next") || "lista-precos.html";
+      const next = /^lista-precos\.html(\?.*)?(#.*)?$/i.test(nextRaw) ? nextRaw : "lista-precos.html";
 
       if (session) {
         location.replace(next);

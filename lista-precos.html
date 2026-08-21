@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="skyline-auth.js?v=2"></script>
-<meta charset="UTF-8" />
+  <script src="skyline-auth.js?v=3"></script>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lista de Preços — Skyline Mission Control</title>
+  <title>Lista de Preços — Skyline</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -20,12 +20,12 @@
       --text: #15202b;
       --muted: #5b6b7f;
       --cyan: #0b8ec4;
-      --cyan-dim: rgba(11, 142, 196, 0.12);
       --soft: rgba(15, 40, 70, 0.04);
       --radius: 14px;
       --shadow: 0 8px 28px rgba(15, 40, 70, 0.08);
       --font-display: "Orbitron", sans-serif;
       --font-body: "Exo 2", sans-serif;
+      --purple: #4b2e83;
     }
 
     * { box-sizing: border-box; }
@@ -34,98 +34,139 @@
       margin: 0;
       min-height: 100%;
       background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(11, 142, 196, 0.06), transparent 55%),
-        radial-gradient(900px 500px at 90% 0%, rgba(112, 72, 232, 0.05), transparent 50%),
+        radial-gradient(1200px 600px at 10% -10%, rgba(75, 46, 131, 0.08), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgba(11, 142, 196, 0.05), transparent 50%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
       color: var(--text);
       font-family: var(--font-body);
     }
 
     body {
-      display: grid;
-      grid-template-columns: 220px 1fr;
       min-height: 100vh;
-    }
-
-    .side {
-      border-right: 1px solid var(--line);
-      background: #ffffff;
-      padding: 18px 14px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 4px 6px 12px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .brand-logo {
-      display: block;
-      height: 34px;
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
-      object-position: left center;
-    }
-
-    .nav {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .nav a, .nav button {
-      appearance: none;
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      text-decoration: none;
-      text-align: left;
-      font: inherit;
-      font-size: 0.84rem;
-      padding: 10px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.18s ease;
-    }
-
-    .nav a:hover, .nav button:hover { color: var(--text); background: var(--soft); }
-    .nav a.active, .nav button.active {
-      color: var(--cyan);
-      background: var(--cyan-dim);
-      box-shadow: inset 0 0 0 1px rgba(11, 142, 196, 0.25);
-    }
-
-    .side-foot {
-      margin-top: auto;
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
-      font-size: 0.72rem;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .main {
-      min-width: 0;
-      padding: 18px 20px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .topbar {
+    .app-top {
       display: flex;
       align-items: center;
       gap: 14px;
       flex-wrap: wrap;
+      padding: 14px 20px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 4px 18px rgba(15, 40, 70, 0.04);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-block img {
+      height: 34px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-text {
+      display: grid;
+      gap: 2px;
+    }
+
+    .brand-text strong {
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple);
+    }
+
+    .brand-text span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .search-box input {
+      flex: 1;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+      font-size: 0.95rem;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: rgba(75, 46, 131, 0.45);
+      box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12);
+    }
+
+    .btn {
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4b2e83, #7c5cbf);
+      color: #ffffff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .user-meta {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .user-meta strong {
+      display: block;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .main {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+      min-width: 0;
     }
 
     .filters-row {
@@ -158,82 +199,6 @@
       font: inherit;
       font-size: 0.9rem;
       min-width: 180px;
-    }
-
-    .back {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 0.82rem;
-      padding: 8px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-    }
-
-    .back:hover { color: var(--text); border-color: rgba(11,142,196,0.4); }
-
-    .search-box {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex: 1;
-      min-width: 280px;
-    }
-
-    .search-box input {
-      flex: 1;
-      height: 40px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--text);
-      padding: 0 14px;
-      font: inherit;
-      font-size: 0.95rem;
-    }
-
-    .search-box input:focus {
-      outline: none;
-      border-color: rgba(11, 142, 196, 0.55);
-      box-shadow: 0 0 0 3px rgba(11, 142, 196, 0.12);
-    }
-
-    .btn {
-      height: 40px;
-      border: 0;
-      border-radius: 10px;
-      padding: 0 16px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      background: linear-gradient(135deg, #0b8ec4, #3ec6ff);
-      color: #ffffff;
-    }
-
-    .btn.ghost {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--line);
-    }
-
-    .btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    .meta-right {
-      margin-left: auto;
-      text-align: right;
-      color: var(--muted);
-      font-size: 0.78rem;
-    }
-
-    .meta-right strong {
-      display: block;
-      color: var(--text);
-      font-family: var(--font-display);
-      font-size: 0.72rem;
-      letter-spacing: 0.06em;
     }
 
     .hero-stats {
@@ -277,37 +242,27 @@
       min-height: 0;
     }
 
-    .card h2 {
-      margin: 0 0 12px;
-      font-family: var(--font-display);
-      font-size: 0.72rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .table-wrap {
-      overflow: auto;
-      flex: 1;
-      min-height: 360px;
-      max-height: calc(100vh - 280px);
-      border: 1px solid #d9d2e8;
-      border-radius: 8px;
-      background: #fff;
-    }
-
     .sheet-brand {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 4px 14px;
+      padding: 4px 4px 14px;
     }
 
     .sheet-brand img {
       height: 36px;
       width: auto;
       display: block;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      flex: 1;
+      min-height: 360px;
+      max-height: calc(100vh - 320px);
+      border: 1px solid #d9d2e8;
+      border-radius: 8px;
+      background: #fff;
     }
 
     table {
@@ -358,11 +313,6 @@
       font-weight: 700;
       white-space: nowrap;
       color: #4b2e83;
-    }
-
-    td.qtd {
-      font-variant-numeric: tabular-nums;
-      font-weight: 700;
     }
 
     td.grade-a {
@@ -454,59 +404,45 @@
     .status.err { color: #e03131; }
 
     @media (max-width: 980px) {
-      body { grid-template-columns: 1fr; }
-      .side { display: none; }
       .hero-stats { grid-template-columns: 1fr; }
       .table-wrap { max-height: none; }
+      .user-meta { margin-left: 0; width: 100%; justify-content: space-between; }
     }
   </style>
 </head>
 <body>
-  <aside class="side">
-    <div class="brand">
-      <img
-        class="brand-logo"
-        src="assets/skyline-logo-wordmark.png"
-        alt="Skyline mobile"
-        width="108"
-        height="34"
-      />
-    </div>
-
-    <nav class="nav">
-      <a class="active" href="lista-precos.html">Lista de Preços</a>
-      <a href="nr-timeline.html">NR Timeline</a>
-      <a href="consolidado.html">Consolidado</a>
-      <a href="menu.html">Menu</a>
-    </nav>
-
-    <div class="side-foot">
-      Fonte: webhook <code>listaprecos</code><br />
-      Descrição até o hífen do produto.
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="topbar">
-      <a class="back" href="menu.html">← Menu</a>
-      <div class="search-box">
-        <input
-          id="filterSearch"
-          type="search"
-          placeholder="Buscar SKU, descrição, marca ou qualidade…"
-          autocomplete="off"
-        />
-        <button class="btn" type="button" id="btnReload">Atualizar</button>
-        <button class="btn ghost" type="button" id="btnExcel" title="Exportar planilha Excel">
-          Excel
-        </button>
-      </div>
-      <div class="meta-right">
-        <strong>LISTA DE PREÇOS</strong>
+  <header class="app-top">
+    <div class="brand-block">
+      <img src="assets/skyline-logo-wordmark.png" alt="Skyline mobile" width="108" height="34" />
+      <div class="brand-text">
+        <strong>Lista de Preços</strong>
         <span id="metaStamp">—</span>
       </div>
     </div>
 
+    <div class="search-box">
+      <input
+        id="filterSearch"
+        type="search"
+        placeholder="Buscar SKU, descrição, marca ou qualidade…"
+        autocomplete="off"
+      />
+      <button class="btn" type="button" id="btnReload">Atualizar</button>
+      <button class="btn ghost" type="button" id="btnExcel" title="Exportar planilha Excel">
+        Excel
+      </button>
+    </div>
+
+    <div class="user-meta">
+      <div>
+        <strong id="userLabel">—</strong>
+        <span id="userEmail">—</span>
+      </div>
+      <button class="btn ghost" type="button" id="btnLogout">Sair</button>
+    </div>
+  </header>
+
+  <main class="main">
     <div class="filters-row">
       <div class="filter-field">
         <label for="filterMarca">Marca</label>
@@ -575,6 +511,15 @@
   </main>
 
   <script>
+    const session = SkylineAuth.getSession();
+    if (session) {
+      document.getElementById("userLabel").textContent = session.name || "Usuário";
+      document.getElementById("userEmail").textContent = session.email || "";
+    }
+    document.getElementById("btnLogout").addEventListener("click", () => {
+      SkylineAuth.logout("precos-login.html");
+    });
+
     const API_URL = SkylineDash.API_LISTA_PRECOS;
     let allRows = [];
     let viewRows = [];
@@ -843,7 +788,7 @@
  xmlns:html="http://www.w3.org/TR/REC-html40">
  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
   <Title>Lista de Preços</Title>
-  <Author>Skyline Mission Control</Author>
+  <Author>Skyline Lista de Preços</Author>
  </DocumentProperties>
  <Styles>
   <Style ss:ID="Default" ss:Name="Normal">
