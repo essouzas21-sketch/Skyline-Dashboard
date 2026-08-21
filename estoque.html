@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=71"></script>
+  <script src="skyline-dash.js?v=72"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -426,6 +426,19 @@
           <option value="">Todas</option>
         </select>
       </div>
+      <div class="filter-field">
+        <label for="filterSort">Ordenar por</label>
+        <select id="filterSort">
+          <option value="marca">Marca · A–Z</option>
+          <option value="descricao">Descrição · A–Z</option>
+          <option value="sku">SKU · A–Z</option>
+          <option value="qualidade">Qualidade · A–Z</option>
+          <option value="saldo_desc">Saldo · maior</option>
+          <option value="saldo_asc">Saldo · menor</option>
+          <option value="valor_desc">Valor · maior</option>
+          <option value="valor_asc">Valor · menor</option>
+        </select>
+      </div>
       <div class="status" id="metaStamp" style="align-self:center;margin:0">—</div>
     </div>
 
@@ -616,6 +629,43 @@
       fillSelect("filterQualidade", allRows.map((r) => r.qualidade));
     }
 
+    function cmpText(a, b) {
+      return String(a || "").localeCompare(String(b || ""), "pt-BR", { sensitivity: "base", numeric: true });
+    }
+
+    function cmpNum(a, b, dir) {
+      const na = Number.isFinite(a) ? a : (dir > 0 ? Infinity : -Infinity);
+      const nb = Number.isFinite(b) ? b : (dir > 0 ? Infinity : -Infinity);
+      return (na - nb) * dir;
+    }
+
+    function sortRows(rows) {
+      const mode = document.getElementById("filterSort").value || "marca";
+      const list = [...rows];
+      list.sort((a, b) => {
+        switch (mode) {
+          case "descricao":
+            return cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
+          case "sku":
+            return cmpText(a.sku, b.sku);
+          case "qualidade":
+            return cmpText(a.qualidade, b.qualidade) || cmpText(a.descricao, b.descricao);
+          case "saldo_desc":
+            return cmpNum(a.saldo, b.saldo, -1) || cmpText(a.descricao, b.descricao);
+          case "saldo_asc":
+            return cmpNum(a.saldo, b.saldo, 1) || cmpText(a.descricao, b.descricao);
+          case "valor_desc":
+            return cmpNum(a.valor, b.valor, -1) || cmpText(a.descricao, b.descricao);
+          case "valor_asc":
+            return cmpNum(a.valor, b.valor, 1) || cmpText(a.descricao, b.descricao);
+          case "marca":
+          default:
+            return cmpText(a.marca, b.marca) || cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
+        }
+      });
+      return list;
+    }
+
     function applyFilter() {
       const q = String(document.getElementById("filterSearch").value || "")
         .trim()
@@ -625,7 +675,7 @@
       const marca = document.getElementById("filterMarca").value;
       const qualidade = document.getElementById("filterQualidade").value;
 
-      viewRows = allRows.filter((r) => {
+      const filtered = allRows.filter((r) => {
         if (marca && r.marca !== marca) return false;
         if (qualidade && r.qualidade !== qualidade) return false;
         if (!q) return true;
@@ -635,6 +685,7 @@
           .replace(/[\u0300-\u036f]/g, "");
         return blob.includes(q);
       });
+      viewRows = sortRows(filtered);
       renderTable();
     }
 
@@ -756,12 +807,7 @@
         const rawRows = SkylineDash.normalizeRows(json);
         allRows = rawRows
           .map(mapRow)
-          .filter((r) => r.sku || r.descricao !== "—")
-          .sort((a, b) =>
-            String(a.marca).localeCompare(String(b.marca), "pt-BR") ||
-            String(a.descricao).localeCompare(String(b.descricao), "pt-BR") ||
-            String(a.sku).localeCompare(String(b.sku), "pt-BR")
-          );
+          .filter((r) => r.sku || r.descricao !== "—");
         document.getElementById("metaStamp").textContent =
           `${allRows.length} item(ns) · atualizado ${new Date().toLocaleString("pt-BR")}`;
         fillFilterOptions();
@@ -787,6 +833,7 @@
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
     document.getElementById("filterMarca").addEventListener("change", applyFilter);
     document.getElementById("filterQualidade").addEventListener("change", applyFilter);
+    document.getElementById("filterSort").addEventListener("change", applyFilter);
 
     if (typeof SkylineVersion !== "undefined") SkylineVersion.start(60000);
     renderGradeLegend();
