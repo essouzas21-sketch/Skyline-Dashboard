@@ -5,36 +5,36 @@
  *   recebimento.html     → mapRecebimento / loadRecebimentoRows / kpiRecebimento
  *   triagem.html         → mapTriagem / passesTriagem / kpiTriagem
  *   gestao-produto.html  → mapGestao / passesGestao / kpiGestao
- *   producao-*.html      → ProducaoDash (yardex-producao.js)
+ *   producao-*.html      → ProducaoDash (skyline-producao.js)
  *     consolidado Android/iPhone: equipes Produção 1–6 + descrição com "Apple"
  *     TVs por técnico: USER_FILTERS / painéis
- *   cqe.html             → mapCqe / loadCqeRows / kpiCqe (+ processCqeRows em yardex-dash.js)
+ *   cqe.html             → mapCqe / loadCqeRows / kpiCqe (+ processCqeRows em skyline-dash.js)
  *   consolidado.html     → labels/hints das seções
  */
 const ConsolidadoDash = {
   GRUPO_FILTRO: "6151",
   /** Espelha triagem.html (reparo + gestão peças + limpeza). */
-  ETAPAS_TRIAGEM: YardexDash.ETAPAS_TRIAGEM,
-  ETAPAS_GESTAO: YardexDash.ETAPAS_OPERACAO,
+  ETAPAS_TRIAGEM: SkylineDash.ETAPAS_TRIAGEM,
+  ETAPAS_GESTAO: SkylineDash.ETAPAS_OPERACAO,
 
   mapRecebimento(raw) {
     const grupo = String(raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "").trim();
     return {
-      id: YardexDash.resolveRecebimentoId(raw),
-      data_recebimento: YardexDash.resolveRecebimentoDate(raw),
+      id: SkylineDash.resolveRecebimentoId(raw),
+      data_recebimento: SkylineDash.resolveRecebimentoDate(raw),
       grupo
     };
   },
 
   loadRecebimentoRows(json) {
-    const mapped = YardexDash.normalizeRows(json)
-      .filter((raw) => YardexDash.passesRecebimentoRaw(raw, this.GRUPO_FILTRO))
+    const mapped = SkylineDash.normalizeRows(json)
+      .filter((raw) => SkylineDash.passesRecebimentoRaw(raw, this.GRUPO_FILTRO))
       .map((raw) => this.mapRecebimento(raw));
-    return YardexDash.distinctById(mapped, "id");
+    return SkylineDash.distinctById(mapped, "id");
   },
 
   kpiRecebimento(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_recebimento");
+    const filtered = SkylineDash.filterByDateField(rows, start, end, "data_recebimento");
     return { total: filtered.length };
   },
 
@@ -42,7 +42,7 @@ const ConsolidadoDash = {
     return {
       id: raw.id ?? null,
       data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
-      operacao: YardexDash.resolveOperacao(raw)
+      operacao: SkylineDash.resolveOperacao(raw)
     };
   },
 
@@ -51,23 +51,23 @@ const ConsolidadoDash = {
   },
 
   loadTriagemRows(json) {
-    return YardexDash.normalizeRows(json)
-      .filter((raw) => YardexDash.passesTriagemRaw(raw, this.ETAPAS_TRIAGEM, {
+    return SkylineDash.normalizeRows(json)
+      .filter((raw) => SkylineDash.passesTriagemRaw(raw, this.ETAPAS_TRIAGEM, {
         requireSankhyaSucesso: false
       }))
       .map((raw) => this.mapTriagem(raw));
   },
 
   kpiTriagem(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_triagem");
-    return { total: YardexDash.distinctById(filtered, "id").length };
+    const filtered = SkylineDash.filterByDateField(rows, start, end, "data_triagem");
+    return { total: SkylineDash.distinctById(filtered, "id").length };
   },
 
   mapGestao(raw) {
     const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
     return {
       id: raw.id ?? null,
-      data_pedido_sankhya: YardexDash.resolveGestaoDate(raw),
+      data_pedido_sankhya: SkylineDash.resolveGestaoDate(raw),
       produto_requisitado_id: produtoId != null ? String(produtoId).trim() : null
     };
   },
@@ -77,18 +77,18 @@ const ConsolidadoDash = {
   },
 
   loadGestaoRows(json) {
-    const mapped = YardexDash.normalizeRows(json)
-      .filter((raw) => YardexDash.passesGestaoRaw(raw, this.ETAPAS_GESTAO))
+    const mapped = SkylineDash.normalizeRows(json)
+      .filter((raw) => SkylineDash.passesGestaoRaw(raw, this.ETAPAS_GESTAO))
       .map((raw) => this.mapGestao(raw))
       .filter((r) => this.passesGestao(r));
-    return YardexDash.dedupeGestaoRows(mapped);
+    return SkylineDash.dedupeGestaoRows(mapped);
   },
 
   kpiGestao(rows, start, end) {
-    const filtered = YardexDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
+    const filtered = SkylineDash.filterByDateField(rows, start, end, "data_pedido_sankhya");
     return {
       total: filtered.length,
-      distintos: YardexDash.distinctById(filtered, "id").length
+      distintos: SkylineDash.distinctById(filtered, "id").length
     };
   },
 
@@ -115,22 +115,22 @@ const ConsolidadoDash = {
     if (!decisao) return null;
     return {
       id: raw.id ?? null,
-      data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
+      data_qualidade: SkylineDash.resolveCqeQualidadeDate(raw, decisao),
       decisao,
       motivo: String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado"
     };
   },
 
   loadCqeRows(json) {
-    return YardexDash.normalizeRows(json)
+    return SkylineDash.normalizeRows(json)
       .map((raw) => this.mapCqe(raw))
       .filter(Boolean)
       .filter((r) => r.data_qualidade);
   },
 
   kpiCqe(rows, start, end) {
-    const inPeriod = YardexDash.filterByDateField(rows, start, end, "data_qualidade");
-    const filtered = YardexDash.processCqeRows(inPeriod);
+    const inPeriod = SkylineDash.filterByDateField(rows, start, end, "data_qualidade");
+    const filtered = SkylineDash.processCqeRows(inPeriod);
     const totals = { aprovado: 0, reprovado: 0, total: 0 };
     filtered.forEach((r) => {
       totals[r.decisao]++;
@@ -180,15 +180,15 @@ const ConsolidadoDash = {
 
   async loadAndRender() {
     const statusEl = document.getElementById("statusMsg");
-    const { start, end } = YardexDash.getDateRange();
+    const { start, end } = SkylineDash.getDateRange();
     if (!start || !end) return;
 
-    YardexDash.showStatus(statusEl, "Carregando todos os módulos…", false);
+    SkylineDash.showStatus(statusEl, "Carregando todos os módulos…", false);
 
     try {
       const [recJson, repJson] = await Promise.all([
-        YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
-        YardexDash.fetchWebhook(YardexDash.API_REPARO)
+        SkylineDash.fetchWebhook(SkylineDash.API_RECEBIMENTO),
+        SkylineDash.fetchWebhook(SkylineDash.API_REPARO)
       ]);
 
       const recRows = this.loadRecebimentoRows(recJson);
@@ -213,13 +213,13 @@ const ConsolidadoDash = {
       this.renderKpis(data);
       const periodLabel = document.getElementById("periodLabel");
       if (periodLabel) {
-        periodLabel.textContent = `Período: ${YardexDash.formatPeriodBR(start, end)} · visão consolidada`;
+        periodLabel.textContent = `Período: ${SkylineDash.formatPeriodBR(start, end)} · visão consolidada`;
       }
 
-      YardexDash.showStatus(statusEl, "Consolidado atualizado.", false);
-      YardexDash.markRefresh();
+      SkylineDash.showStatus(statusEl, "Consolidado atualizado.", false);
+      SkylineDash.markRefresh();
     } catch (err) {
-      YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+      SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
       this.renderKpis({
         recebimento: { total: 0 },
         triagem: { total: 0 },
@@ -234,7 +234,7 @@ const ConsolidadoDash = {
   },
 
   init() {
-    const { reload } = YardexDash.bindDateFilters({
+    const { reload } = SkylineDash.bindDateFilters({
       onChange: () => this.loadAndRender(),
       onReload: () => this.loadAndRender()
     });

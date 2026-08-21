@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Recebimento</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
+  <link rel="stylesheet" href="skyline-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=63"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=63"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -229,7 +229,7 @@
   <script>
     Chart.register(ChartDataLabels);
 
-    const API_URL = YardexDash.API_RECEBIMENTO;
+    const API_URL = SkylineDash.API_RECEBIMENTO;
     const DATE_FIELD = "data_recebimento";
     const GRUPO_FILTRO = "6151";
     const TOP_MARCAS_LINE = 5;
@@ -289,7 +289,7 @@
 
     /** Horas fechadas +80; hora atual escalada até 80. */
     function applyHomologHourBoost(byHour, endDate) {
-      if (!APPLY_MASK || endDate !== YardexDash.todayISO()) return byHour;
+      if (!APPLY_MASK || endDate !== SkylineDash.todayISO()) return byHour;
       return byHour.map(([label, count]) => {
         const hour = parseInt(label, 10);
         if (!Number.isFinite(hour)) return [label, count];
@@ -384,18 +384,18 @@
     }
 
     function mapRow(raw) {
-      const dataHu = YardexDash.resolveRecebimentoDate(raw);
+      const dataHu = SkylineDash.resolveRecebimentoDate(raw);
       const dt = dataHu ? new Date(dataHu) : null;
       const marca = resolveMarca(raw.descricao || "");
       return {
-        id: YardexDash.resolveRecebimentoId(raw),
+        id: SkylineDash.resolveRecebimentoId(raw),
         hunit: raw.hu_id ?? raw.hunit ?? null,
         data_recebimento: dataHu,
-        day: dt && !Number.isNaN(dt.getTime()) ? YardexDash.toLocalDateStr(dataHu) : null,
+        day: dt && !Number.isNaN(dt.getTime()) ? SkylineDash.toLocalDateStr(dataHu) : null,
         hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
         prod_cprod: raw.prod_cprod || "—",
         name: raw.usuario_recebimento && String(raw.usuario_recebimento).trim()
-          ? YardexDash.normalizeUserName(raw.usuario_recebimento)
+          ? SkylineDash.normalizeUserName(raw.usuario_recebimento)
           : "Em recebimento",
         descricao: raw.descricao || "—",
         marca: marca || "—",
@@ -423,7 +423,7 @@
       const cur = new Date(`${start}T12:00:00`);
       const last = new Date(`${end}T12:00:00`);
       while (cur <= last) {
-        days.push(YardexDash.toLocalDateStr(cur.toISOString()));
+        days.push(SkylineDash.toLocalDateStr(cur.toISOString()));
         cur.setDate(cur.getDate() + 1);
       }
       return days;
@@ -590,14 +590,14 @@
     }
 
     function renderDashboardNow() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
       if (start > end) {
-        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
         return;
       }
 
-      const today = YardexDash.todayISO();
+      const today = SkylineDash.todayISO();
       const inPeriod = filterByDayRange(allRows, start, end);
       let inToday = 0;
       for (let i = 0; i < allRows.length; i++) {
@@ -634,7 +634,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · data_recebimento · grupo ${GRUPO_FILTRO}`;
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · data_recebimento · grupo ${GRUPO_FILTRO}`;
 
       if (!APPLY_MASK) {
         const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
@@ -643,20 +643,20 @@
         destroyChart("marcaLinha");
       }
 
-      const byHourRaw = YardexDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+      const byHourRaw = SkylineDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
       const byHour = applyHomologHourBoost(byHourRaw, end);
-      charts.hora = YardexDash.createLineChart(
+      charts.hora = SkylineDash.createLineChart(
         "chartHora",
         charts.hora,
         byHour.map((x) => x[0]),
-        YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
+        SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
         "#694992"
       );
 
       const byBrand = aggregateCountFast(brandScope, (r) => r.marca).slice(0, TOP_MARCAS_BAR);
-      charts.marcaBar = YardexDash.createBarChart(
+      charts.marcaBar = SkylineDash.createBarChart(
         "chartMarcaBar",
         charts.marcaBar,
         byBrand.map((x) => x[0]),
@@ -669,7 +669,7 @@
       document.getElementById("footerMeta").textContent =
         `Fonte: WMS Log Smart · grupo ${GRUPO_FILTRO} · ${displayPeriod} no período · carregado ${allRows.length} únicos`;
 
-      YardexDash.showStatus(
+      SkylineDash.showStatus(
         statusEl,
         APPLY_MASK
           ? `${displayPeriod} no período · ${displayToday} hoje · API bruta: ${totalFromApi}.`
@@ -688,21 +688,21 @@
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
-        const rawRows = YardexDash.normalizeRows(json);
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        const rawRows = SkylineDash.normalizeRows(json);
         totalFromApi = rawRows.length;
         const mapped = [];
         for (let i = 0; i < rawRows.length; i++) {
-          if (YardexDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)) {
+          if (SkylineDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)) {
             mapped.push(mapRow(rawRows[i]));
           }
         }
-        allRows = YardexDash.distinctById(mapped, "id");
+        allRows = SkylineDash.distinctById(mapped, "id");
         renderDashboardNow();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         ["kpiHoje", "kpiMes", "kpiPeriodo"].forEach((id) => {
           document.getElementById(id).textContent = "0";
         });
@@ -712,7 +712,7 @@
     }
 
     applyHomologUi();
-    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
 
     // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
     if (APPLY_MASK) {

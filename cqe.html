@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CQE</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
+  <link rel="stylesheet" href="skyline-dash.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=69"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=69"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -1153,7 +1153,7 @@
   <script>
     Chart.register(ChartDataLabels);
 
-    const API_URL = YardexDash.API_REPARO;
+    const API_URL = SkylineDash.API_REPARO;
     const DATE_FIELD = "data_qualidade";
     const META_APROVACAO = 98;
     const SKY = {
@@ -1204,7 +1204,7 @@
 
     function aliasReprov(name) {
       if (!name || name === "—") return "—";
-      const bucket = YardexDash.bucketCqeUsuarioReprov(name);
+      const bucket = SkylineDash.bucketCqeUsuarioReprov(name);
       if (bucket === "Usuario X") return "Usuario X";
       return reprovAlias.get(bucket) ?? reprovAlias.get(name) ?? "—";
     }
@@ -1259,7 +1259,7 @@
     }
 
     function resolveGravidade(motivo, categoria = null) {
-      return YardexDash.resolveCqeGravidade(motivo, categoria);
+      return SkylineDash.resolveCqeGravidade(motivo, categoria);
     }
 
     function shortModel(desc) {
@@ -1280,7 +1280,7 @@
       const decisao = normalizeDecisao(raw.decisao);
       if (!decisao) return null;
       const motivoRaw = String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado";
-      const motivoInfo = YardexDash.normalizeCqeMotivoReprovacao(motivoRaw);
+      const motivoInfo = SkylineDash.normalizeCqeMotivoReprovacao(motivoRaw);
       const motivo = motivoInfo.label;
       const descricao = String(raw.descricao || "—").trim() || "—";
       const tempoReparo = diffMs(raw["Iniciado_Reparo"], raw["Fim do Reparo"]);
@@ -1288,10 +1288,10 @@
       return {
         id: raw.id ?? null,
         raw,
-        data_qualidade: YardexDash.resolveCqeQualidadeDate(raw, decisao),
-        usuario: YardexDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
-        usuario_final: YardexDash.normalizeUserName(raw["Usuario final"] || "—"),
-        tecnico: YardexDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || "—"),
+        data_qualidade: SkylineDash.resolveCqeQualidadeDate(raw, decisao),
+        usuario: SkylineDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
+        usuario_final: SkylineDash.normalizeUserName(raw["Usuario final"] || "—"),
+        tecnico: SkylineDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || "—"),
         decisao,
         motivo,
         motivo_raw: motivoRaw,
@@ -1300,7 +1300,7 @@
         gravidade: resolveGravidade(motivoRaw, motivoInfo.categoria),
         modelo: descricao,
         modelo_curto: shortModel(descricao),
-        marca: YardexDash.normalizeBrandName(descricao),
+        marca: SkylineDash.normalizeBrandName(descricao),
         linha: resolveLinha(descricao),
         tipo_reparo: String(raw.operação || raw.operacao || "—").trim() || "—",
         etapa: ETAPA_LABELS[String(raw.etapa_origem || "").trim()] || String(raw.etapa_origem || "—"),
@@ -1469,7 +1469,7 @@
       while (reprovIs.length < MASK_REPROV_TARGET && aprovIs.length) {
         const i = aprovIs.pop();
         const motivoRaw = MASK_MOTIVOS[reprovIs.length % MASK_MOTIVOS.length];
-        const motivoInfo = YardexDash.normalizeCqeMotivoReprovacao(motivoRaw);
+        const motivoInfo = SkylineDash.normalizeCqeMotivoReprovacao(motivoRaw);
         out[i] = {
           ...out[i],
           decisao: "reprovado",
@@ -1509,7 +1509,7 @@
 
       while (aprovRows.length > needAprov) aprovRows.pop();
 
-      const today = YardexDash.todayISO();
+      const today = SkylineDash.todayISO();
       const hour = Math.min(HOUR_TO, Math.max(HOUR_FROM, new Date().getHours() || HOUR_FROM));
       let pad = 0;
       while (aprovRows.length < needAprov && pad < 50000) {
@@ -1560,7 +1560,7 @@
     }
 
     function computeMetrics(rows, { equalizeReprov = false } = {}) {
-      let filtered = YardexDash.processCqeRows(rows);
+      let filtered = SkylineDash.processCqeRows(rows);
       if (equalizeReprov) {
         filtered = equalizeMaskTaxaDia(enforceMaskReprovCount(filtered));
       }
@@ -1599,13 +1599,13 @@
     }
 
     function isInPeriod(row, start, end) {
-      const day = YardexDash.toLocalDateStr(row.data_qualidade);
+      const day = SkylineDash.toLocalDateStr(row.data_qualidade);
       return day >= start && day <= end;
     }
 
     function buildRetrabalho(periodRows, allMapped, periodStart, periodEnd, metricsOpt = null) {
       const m = metricsOpt || computeMetrics(periodRows);
-      const allProcessed = YardexDash.processCqeRows(allMapped);
+      const allProcessed = SkylineDash.processCqeRows(allMapped);
 
       const history = new Map();
       allProcessed.forEach((r) => {
@@ -1699,7 +1699,7 @@
         if (cur && slice.includes(cur)) el.value = cur;
       };
       fill("fModelo", rows.map((r) => r.modelo));
-      buildReprovAlias(rows.map((r) => YardexDash.bucketCqeUsuarioReprov(r.tecnico)));
+      buildReprovAlias(rows.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.tecnico)));
       const techEl = document.getElementById("fTecnico");
       const techCur = techEl.value;
       const techNames = [...new Set(rows.map((r) => r.tecnico).filter(Boolean))]
@@ -1747,8 +1747,8 @@
         <div><strong>Técnico:</strong> ${escapeHtml(tecnico)}</div>
         <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
         <div><strong>Modelo:</strong> ${escapeHtml(row.modelo || row.modelo_curto)}</div>
-        <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? YardexDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
-        <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? YardexDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
+        <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? SkylineDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
+        <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? SkylineDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
         <div><strong>Motivo:</strong> ${escapeHtml(row.motivo_raw || row.motivo)}</div>
         ${foto ? `<div><strong>Foto:</strong> disponível</div>` : ""}
         ${extra ? `<div style="margin-top:4px;color:${SKY.accent}">${extra}</div>` : ""}
@@ -1793,8 +1793,8 @@
             <td>${escapeHtml(r.usuario)}</td>
             <td>${escapeHtml(r.decisao)}</td>
             <td class="col-motivo">${escapeHtml(r.motivo_raw || r.motivo)}</td>
-            <td>${r.tempo_reparo_ms != null ? YardexDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
-            <td>${r.tempo_ate_qc_ms != null ? YardexDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
+            <td>${r.tempo_reparo_ms != null ? SkylineDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
+            <td>${r.tempo_ate_qc_ms != null ? SkylineDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
           </tr>
         `).join("");
       }
@@ -1833,9 +1833,9 @@
     function renderMotivosBars(reprovados, chartOpts) {
       const title = document.getElementById("motivosFunnelTitle");
       const chartBox = document.getElementById("motivosChartBox");
-      const motivos = YardexDash.aggregateCount(
+      const motivos = SkylineDash.aggregateCount(
         reprovados,
-        (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
+        (r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
       );
       const {
         tickSmall,
@@ -1904,14 +1904,14 @@
             const motivo = motivos[elems[0].index][0];
             openDrill(
               `Motivo: ${motivo}`,
-              reprovados.filter((r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === motivo)
+              reprovados.filter((r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === motivo)
             );
           }
         }
       });
       bindRichTooltip(document.getElementById("chartMotivos"), (idx) =>
         reprovados.filter(
-          (r) => YardexDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === (motivos[idx]?.[0] || "")
+          (r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === (motivos[idx]?.[0] || "")
         )
       );
       requestAnimationFrame(() => {
@@ -1920,7 +1920,7 @@
     }
 
     function renderCharts(periodRows, metrics) {
-      const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !YardexDash.isCqeMotivoTeste(r.motivo));
+      const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !SkylineDash.isCqeMotivoTeste(r.motivo));
       const tickSmall = { font: { size: 10, weight: "600" } };
       const barLayoutPad = { top: 6, bottom: 4, left: 2, right: 28 };
       const dataLabelBase = {
@@ -1971,7 +1971,7 @@
       const aprovados = metrics.filtered.filter(
         (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
       );
-      const qualAprovAll = YardexDash.aggregateCount(
+      const qualAprovAll = SkylineDash.aggregateCount(
         aprovados,
         (r) => (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario)
       );
@@ -2040,12 +2040,12 @@
         xCountScale
       });
 
-      const reprovContaveis = reprovados.filter((r) => YardexDash.isCqeUsuarioReprovContavel(r.usuario_final));
-      const rankingAll = YardexDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
+      const reprovContaveis = reprovados.filter((r) => SkylineDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const rankingAll = SkylineDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
       buildReprovAlias([
-        ...reprovContaveis.map((r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final)),
+        ...reprovContaveis.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.usuario_final)),
         ...rankingAll.map((x) => x.nome),
-        ...metrics.filtered.map((r) => YardexDash.bucketCqeUsuarioReprov(r.usuario_final || r.tecnico))
+        ...metrics.filtered.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.usuario_final || r.tecnico))
       ]);
       logReprovAliasMap();
       const ranking = rankingAll.filter((x) => x.reprov > 0).slice(0, 5);
@@ -2106,19 +2106,19 @@
               const nome = ranking[elems[0].index].nome;
               openDrill(
                 `${aliasReprov(nome)} — reprovações`,
-                reprovContaveis.filter((r) => YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
+                reprovContaveis.filter((r) => SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
               );
             }
           }
         });
         bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
           reprovContaveis.filter((r) =>
-            YardexDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
+            SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
           )
         );
       }
 
-      const byMarca = YardexDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
+      const byMarca = SkylineDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
       destroyChart("marca");
       charts.marca = new Chart(document.getElementById("chartMarca"), {
         type: "bar",
@@ -2161,16 +2161,16 @@
     }
 
     function renderDashboard() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
       if (start > end) {
-        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
         return;
       }
 
-      const hoje = YardexDash.todayISO();
+      const hoje = SkylineDash.todayISO();
       const inPeriodRaw = injectMaskCqeRows(
-        YardexDash.filterByDateField(allRows, start, end, DATE_FIELD),
+        SkylineDash.filterByDateField(allRows, start, end, DATE_FIELD),
         start,
         end,
         hoje
@@ -2202,24 +2202,24 @@
 
       renderCharts(periodRows, metrics);
 
-      document.getElementById("periodLabel").textContent = YardexDash.formatPeriodBR(start, end);
-      YardexDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
+      document.getElementById("periodLabel").textContent = SkylineDash.formatPeriodBR(start, end);
+      SkylineDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
-        const mapped = YardexDash.normalizeRows(json)
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        const mapped = SkylineDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)
           .filter((r) => r.data_qualidade);
         allRows = mapped;
         populateFilters(mapped);
-        YardexDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
+        SkylineDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
       }
     }
 
@@ -2253,7 +2253,7 @@
       });
     }
 
-    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
 
     if (APPLY_MASK) {
       setInterval(() => {

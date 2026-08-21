@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Imprimir Recebimento</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
+  <link rel="stylesheet" href="skyline-dash.css" />
   <style>
     :root {
       color-scheme: light dark;
@@ -350,8 +350,8 @@
     </div>
   </div>
 
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=62"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=62"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
   (function () {
@@ -395,8 +395,8 @@
     }
 
     function normalizeRowsLocal(payload) {
-      if (typeof YardexDash !== "undefined" && typeof YardexDash.normalizeRows === "function") {
-        return YardexDash.normalizeRows(payload);
+      if (typeof SkylineDash !== "undefined" && typeof SkylineDash.normalizeRows === "function") {
+        return SkylineDash.normalizeRows(payload);
       }
       if (Array.isArray(payload)) return payload;
       if (!payload || typeof payload !== "object") return [];
@@ -432,13 +432,13 @@
     }
 
     async function fetchRows(endpoint, force = false) {
-      if (typeof YardexDash === "undefined") {
+      if (typeof SkylineDash === "undefined") {
         return fetchRowsDirect(endpoint);
       }
 
-      const homolog = YardexDash.useHomologData();
+      const homolog = SkylineDash.useHomologData();
       if (homolog) {
-        const fixture = YardexDash.homologFixtureFor(endpoint);
+        const fixture = SkylineDash.homologFixtureFor(endpoint);
         if (!fixture) throw new Error("Sem fixture local para este endpoint.");
         const res = await fetch(`${fixture}?_t=${Date.now()}`, {
           cache: "no-store",
@@ -450,15 +450,15 @@
       }
 
       try {
-        const payload = await YardexDash.fetchWebhook(
+        const payload = await SkylineDash.fetchWebhook(
           endpoint,
-          YardexDash.DEFAULT_FETCH_TIMEOUT_MS,
+          SkylineDash.DEFAULT_FETCH_TIMEOUT_MS,
           { force }
         );
         const rows = normalizeRowsLocal(payload);
         if (rows.length) return rows;
       } catch (err) {
-        console.warn("[Imprimir Recebimento] fallback direto após falha YardexDash:", err);
+        console.warn("[Imprimir Recebimento] fallback direto após falha SkylineDash:", err);
       }
 
       return fetchRowsDirect(endpoint);
@@ -471,7 +471,7 @@
       loadPromise = (async () => {
         const endpoint = norm(endpointInput.value) || ENDPOINT_DEFAULT;
         endpointInput.value = endpoint;
-        const homolog = typeof YardexDash !== "undefined" && YardexDash.useHomologData();
+        const homolog = typeof SkylineDash !== "undefined" && SkylineDash.useHomologData();
         setLoading(true);
         setStatus(homolog ? "Carregando homolog (recebimento.json)…" : "Carregando endpoint…");
         try {

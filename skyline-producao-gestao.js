@@ -87,7 +87,7 @@ const ProducaoGestao = {
     const USER_FILTER = PANEL.users.map((u) => u.match);
     const META_TEMPO_MIN = 45;
     const MAO_OBRA_MIN = 0.35;
-    const API_URL = YardexDash.API_REPARO;
+    const API_URL = SkylineDash.API_REPARO;
     const APPLY_MASK = config.applyMask === true;
     const MASK_PER_TECH_HOUR = 3;
     const HOUR_FROM = 7;
@@ -103,7 +103,7 @@ const ProducaoGestao = {
       { id: "pecas", icon: "🔧", label: "Peças utilizadas", hint: "Linhas c/ peça" }
     ];
 
-    const homologOnly = config.homologOnly ?? !YardexDash.isProductionHost();
+    const homologOnly = config.homologOnly ?? !SkylineDash.isProductionHost();
 
     const pageTitleEl = document.getElementById("pageTitle");
     if (pageTitleEl && config.pageTitle) {
@@ -181,7 +181,7 @@ const ProducaoGestao = {
         serial: String(raw.serial || "—").trim() || "—",
         triagem: raw["Data Triagem"] || null,
         fim: raw["Fim do Reparo"] || null,
-        tecnico: YardexDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || base.user || "—"),
+        tecnico: SkylineDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || base.user || "—"),
         peca: String(raw.peca_requisitada || "—").trim() || "—",
         modelo: String(raw.descricao || "—").trim() || "—",
         fornecedor: String(raw.Nome_solicitante_peca || "—").trim() || "—",
@@ -306,8 +306,8 @@ const ProducaoGestao = {
      */
     function getMaskedAllRows() {
       if (!APPLY_MASK || !PANEL.users.length) return allRows;
-      const today = YardexDash.todayISO();
-      const { start, end } = YardexDash.getDateRange();
+      const today = SkylineDash.todayISO();
+      const { start, end } = SkylineDash.getDateRange();
       if (!(start && end && start <= today && end >= today)) return allRows;
 
       const nowH = new Date().getHours();
@@ -414,13 +414,13 @@ const ProducaoGestao = {
     }
 
     function getStatusRows() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
       return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
     }
 
     function getPeriodRows() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
       return applyUiFilters(
         periodRaw.map((r) => mapExecRow(r._workRaw)).filter((r) => inPanelUser(r.tecnico))
@@ -447,7 +447,7 @@ const ProducaoGestao = {
 
     function fmtWorkTotal(ms) {
       if (!ms) return "—";
-      return YardexDash.formatDuration(ms);
+      return SkylineDash.formatDuration(ms);
     }
 
     function aggregateStatusByTecnico(rows, start, end) {
@@ -468,7 +468,7 @@ const ProducaoGestao = {
         s.total++;
         s.workMs += rowWorkMs(r, start, end);
       });
-      const hoje = YardexDash.todayISO();
+      const hoje = SkylineDash.todayISO();
       if (APPLY_MASK && start <= hoje && end >= hoje) {
         const maxMs = maxWorkMsFromSevenToNow();
         const minTick = new Date().getMinutes();
@@ -484,7 +484,7 @@ const ProducaoGestao = {
     }
 
     function renderStatusBoard() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       const statusRows = getStatusRows();
       const tbody = document.getElementById("statusByTecBody");
 
@@ -605,7 +605,7 @@ const ProducaoGestao = {
     }
 
     function renderCharts(rows) {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       const finished = rows.filter((r) => r.times);
 
       const tickSmall = { font: { size: 8 }, color: "#6b5b7a" };
@@ -739,7 +739,7 @@ const ProducaoGestao = {
     }
 
     function renderDashboard() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
 
       const filtered = getPeriodRows();
@@ -767,21 +767,21 @@ const ProducaoGestao = {
       renderCharts(filtered);
 
       document.getElementById("periodLabel").textContent =
-        `${PANEL.subtitle} · ${YardexDash.formatPeriodBR(start, end)} · reparo 7h–16h48`;
-      YardexDash.showStatus(statusEl, `${filtered.length} registro(s) no período`, false);
+        `${PANEL.subtitle} · ${SkylineDash.formatPeriodBR(start, end)} · reparo 7h–16h48`;
+      SkylineDash.showStatus(statusEl, `${filtered.length} registro(s) no período`, false);
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, homologOnly ? "Carregando homolog…" : "Carregando dados…", false);
+      SkylineDash.showStatus(statusEl, homologOnly ? "Carregando homolog…" : "Carregando dados…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
+        const json = await SkylineDash.fetchWebhook(API_URL);
         allRows = ProducaoDash.loadRows(json);
         const mapped = allRows.map((r) => mapExecRow(r._workRaw)).filter((r) => inPanelUser(r.tecnico));
         populateFilters(mapped);
-        YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
+        SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
       }
     }
 
@@ -794,7 +794,7 @@ const ProducaoGestao = {
       document.getElementById(id).addEventListener("change", renderDashboard);
     });
 
-    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
 
     if (APPLY_MASK) {
       setInterval(() => {

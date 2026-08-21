@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Por Técnico — Skyline Mission Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=68"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=68"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -817,8 +817,8 @@
     async function loadData() {
       setStateMessage("Carregando aparelhos do webhook de reparo…");
       try {
-        const payload = await YardexDash.fetchWebhook(YardexDash.API_REPARO);
-        const rows = YardexDash.normalizeRows(payload);
+        const payload = await SkylineDash.fetchWebhook(SkylineDash.API_REPARO);
+        const rows = SkylineDash.normalizeRows(payload);
         state.rows = rows;
         const built = buildByTech(rows);
         state.byTech = built.byTech;
@@ -861,15 +861,15 @@
     });
     document.getElementById("btnRefresh").addEventListener("click", () => loadData());
 
-    const _useHomolog = YardexDash.useHomologData.bind(YardexDash);
-    YardexDash.useHomologData = function useHomologForTechPage() {
+    const _useHomolog = SkylineDash.useHomologData.bind(SkylineDash);
+    SkylineDash.useHomologData = function useHomologForTechPage() {
       const params = new URLSearchParams(location.search);
       if (params.get("homolog") === "1") return true;
       if (params.get("prod") === "1") return false;
       return false;
     };
     if (_useHomolog() && new URLSearchParams(location.search).get("homolog") === "1") {
-      YardexDash.initHomologBanner?.();
+      SkylineDash.initHomologBanner?.();
     }
 
     loadData();

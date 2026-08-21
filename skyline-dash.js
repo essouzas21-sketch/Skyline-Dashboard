@@ -1,7 +1,7 @@
 /**
- * Utilitários compartilhados dos dashboards Yardex (menu principal).
+ * Utilitários compartilhados dos dashboards Skyline (menu principal).
  */
-const YardexDash = {
+const SkylineDash = {
   /** Reparo / triagem / gestão / CQE / produção (campos id, Iniciado_Reparo, decisao…) */
   API_REPARO: "https://automacao.skylinemobile.com.br/webhook/fi",
   /** Recebimento (campos hu_id, data_recebimento, grupo, descricao…) */
@@ -85,7 +85,7 @@ const YardexDash = {
     if (this._cacheReady) return this._cacheReady;
     this._cacheReady = (async () => {
       try {
-        const key = "yardex-cache-version";
+        const key = "skyline-cache-version";
         const prev = localStorage.getItem(key);
         if (prev === this.CACHE_VERSION) return;
         localStorage.setItem(key, this.CACHE_VERSION);
@@ -94,13 +94,13 @@ const YardexDash = {
         this._idbPromise = null;
         if (typeof indexedDB !== "undefined") {
           await new Promise((resolve) => {
-            const req = indexedDB.deleteDatabase("yardex-dash-cache");
+            const req = indexedDB.deleteDatabase("skyline-dash-cache");
             req.onsuccess = () => resolve();
             req.onerror = () => resolve();
             req.onblocked = () => resolve();
           });
         }
-        console.info("[YardexDash] cache local limpo (v" + this.CACHE_VERSION + ")");
+        console.info("[SkylineDash] cache local limpo (v" + this.CACHE_VERSION + ")");
       } catch (_) {
         /* ignore */
       }
@@ -838,7 +838,7 @@ const YardexDash = {
   _getJsonWorker() {
     // Worker one-shot por parse (evita hang com vários fetchWebhook em paralelo)
     try {
-      return new Worker("yardex-json-worker.js?v=3");
+      return new Worker("skyline-json-worker.js?v=3");
     } catch {
       return null;
     }
@@ -913,7 +913,7 @@ const YardexDash = {
       return this._idbPromise;
     }
     this._idbPromise = new Promise((resolve) => {
-      const req = indexedDB.open("yardex-dash-cache", 1);
+      const req = indexedDB.open("skyline-dash-cache", 1);
       req.onupgradeneeded = () => {
         req.result.createObjectStore("fetch", { keyPath: "key" });
       };
@@ -1044,11 +1044,11 @@ const YardexDash = {
       if (this._autoRefreshBusy) return;
       this._autoRefreshBusy = true;
       try {
-        if (typeof YardexVersion !== "undefined") await YardexVersion.check();
+        if (typeof SkylineVersion !== "undefined") await SkylineVersion.check();
         this.checkDayRollover();
         await Promise.resolve(fn());
       } catch (err) {
-        console.error("[YardexDash] auto-refresh:", err);
+        console.error("[SkylineDash] auto-refresh:", err);
       } finally {
         this._autoRefreshBusy = false;
       }
@@ -1069,7 +1069,7 @@ const YardexDash = {
       this._visibilityBound = true;
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) return;
-        if (typeof YardexVersion !== "undefined") YardexVersion.check();
+        if (typeof SkylineVersion !== "undefined") SkylineVersion.check();
         const dayChanged = this.checkDayRollover();
         const { reload, onChange } = this._dayRolloverState || {};
         if (dayChanged && reload) reload();
@@ -1159,7 +1159,7 @@ const YardexDash = {
       .catch(async (err) => {
         const stale = await this._readFetchCache(key, this.FETCH_IDB_TTL_MS);
         if (stale) {
-          console.warn("[YardexDash] usando cache após falha:", err.message);
+          console.warn("[SkylineDash] usando cache após falha:", err.message);
           return stale.data;
         }
         throw err;
@@ -1221,10 +1221,10 @@ const YardexDash = {
             }
           }
           // Pages não publica data/homolog/*.json (gitignored) — cai na API real.
-          console.warn(`[YardexDash] fixture ${fixture} HTTP ${res.status}; usando API real`);
+          console.warn(`[SkylineDash] fixture ${fixture} HTTP ${res.status}; usando API real`);
         } catch (err) {
           if (String(err.message || "").includes("Fixture inválido")) throw err;
-          console.warn(`[YardexDash] fixture ${fixture} falhou; usando API real`, err);
+          console.warn(`[SkylineDash] fixture ${fixture} falhou; usando API real`, err);
         }
       } else if (homologOnly) {
         // Sem fixture e sem fallback permitido explicitamente
@@ -1386,14 +1386,14 @@ const YardexDash = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  YardexDash.ensureCacheVersion();
-  YardexDash.initHomologBanner();
-  YardexDash.bindHomologLinks();
-  if (typeof YardexVersion !== "undefined") YardexVersion.start(YardexDash.REFRESH_SLOT_MS);
+  SkylineDash.ensureCacheVersion();
+  SkylineDash.initHomologBanner();
+  SkylineDash.bindHomologLinks();
+  if (typeof SkylineVersion !== "undefined") SkylineVersion.start(SkylineDash.REFRESH_SLOT_MS);
   const page = (location.pathname.split("/").pop() || "").split("?")[0];
   if (page === "menu.html" || page === "" || page === "index.html") {
-    YardexDash.warmCaches();
+    SkylineDash.warmCaches();
   }
 });
 
-YardexDash.ensureCacheVersion();
+SkylineDash.ensureCacheVersion();

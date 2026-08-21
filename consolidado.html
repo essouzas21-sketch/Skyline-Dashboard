@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consolidado — Skyline</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=12" />
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=67"></script>
-  <script src="yardex-producao.js?v=23"></script>
-  <script src="yardex-producao-gestao.js?v=13"></script>
-  <script src="yardex-consolidado.js?v=28"></script>
+  <link rel="stylesheet" href="skyline-dash.css?v=12" />
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=67"></script>
+  <script src="skyline-producao.js?v=23"></script>
+  <script src="skyline-producao-gestao.js?v=13"></script>
+  <script src="skyline-consolidado.js?v=28"></script>
   <style>
     :root {
       --co-page: #694992;
@@ -664,14 +664,14 @@
     const _origLoad = ConsolidadoDash.loadAndRender.bind(ConsolidadoDash);
     ConsolidadoDash.loadAndRender = async function () {
       await _origLoad();
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       const periodLabel = document.getElementById("periodLabel");
       if (periodLabel && start && end) {
         const agora = new Date().toLocaleTimeString("pt-BR", {
           hour: "2-digit", minute: "2-digit", second: "2-digit"
         });
         periodLabel.textContent =
-          `${YardexDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
+          `${SkylineDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
       }
     };
 

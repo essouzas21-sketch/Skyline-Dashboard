@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NR Timeline — Skyline Mission Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=61"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -3674,18 +3674,18 @@
       );
       try {
         const apiMov =
-          YardexDash.API_MOVIMENTACOES ||
+          SkylineDash.API_MOVIMENTACOES ||
           "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9";
         const apiPecas =
-          YardexDash.API_PECAS ||
+          SkylineDash.API_PECAS ||
           "https://automacao.skylinemobile.com.br/webhook/873620b8-7633-4e79-99fe-39c8b504b9a4";
 
         // allSettled: um endpoint lento/falho não trava a tela inteira
         const settled = await Promise.allSettled([
-          YardexDash.fetchWebhook(YardexDash.API_RECEBIMENTO),
-          YardexDash.fetchWebhook(YardexDash.API_REPARO),
-          YardexDash.fetchWebhook(apiMov),
-          YardexDash.fetchWebhook(apiPecas)
+          SkylineDash.fetchWebhook(SkylineDash.API_RECEBIMENTO),
+          SkylineDash.fetchWebhook(SkylineDash.API_REPARO),
+          SkylineDash.fetchWebhook(apiMov),
+          SkylineDash.fetchWebhook(apiPecas)
         ]);
         const [recS, repS, movS, pecS] = settled;
         if (recS.status !== "fulfilled") {
@@ -3706,7 +3706,7 @@
         const payloadMov = movS.status === "fulfilled" ? movS.value : {};
         const payloadPecas = pecS.status === "fulfilled" ? pecS.value : {};
 
-        const allRecRows = YardexDash.normalizeRows(payloadRec);
+        const allRecRows = SkylineDash.normalizeRows(payloadRec);
         let rows;
         let found;
         let missing = [];
@@ -3730,9 +3730,9 @@
             console.warn("[NR Timeline] NRs sem retorno no recebimento:", missing.join(", "));
           }
         }
-        const reparoRows = YardexDash.normalizeRows(payloadRep);
-        const moveRows = YardexDash.normalizeRows(payloadMov);
-        const pecaRows = YardexDash.normalizeRows(payloadPecas);
+        const reparoRows = SkylineDash.normalizeRows(payloadRep);
+        const moveRows = SkylineDash.normalizeRows(payloadMov);
+        const pecaRows = SkylineDash.normalizeRows(payloadPecas);
         const reparoByHu = indexReparoByHu(reparoRows);
         const moveByHu = indexMovesByHu(moveRows);
         const pecasBySerial = indexPecasBySerial(pecaRows);
@@ -3806,15 +3806,15 @@
     });
 
     // Mission control rastreia NR ao vivo — API real por padrão (homolog=1 força fixture).
-    const _useHomolog = YardexDash.useHomologData.bind(YardexDash);
-    YardexDash.useHomologData = function useHomologForNrTimeline() {
+    const _useHomolog = SkylineDash.useHomologData.bind(SkylineDash);
+    SkylineDash.useHomologData = function useHomologForNrTimeline() {
       const params = new URLSearchParams(location.search);
       if (params.get("homolog") === "1") return true;
       if (params.get("prod") === "1") return false;
       return false;
     };
     if (_useHomolog() && new URLSearchParams(location.search).get("homolog") === "1") {
-      YardexDash.initHomologBanner?.();
+      SkylineDash.initHomologBanner?.();
     }
 
     const params = new URLSearchParams(location.search);

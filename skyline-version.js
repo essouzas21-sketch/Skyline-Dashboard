@@ -1,7 +1,7 @@
 /**
  * Recarrega a página quando version.json mudar (novo deploy).
  */
-const YardexVersion = {
+const SkylineVersion = {
   _current: null,
   _started: false,
 

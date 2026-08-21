@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lista de Preços — Skyline Mission Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=68"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=68"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -575,7 +575,7 @@
   </main>
 
   <script>
-    const API_URL = YardexDash.API_LISTA_PRECOS;
+    const API_URL = SkylineDash.API_LISTA_PRECOS;
     let allRows = [];
     let viewRows = [];
 
@@ -999,8 +999,8 @@
       document.getElementById("btnReload").disabled = true;
       document.getElementById("btnExcel").disabled = true;
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
-        const rawRows = YardexDash.normalizeRows(json);
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        const rawRows = SkylineDash.normalizeRows(json);
         allRows = rawRows
           .map(mapRow)
           .filter((r) => r.sku || r.descricao !== "—")
@@ -1014,7 +1014,7 @@
         fillFilterOptions();
         applyFilter();
         setStatus(`${allRows.length} item(ns) carregado(s).`);
-        YardexDash.markRefresh?.();
+        SkylineDash.markRefresh?.();
       } catch (err) {
         allRows = [];
         viewRows = [];

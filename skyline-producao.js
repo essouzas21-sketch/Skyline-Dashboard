@@ -209,7 +209,7 @@ const ProducaoDash = {
   /** Reparos finalizados por hora local (Fim do Reparo). */
   buildRepairHourHeatmap(rows, dateField = "fim") {
     const hours = this.REPAIR_HEATMAP_HOURS;
-    const byHour = YardexDash.aggregateHourBuckets(rows, dateField, hours[0], hours[hours.length - 1], {
+    const byHour = SkylineDash.aggregateHourBuckets(rows, dateField, hours[0], hours[hours.length - 1], {
       useLocal: true,
       skipHours: [12]
     });
@@ -223,7 +223,7 @@ const ProducaoDash = {
   matchesRepairHour(row, hour, dateField = "fim") {
     const raw = row?.[dateField];
     if (!raw) return false;
-    return YardexDash.hourBucketFromIso(raw, true) === hour;
+    return SkylineDash.hourBucketFromIso(raw, true) === hour;
   },
 
   overlapMs(aStart, aEnd, bStart, bEnd) {
@@ -346,16 +346,16 @@ const ProducaoDash = {
       descricao: raw.descricao || "—",
       serial: raw.serial || "—",
       status,
-      user: YardexDash.normalizeUserName(user || "—"),
+      user: SkylineDash.normalizeUserName(user || "—"),
       _workRaw: raw
     };
   },
 
   loadRows(json) {
-    const mapped = YardexDash.normalizeRows(json)
+    const mapped = SkylineDash.normalizeRows(json)
       .map((raw) => this.mapRow(raw))
       .filter((r) => this.DATE_FIELDS.some((f) => r[f]));
-    return YardexDash.distinctById(mapped, "id");
+    return SkylineDash.distinctById(mapped, "id");
   },
 
   matchesUserFilter(user, userFilter) {
@@ -390,7 +390,7 @@ const ProducaoDash = {
   },
 
   filterRowsByProduto(allRows, start, end, linha) {
-    let filtered = YardexDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
+    let filtered = SkylineDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
     const team = this.gestaoEquipeMatches();
     if (team.length) {
       filtered = filtered.filter((row) => this.matchesUserFilter(row.user, team));
@@ -408,7 +408,7 @@ const ProducaoDash = {
       userFilterOverride !== undefined
         ? userFilterOverride
         : this.USER_FILTERS[moduleKey] || null;
-    let filtered = YardexDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
+    let filtered = SkylineDash.filterByAnyDateField(allRows, start, end, this.DATE_FIELDS);
     if (userFilter?.length) {
       filtered = filtered.filter((row) => this.matchesUserFilter(row.user, userFilter));
     }
@@ -463,7 +463,7 @@ const ProducaoDash = {
     const panel = this.ANDROID_PANELS[panelIndex];
     if (!panel) return;
 
-    const API_URL = YardexDash.API_REPARO;
+    const API_URL = SkylineDash.API_REPARO;
     const statusEl = document.getElementById("statusMsg");
     const userFilter = panel.users.map((u) => u.match);
     let allRows = [];
@@ -491,7 +491,7 @@ const ProducaoDash = {
           <td>${u.andamento}</td>
           <td>${u.pausado}</td>
           <td style="font-weight:700">${u.total}</td>
-          <td style="font-weight:700;color:var(--bg)">${YardexDash.formatDuration(u.workMs)}</td>
+          <td style="font-weight:700;color:var(--bg)">${SkylineDash.formatDuration(u.workMs)}</td>
         </tr>
       `
         )
@@ -499,10 +499,10 @@ const ProducaoDash = {
     };
 
     const renderDashboard = () => {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
       if (start > end) {
-        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
         return;
       }
 
@@ -514,11 +514,11 @@ const ProducaoDash = {
       document.getElementById("kpiPausado").textContent = totals.pausado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · ${panel.subtitle} · tempo só no período filtrado`;
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · ${panel.subtitle} · tempo só no período filtrado`;
 
       renderTable(filtered, start, end);
 
-      YardexDash.showStatus(
+      SkylineDash.showStatus(
         statusEl,
         `Exibindo ${filtered.length} aparelho(s) no período · ${allRows.length} carregado(s).`,
         false
@@ -526,14 +526,14 @@ const ProducaoDash = {
     };
 
     const loadData = async () => {
-      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      SkylineDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
+        const json = await SkylineDash.fetchWebhook(API_URL);
         allRows = this.loadRows(json);
-        YardexDash.showStatus(statusEl, `${allRows.length} único(s) carregado(s).`, false);
+        SkylineDash.showStatus(statusEl, `${allRows.length} único(s) carregado(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        SkylineDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
         ["kpiFinalizado", "kpiAndamento", "kpiPausado", "kpiTotal"].forEach((id) => {
           const el = document.getElementById(id);
           if (el) el.textContent = "0";
@@ -545,7 +545,7 @@ const ProducaoDash = {
       }
     };
 
-    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   },
 
   computeTotals(filtered) {
@@ -558,15 +558,15 @@ const ProducaoDash = {
   },
 
   init(moduleKey) {
-    const API_URL = YardexDash.API_REPARO;
+    const API_URL = SkylineDash.API_REPARO;
     const statusEl = document.getElementById("statusMsg");
     let allRows = [];
 
     const renderDashboard = () => {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
       if (start > end) {
-        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
         return;
       }
 
@@ -590,7 +590,7 @@ const ProducaoDash = {
       document.getElementById("kpiPausado").textContent = totals.pausado;
       document.getElementById("kpiTotal").textContent = totals.total;
       document.getElementById("periodLabel").textContent =
-        `Período: ${YardexDash.formatPeriodBR(start, end)} · aparelhos no período · tempo só no período filtrado`;
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · aparelhos no período · tempo só no período filtrado`;
 
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
@@ -608,12 +608,12 @@ const ProducaoDash = {
             <td>${u.andamento}</td>
             <td>${u.pausado}</td>
             <td style="font-weight:700">${u.total}</td>
-            <td style="font-weight:700;color:var(--bg)">${YardexDash.formatDuration(u.workMs)}</td>
+            <td style="font-weight:700;color:var(--bg)">${SkylineDash.formatDuration(u.workMs)}</td>
           </tr>
         `).join("");
       }
 
-      YardexDash.showStatus(
+      SkylineDash.showStatus(
         statusEl,
         `Exibindo ${filtered.length} aparelho(s) no período · ${allRows.length} carregado(s).`,
         false
@@ -621,14 +621,14 @@ const ProducaoDash = {
     };
 
     const loadData = async () => {
-      YardexDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
+      SkylineDash.showStatus(statusEl, "Carregando dados do endpoint…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
+        const json = await SkylineDash.fetchWebhook(API_URL);
         allRows = this.loadRows(json);
-        YardexDash.showStatus(statusEl, `${allRows.length} único(s) carregado(s).`, false);
+        SkylineDash.showStatus(statusEl, `${allRows.length} único(s) carregado(s).`, false);
         renderDashboard();
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
+        SkylineDash.showStatus(statusEl, `Erro ao carregar: ${err.message}. Use http://localhost (CORS).`, true);
         ["kpiFinalizado", "kpiAndamento", "kpiPausado", "kpiTotal"].forEach((id) => {
           document.getElementById(id).textContent = "0";
         });
@@ -637,6 +637,6 @@ const ProducaoDash = {
       }
     };
 
-    const { reload } = YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   }
 };

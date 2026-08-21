@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <script src="yardex-auth.js?v=2"></script>
+    <script src="skyline-auth.js?v=2"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Triagem</title>
-  <link rel="stylesheet" href="yardex-dash.css?v=12" />
+  <link rel="stylesheet" href="skyline-dash.css?v=12" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=67"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=67"></script>
   <style>
     :root {
       --tr-page: #694992;
@@ -571,10 +571,10 @@
   <script>
     Chart.register(ChartDataLabels);
 
-    const API_URL = YardexDash.API_REPARO;
+    const API_URL = SkylineDash.API_REPARO;
     const DATE_FIELD = "data_triagem";
     /** Triagem completa: reparo + gestão peças + limpeza. */
-    const ETAPAS = YardexDash.ETAPAS_TRIAGEM;
+    const ETAPAS = SkylineDash.ETAPAS_TRIAGEM;
     /** Conta também Sankhya erro / outros (não exige sucesso). */
     const REQUIRE_SANKHYA_SUCESSO = false;
     const TOP_N = 8;
@@ -614,7 +614,7 @@
       if (!raw || typeof raw !== "object") return "payload_invalido";
       const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
       if (!dataTriagem) return "sem_data_triagem";
-      const op = YardexDash.resolveOperacao(raw);
+      const op = SkylineDash.resolveOperacao(raw);
       if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
       if (REQUIRE_SANKHYA_SUCESSO) {
         const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
@@ -636,25 +636,25 @@
     }
 
     function buildTriagemDebugReport(rawList, mappedRows) {
-      const { start, end } = YardexDash.getDateRange();
-      const hoje = YardexDash.todayISO();
+      const { start, end } = SkylineDash.getDateRange();
+      const hoje = SkylineDash.todayISO();
       const reasons = [];
       const ops = [];
       const acceptedRaw = [];
       rawList.forEach((raw) => {
         const why = rejectReasonTriagem(raw);
-        ops.push(YardexDash.resolveOperacao(raw) || "(vazia)");
+        ops.push(SkylineDash.resolveOperacao(raw) || "(vazia)");
         if (why) reasons.push(why);
         else acceptedRaw.push(raw);
       });
 
       const mapped = mappedRows || acceptedRaw.map(mapRow).filter((r) => r.data_triagem);
       const withDupesPeriod = start && end
-        ? YardexDash.filterByDateField(mapped, start, end, DATE_FIELD)
+        ? SkylineDash.filterByDateField(mapped, start, end, DATE_FIELD)
         : [];
-      const periodDistinct = YardexDash.distinctById(withDupesPeriod, "id");
-      const hojeDupes = YardexDash.filterByDateField(mapped, hoje, hoje, DATE_FIELD);
-      const hojeDistinct = YardexDash.distinctById(hojeDupes, "id");
+      const periodDistinct = SkylineDash.distinctById(withDupesPeriod, "id");
+      const hojeDupes = SkylineDash.filterByDateField(mapped, hoje, hoje, DATE_FIELD);
+      const hojeDistinct = SkylineDash.distinctById(hojeDupes, "id");
 
       const dupIds = (() => {
         const seen = new Map();
@@ -666,8 +666,8 @@
         return [...seen.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
       })();
 
-      const byUserPeriod = YardexDash.aggregateCount(periodDistinct, (r) => r.usuario).slice(0, 15);
-      const byUserHoje = YardexDash.aggregateCount(hojeDistinct, (r) => r.usuario).slice(0, 15);
+      const byUserPeriod = SkylineDash.aggregateCount(periodDistinct, (r) => r.usuario).slice(0, 15);
+      const byUserHoje = SkylineDash.aggregateCount(hojeDistinct, (r) => r.usuario).slice(0, 15);
       const byOp = countMap(ops).slice(0, 12);
       const byReason = countMap(reasons);
 
@@ -686,7 +686,7 @@
         sampleReject.push({
           id: raw.id ?? null,
           why,
-          op: YardexDash.resolveOperacao(raw) || "",
+          op: SkylineDash.resolveOperacao(raw) || "",
           data: raw["Data Triagem"] || raw.data_triagem || null,
           sankhya: raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null,
           user: raw["Usuário triagem"] || raw["Usuário reparo"] || null
@@ -959,8 +959,8 @@
       return {
         id: raw.id ?? null,
         data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
-        operacao: YardexDash.resolveOperacao(raw),
-        usuario: YardexDash.normalizeUserName(
+        operacao: SkylineDash.resolveOperacao(raw),
+        usuario: SkylineDash.normalizeUserName(
           raw["Usuário triagem"] ||
           raw["Usuário reparo"] ||
           raw.usuario_triagem ||
@@ -974,8 +974,8 @@
     }
 
     function rowsForPeriod(rows, start, end) {
-      return YardexDash.distinctById(
-        YardexDash.filterByDateField(rows, start, end, DATE_FIELD),
+      return SkylineDash.distinctById(
+        SkylineDash.filterByDateField(rows, start, end, DATE_FIELD),
         "id"
       );
     }
@@ -988,7 +988,7 @@
     function renderUserChart(rows) {
       let byUser;
       if (APPLY_MASK) {
-        const all = YardexDash.aggregateCount(rows, (r) => r.usuario);
+        const all = SkylineDash.aggregateCount(rows, (r) => r.usuario);
         const map = new Map(all);
         const masked = HOMOLOG_TECHS.map((t) => [t, map.get(t) || 0]);
         const rest = all
@@ -996,7 +996,7 @@
           .sort((a, b) => b[1] - a[1]);
         byUser = masked.concat(rest).slice(0, TOP_N);
       } else {
-        byUser = YardexDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
+        byUser = SkylineDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
       }
       lastUserKeys = byUser.map(([n]) => n);
       lastPeriodRows = rows;
@@ -1049,9 +1049,9 @@
     }
 
     function renderMarcaChart(rows) {
-      const aggregated = YardexDash.aggregateCount(
+      const aggregated = SkylineDash.aggregateCount(
         rows,
-        (r) => YardexDash.extractFirstWord(r.descricao)
+        (r) => SkylineDash.extractFirstWord(r.descricao)
       );
       let byBrand;
       if (APPLY_MASK) {
@@ -1091,11 +1091,11 @@
     }
 
     function renderHoraChart(rows, end) {
-      const byHour = YardexDash.aggregateHourBuckets(rows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+      const byHour = SkylineDash.aggregateHourBuckets(rows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
       const labels = byHour.map((x) => x[0]);
-      const values = YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, {
+      const values = SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
       const hasData = values.some((v) => v != null && v > 0);
@@ -1206,7 +1206,7 @@
     }
 
     function expedienteHoursTouched(byHour, end) {
-      const values = YardexDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true });
+      const values = SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true });
       const valid = values.filter((v) => v != null);
       const sum = valid.reduce((a, b) => a + Number(b || 0), 0);
       const hours = Math.max(1, valid.length);
@@ -1214,14 +1214,14 @@
     }
 
     function renderDashboard() {
-      const { start, end } = YardexDash.getDateRange();
+      const { start, end } = SkylineDash.getDateRange();
       if (!start || !end) return;
       if (start > end) {
-        YardexDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
         return;
       }
 
-      const hoje = YardexDash.todayISO();
+      const hoje = SkylineDash.todayISO();
       const ontem = addDaysISO(hoje, -1);
 
       const periodRowsBase = rowsForPeriod(allRows, start, end);
@@ -1248,7 +1248,7 @@
         : "0";
       document.getElementById("kpiRitmoHint").textContent = `${ritmo.hours}h no expediente`;
       document.getElementById("kpiUsers").textContent =
-        YardexDash.aggregateCount(periodRows, (r) => r.usuario).length;
+        SkylineDash.aggregateCount(periodRows, (r) => r.usuario).length;
 
       renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour);
 
@@ -1256,22 +1256,22 @@
         hour: "2-digit", minute: "2-digit", second: "2-digit"
       });
       document.getElementById("periodLabel").textContent =
-        `${YardexDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
+        `${SkylineDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
 
-      YardexDash.markRefresh();
-      YardexDash.showStatus(statusEl, `${periodRows.length} aparelho(s) no período.`, false);
+      SkylineDash.markRefresh();
+      SkylineDash.showStatus(statusEl, `${periodRows.length} aparelho(s) no período.`, false);
       if (DEBUG_MODE && lastRawPayload.length) {
         renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
       }
     }
 
     async function loadData() {
-      YardexDash.showStatus(statusEl, "Carregando dados…", false);
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await YardexDash.fetchWebhook(API_URL);
-        lastRawPayload = YardexDash.normalizeRows(json);
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        lastRawPayload = SkylineDash.normalizeRows(json);
         allRows = lastRawPayload
-          .filter((raw) => YardexDash.passesTriagemRaw(raw, ETAPAS, {
+          .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, {
             requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO
           }))
           .map(mapRow)
@@ -1280,9 +1280,9 @@
         if (DEBUG_MODE) {
           renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
         }
-        YardexDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
+        SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
       } catch (err) {
-        YardexDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
         document.getElementById("kpiTotal").textContent = "0";
         document.getElementById("kpiHoje").textContent = "0";
         document.getElementById("kpiRitmo").textContent = "0";
@@ -1323,7 +1323,7 @@
       });
     }
 
-    YardexDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
 
     if (DEBUG_MODE) {
       document.getElementById("dbgCopy")?.addEventListener("click", async () => {

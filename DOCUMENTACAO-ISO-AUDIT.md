@@ -90,13 +90,13 @@ Cada etapa possui dashboard dedicado e regras de KPI documentadas nas seções 7
 
 | Camada | Descrição | Evidência |
 |--------|-----------|-----------|
-| Apresentação | HTML/CSS/JavaScript (vanilla), Chart.js, JsBarcode | Arquivos `*.html`, `yardex-*.js/css` |
-| Lógica de negócio (cliente) | Agregação, filtros de data, deduplicação CQE, status de produção | `yardex-dash.js`, `yardex-producao.js`, `yardex-producao-gestao.js`, `yardex-consolidado.js` |
-| Cache | IndexedDB + memória (mitiga falha temporária da API) | Funções de cache em `yardex-dash.js` |
+| Apresentação | HTML/CSS/JavaScript (vanilla), Chart.js, JsBarcode | Arquivos `*.html`, `skyline-*.js/css` |
+| Lógica de negócio (cliente) | Agregação, filtros de data, deduplicação CQE, status de produção | `skyline-dash.js`, `skyline-producao.js`, `skyline-producao-gestao.js`, `skyline-consolidado.js` |
+| Cache | IndexedDB + memória (mitiga falha temporária da API) | Funções de cache em `skyline-dash.js` |
 | Integração | Webhooks n8n (somente leitura) | Constantes `API_REPARO`, `API_RECEBIMENTO` |
 | Homologação | Fixtures JSON locais | `data/homolog/`, `?homolog=1` |
 | Publicação | GitHub Pages (branch `main`) | URL pública + `version.json` |
-| Controle de versão de tela | Polling de `version.json` → reload automático nas TVs | `yardex-version.js` |
+| Controle de versão de tela | Polling de `version.json` → reload automático nas TVs | `skyline-version.js` |
 
 **Modelo de dados:** sem banco próprio. Os dados residem nos sistemas de origem; o dashboard consome payloads via HTTP.
 
@@ -159,7 +159,7 @@ Cada etapa possui dashboard dedicado e regras de KPI documentadas nas seções 7
 | Filtro de grupo | Recebimento restrito ao **grupo 6151** | `passesRecebimentoRaw` |
 | Normalização de payload | Aceita array ou objeto aninhado | `normalizeRows` |
 | Deduplicação CQE | Chave `id + dia + decisão`; exclusão de motivo “teste” | `processCqeRows` |
-| Campos de data CQE | Aprovado → data Sankhya; Reprovado → Fim do Reparo (conforme regra vigente) | `yardex-dash.js` |
+| Campos de data CQE | Aprovado → data Sankhya; Reprovado → Fim do Reparo (conforme regra vigente) | `skyline-dash.js` |
 | Cache com fallback | Em falha de API, usa cache recente (stale) | `fetchWebhook` |
 | Homologação isolada | Ambiente local não altera produção | `?homolog=1` / fixtures |
 | Versionamento de tela | Nova versão força reload nas TVs | `version.json` |
@@ -233,7 +233,7 @@ Cada etapa possui dashboard dedicado e regras de KPI documentadas nas seções 7
 
 ### 8.6 Consolidado
 
-Agrega os KPIs dos módulos acima em uma única tela. **Regra de governança:** qualquer alteração de KPI em dashboard individual deve ser refletida em `yardex-consolidado.js` (checklist interno de sincronização).
+Agrega os KPIs dos módulos acima em uma única tela. **Regra de governança:** qualquer alteração de KPI em dashboard individual deve ser refletida em `skyline-consolidado.js` (checklist interno de sincronização).
 
 ---
 
@@ -246,7 +246,7 @@ Agrega os KPIs dos módulos acima em uma única tela. **Regra de governança:** 
 | 3 | Validação de paridade com Consolidado | Desenvolvimento | Checklist consolidado-sync |
 | 4 | Commit + push na branch `main` | Desenvolvimento | Histórico GitHub |
 | 5 | Bump de `version.json` | Desenvolvimento | `npm run bump-version` / script |
-| 6 | TVs recarregam automaticamente | Sistema | `yardex-version.js` |
+| 6 | TVs recarregam automaticamente | Sistema | `skyline-version.js` |
 
 **Rastreabilidade:** o histórico Git constitui o registro de alterações do software.
 
@@ -326,7 +326,7 @@ Agrega os KPIs dos módulos acima em uma única tela. **Regra de governança:** 
 | Código-fonte versionado | Repositório GitHub |
 | Versão em produção | `version.json` + URL pública |
 | Homologação | `data/homolog/manifest.json` (synced_at) + prints `?homolog=1` |
-| Regras CQE / produção | `yardex-dash.js` / `yardex-producao.js` |
+| Regras CQE / produção | `skyline-dash.js` / `skyline-producao.js` |
 | Publicação | Histórico de commits / GitHub Pages settings |
 | Uso operacional | Fotos/prints das TVs e painéis de gestão |
 | Treinamento / acesso | Registro interno de quem opera TVs e gestão |

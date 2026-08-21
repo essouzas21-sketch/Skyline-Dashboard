@@ -18,7 +18,7 @@ Dashboards web para exibição em **TVs e monitores** da operação: Recebimento
 
 - Navegador moderno (Chrome, Edge, Firefox)
 - **Servidor HTTP** na rede (não abrir arquivos com `file://`)
-- TVs/computador com acesso à internet para a API Yardex (`datalake.yardex.pro`)
+- TVs/computador com acesso à internet para a API Skyline (`datalake.skyline.pro`)
 
 ## Rodar na rede (TVs)
 
@@ -72,7 +72,7 @@ Após ativar (passos abaixo), o dashboard fica em:
 
 Não use GitHub Actions para este projeto; a publicação é direto da branch `main`.
 
-> **CORS:** a API Yardex precisa aceitar requisições do domínio `github.io`. Se os dados não carregarem no link público, use o servidor local (`./start.sh`) na rede da empresa.
+> **CORS:** a API Skyline precisa aceitar requisições do domínio `github.io`. Se os dados não carregarem no link público, use o servidor local (`./start.sh`) na rede da empresa.
 
 ## Subir no GitHub
 
@@ -100,9 +100,9 @@ skyline-dashboard/
 ├── producao-iphone.html
 ├── gestao-produto.html
 ├── cqe.html
-├── yardex-dash.js          → utilitários compartilhados
-├── yardex-dash.css
-├── yardex-producao.js      → lógica produção
+├── skyline-dash.js          → utilitários compartilhados
+├── skyline-dash.css
+├── skyline-producao.js      → lógica produção
 ├── modulo-base.css
 ├── start.sh
 ├── package.json
@@ -111,7 +111,7 @@ skyline-dashboard/
 
 ## Segregar usuários (Produção)
 
-Edite `yardex-producao.js`:
+Edite `skyline-producao.js`:
 
 ```javascript
 USER_FILTERS: {

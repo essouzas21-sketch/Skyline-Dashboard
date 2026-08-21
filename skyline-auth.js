@@ -2,7 +2,7 @@
  * Autenticação client-side do Skyline Dashboard.
  * Sessão em sessionStorage; usuários extras em localStorage; admin seed no código (hash).
  */
-const YardexAuth = (() => {
+const SkylineAuth = (() => {
   const USERS_KEY = "skyline_auth_users_v1";
   const SESSION_KEY = "skyline_auth_session_v1";
   const LOGIN_PAGE = "login.html";

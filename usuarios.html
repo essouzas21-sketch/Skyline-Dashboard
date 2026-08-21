@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usuários — Skyline Dashboard</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
-  <script src="yardex-auth.js?v=2"></script>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <script src="skyline-auth.js?v=2"></script>
   <style>
     :root {
       --bg: #694992;
@@ -281,7 +281,7 @@
   </div>
 
   <script>
-    const session = YardexAuth.requireAdmin();
+    const session = SkylineAuth.requireAdmin();
     if (!session) {
       /* redirect em andamento */
     } else {
@@ -293,7 +293,7 @@
 
       document.getElementById("btnLogout").addEventListener("click", (e) => {
         e.preventDefault();
-        YardexAuth.logout();
+        SkylineAuth.logout();
       });
 
       function showMsg(text, ok) {
@@ -334,7 +334,7 @@
       }
 
       function render() {
-        const users = YardexAuth.listUsers();
+        const users = SkylineAuth.listUsers();
         const body = document.getElementById("usersBody");
         if (!users.length) {
           body.innerHTML = `<tr><td colspan="5">Nenhum usuário.</td></tr>`;
@@ -358,7 +358,7 @@
         body.querySelectorAll("[data-edit]").forEach((btn) => {
           btn.addEventListener("click", () => {
             const email = btn.getAttribute("data-edit");
-            const user = YardexAuth.listUsers().find((x) => x.email === email);
+            const user = SkylineAuth.listUsers().find((x) => x.email === email);
             if (user) fillEdit(user);
           });
         });
@@ -366,7 +366,7 @@
           btn.addEventListener("click", () => {
             const email = btn.getAttribute("data-del");
             if (!confirm(`Excluir ${email}?`)) return;
-            const res = YardexAuth.removeUser(email);
+            const res = SkylineAuth.removeUser(email);
             if (!res.ok) {
               alert(res.error || "Não foi possível excluir.");
               return;
@@ -394,7 +394,7 @@
           role: document.getElementById("role").value,
           active: document.getElementById("active").value === "1"
         };
-        const res = await YardexAuth.upsertUser(payload);
+        const res = await SkylineAuth.upsertUser(payload);
         if (!res.ok) {
           showMsg(res.error || "Falha ao salvar.", false);
           return;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Análise da Produção Skyline</title>
-  <link rel="stylesheet" href="yardex-dash.css" />
+  <link rel="stylesheet" href="skyline-dash.css" />
   <style>
     :root {
       --bg: #694992;
@@ -331,13 +331,13 @@
     </nav>
   </div>
 
-  <script src="yardex-auth.js?v=2"></script>
-  <script src="yardex-version.js?v=2"></script>
-  <script src="yardex-dash.js?v=61"></script>
+  <script src="skyline-auth.js?v=2"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=61"></script>
   <script>
-    YardexVersion.start(30000);
+    SkylineVersion.start(30000);
     (function () {
-      const session = YardexAuth.getSession();
+      const session = SkylineAuth.getSession();
       if (!session) return;
       const bar = document.getElementById("authBar");
       const label = document.getElementById("authUserLabel");
@@ -351,7 +351,7 @@
       } else if (menuUsers) {
         menuUsers.style.display = "none";
       }
-      document.getElementById("authLogout").addEventListener("click", () => YardexAuth.logout());
+      document.getElementById("authLogout").addEventListener("click", () => SkylineAuth.logout());
     })();
   </script>
 </body>
