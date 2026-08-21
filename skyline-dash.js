@@ -10,8 +10,6 @@ const SkylineDash = {
   API_MOVIMENTACOES: "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9",
   /** Peças solicitadas (serial, descricoes, valor_total) */
   API_PECAS: "https://automacao.skylinemobile.com.br/webhook/873620b8-7633-4e79-99fe-39c8b504b9a4",
-  /** Lista de preços (SKU, Produto, Marca, Qualidade, Preco Tabela 1) */
-  API_LISTA_PRECOS: "https://automacao.skylinemobile.com.br/webhook/listaprecos",
 
   HOMOLOG_FIXTURES: {
     "webhook/fi": "data/homolog/reparo.json",

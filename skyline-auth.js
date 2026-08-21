@@ -6,13 +6,7 @@ const SkylineAuth = (() => {
   const USERS_KEY = "skyline_auth_users_v1";
   const SESSION_KEY = "skyline_auth_session_v1";
   const LOGIN_PAGE = "login.html";
-  const PRECOS_LOGIN_PAGE = "precos-login.html";
-  const PUBLIC_PAGES = new Set(["login.html", "precos-login.html"]);
-  const PRECOS_APP_PAGES = new Set(["lista-precos.html"]);
-
-  function loginPageFor(page = pageName()) {
-    return PRECOS_APP_PAGES.has(page) ? PRECOS_LOGIN_PAGE : LOGIN_PAGE;
-  }
+  const PUBLIC_PAGES = new Set(["login.html"]);
 
   /** Admin inicial — senha só em hash (SHA-256 de salt+senha). */
   const SEED_USERS = [
@@ -172,7 +166,7 @@ const SkylineAuth = (() => {
 
   function logout(redirectTo) {
     clearSession();
-    const target = redirectTo || loginPageFor(pageName());
+    const target = redirectTo || LOGIN_PAGE;
     location.href = target;
   }
 
@@ -272,7 +266,7 @@ const SkylineAuth = (() => {
     const session = getSession();
     if (session) return session;
     const next = encodeURIComponent(location.pathname.split("/").pop() + location.search + location.hash);
-    location.replace(`${loginPageFor()}?next=${next}`);
+    location.replace(`${LOGIN_PAGE}?next=${next}`);
     return null;
   }
 
@@ -297,7 +291,6 @@ const SkylineAuth = (() => {
     upsertUser,
     removeUser,
     normEmail,
-    isPublicPage,
-    loginPageFor
+    isPublicPage
   };
 })();
