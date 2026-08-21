@@ -142,7 +142,7 @@
     }
 
     .main {
-      width: min(1200px, 100%);
+      width: min(1480px, 100%);
       margin: 0 auto;
       padding: 18px 20px 28px;
       display: flex;
@@ -512,7 +512,7 @@
         <input
           id="filterSearch"
           type="search"
-          placeholder="Buscar SKU, descrição, marca ou qualidade…"
+          placeholder="Buscar SKU, código, produto, marca, cor…"
           autocomplete="off"
         />
         <button class="btn" type="button" id="btnReload">Atualizar</button>
@@ -556,11 +556,14 @@
             <option value="marca">Marca · A–Z</option>
             <option value="descricao">Descrição · A–Z</option>
             <option value="sku">SKU · A–Z</option>
+            <option value="codigo">Código interno · A–Z</option>
             <option value="qualidade">Qualidade · A–Z</option>
             <option value="saldo_desc">Saldo · maior</option>
             <option value="saldo_asc">Saldo · menor</option>
-            <option value="valor_desc">Valor · maior</option>
-            <option value="valor_asc">Valor · menor</option>
+            <option value="valor_desc">Tabela 1 · maior</option>
+            <option value="valor_asc">Tabela 1 · menor</option>
+            <option value="credito_desc">Crédito · maior</option>
+            <option value="credito_asc">Crédito · menor</option>
           </select>
         </div>
       </div>
@@ -572,15 +575,19 @@
           <thead>
             <tr>
               <th>SKU</th>
-              <th>Descrição</th>
+              <th>Código interno</th>
+              <th>Produto</th>
               <th>Marca</th>
+              <th>Armazenamento</th>
+              <th>Cores</th>
               <th>Qualidade</th>
-              <th>Saldo</th>
-              <th>Valor do produto</th>
+              <th>Saldo_Principal</th>
+              <th>Preço Tabela 1</th>
+              <th>Preço Crédito</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="6" class="loading">Carregando lista…</td></tr>
+            <tr><td colspan="10" class="loading">Carregando lista…</td></tr>
           </tbody>
         </table>
       </div>
@@ -598,15 +605,6 @@
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
-    }
-
-    function shortDescricao(produto) {
-      const s = String(produto || "").trim();
-      if (!s) return "—";
-      const idx = s.indexOf("-");
-      if (idx < 0) return s;
-      const left = s.slice(0, idx).trim();
-      return left || s;
     }
 
     function parseMoney(v) {
@@ -634,17 +632,25 @@
 
     function mapRow(raw) {
       const valor = parseMoney(raw["Preco Tabela 1"] ?? raw.preco_tabela_1 ?? raw.PrecoTabela1);
+      const credito = parseMoney(raw["Preco Credito"] ?? raw.preco_credito ?? raw.PrecoCredito);
       const saldo = parseSaldo(
         raw.Saldo_Principal ?? raw.saldo_principal ?? raw.Saldo ?? raw.saldo ?? raw.ESTOQUE ?? raw.estoque
       );
+      const produto = String(raw.Produto ?? raw.produto ?? raw.descricao ?? "").trim();
       return {
         sku: String(raw.SKU ?? raw.sku ?? "").trim(),
-        descricao: shortDescricao(raw.Produto ?? raw.produto ?? raw.descricao),
-        produtoFull: String(raw.Produto ?? raw.produto ?? "").trim(),
+        codigoInterno: String(raw["Codigo interno"] ?? raw.codigo_interno ?? raw.CodigoInterno ?? "").trim(),
+        descricao: produto || "—",
+        produtoFull: produto,
         marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
+        armazenamento: String(raw.Armazenamento ?? raw.armazenamento ?? "").trim() || "—",
+        cores: String(raw.Cores ?? raw.cores ?? raw.Cor ?? "").trim() || "—",
         qualidade: String(raw.Qualidade ?? raw.qualidade ?? "").trim() || "—",
+        ativo: String(raw.ATIVO ?? raw.ativo ?? "").trim(),
+        usoprod: String(raw.USOPROD ?? raw.usoprod ?? "").trim(),
         saldo,
-        valor
+        valor,
+        credito
       };
     }
 
@@ -783,6 +789,8 @@
             return cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
           case "sku":
             return cmpText(a.sku, b.sku);
+          case "codigo":
+            return cmpText(a.codigoInterno, b.codigoInterno) || cmpText(a.sku, b.sku);
           case "qualidade":
             return cmpText(a.qualidade, b.qualidade) || cmpText(a.descricao, b.descricao);
           case "saldo_desc":
@@ -793,6 +801,10 @@
             return cmpNum(a.valor, b.valor, -1) || cmpText(a.descricao, b.descricao);
           case "valor_asc":
             return cmpNum(a.valor, b.valor, 1) || cmpText(a.descricao, b.descricao);
+          case "credito_desc":
+            return cmpNum(a.credito, b.credito, -1) || cmpText(a.descricao, b.descricao);
+          case "credito_asc":
+            return cmpNum(a.credito, b.credito, 1) || cmpText(a.descricao, b.descricao);
           case "marca":
           default:
             return cmpText(a.marca, b.marca) || cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
@@ -814,7 +826,7 @@
         if (marcas.length && !marcas.includes(r.marca)) return false;
         if (qualidades.length && !qualidades.includes(r.qualidade)) return false;
         if (!q) return true;
-        const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
+        const blob = `${r.sku} ${r.codigoInterno} ${r.descricao} ${r.marca} ${r.qualidade} ${r.armazenamento} ${r.cores} ${r.produtoFull}`
           .toLowerCase()
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
@@ -835,7 +847,7 @@
       const tbody = document.getElementById("tableBody");
       renderKpis();
       if (!viewRows.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty">${
+        tbody.innerHTML = `<tr><td colspan="10" class="empty">${
           allRows.length ? "Nenhum item no filtro." : "Sem itens no estoque."
         }</td></tr>`;
         return;
@@ -846,11 +858,15 @@
         return `
         <tr>
           <td class="sku">${escapeHtml(r.sku || "—")}</td>
+          <td class="sku">${escapeHtml(r.codigoInterno || "—")}</td>
           <td class="desc">${escapeHtml(r.descricao)}</td>
           <td>${escapeHtml(r.marca)}</td>
+          <td>${escapeHtml(r.armazenamento)}</td>
+          <td>${escapeHtml(r.cores)}</td>
           <td class="${gClass}">${escapeHtml(r.qualidade)}</td>
           <td class="saldo">${escapeHtml(saldoTxt)}</td>
           <td class="money">${escapeHtml(formatMoney(r.valor))}</td>
+          <td class="money">${escapeHtml(formatMoney(r.credito))}</td>
         </tr>`;
       }).join("");
     }
@@ -889,15 +905,19 @@
         alert("Nenhum item para exportar.");
         return;
       }
-      const header = ["SKU","Descrição","Marca","Qualidade","Saldo","Valor do produto"]
+      const header = ["SKU","Código interno","Produto","Marca","Armazenamento","Cores","Qualidade","Saldo_Principal","Preço Tabela 1","Preço Crédito"]
         .map((h) => excelCellText(h, "Header")).join("");
       const body = rows.map((r) => `<Row>${[
         excelCellText(r.sku, "BodyLeft"),
+        excelCellText(r.codigoInterno, "Body"),
         excelCellText(r.descricao, "BodyLeft"),
         excelCellText(r.marca, "Body"),
+        excelCellText(r.armazenamento, "Body"),
+        excelCellText(r.cores, "Body"),
         excelCellText(r.qualidade, gradeExcelStyle(r.qualidade)),
         excelCellNumber(r.saldo, "Body"),
-        excelCellNumber(r.valor, "Money")
+        excelCellNumber(r.valor, "Money"),
+        excelCellNumber(r.credito, "Money")
       ].join("")}</Row>`).join("");
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `estoque-${stamp}.xls`;
@@ -938,13 +958,13 @@
       document.getElementById("btnReload").disabled = true;
       document.getElementById("btnExcel").disabled = true;
       try {
-        const json = await SkylineDash.fetchWebhook(API_URL);
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { force: true });
         const rawRows = SkylineDash.normalizeRows(json);
         allRows = rawRows
           .map(mapRow)
-          .filter((r) => r.sku || r.descricao !== "—");
+          .filter((r) => r.sku || r.descricao !== "—" || r.codigoInterno);
         document.getElementById("metaStamp").textContent =
-          `${allRows.length} item(ns) · atualizado ${new Date().toLocaleString("pt-BR")}`;
+          `${allRows.length} item(ns) · webhook listaprecos · ${new Date().toLocaleString("pt-BR")}`;
         fillFilterOptions();
         applyFilter();
         setStatus(`${allRows.length} item(ns) carregado(s).`);
@@ -956,7 +976,7 @@
         renderTable();
         setStatus(`Erro: ${err.message}`, true);
         document.getElementById("tableBody").innerHTML =
-          `<tr><td colspan="6" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+          `<tr><td colspan="10" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
       } finally {
         document.getElementById("btnReload").disabled = false;
         document.getElementById("btnExcel").disabled = false;
