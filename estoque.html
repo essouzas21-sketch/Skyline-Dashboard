@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=72"></script>
+  <script src="skyline-dash.js?v=73"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -152,6 +152,23 @@
       min-width: 0;
     }
 
+    .top-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filters-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      display: grid;
+      gap: 14px;
+    }
+
     .filters-row {
       display: flex;
       align-items: flex-end;
@@ -165,7 +182,8 @@
       min-width: 160px;
     }
 
-    .filter-field label {
+    .filter-field > span,
+    .filter-field > label {
       font-size: 0.62rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -182,6 +200,52 @@
       font: inherit;
       font-size: 0.9rem;
       min-width: 180px;
+    }
+
+    .check-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .check-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .check-chip:hover {
+      border-color: rgba(75, 46, 131, 0.35);
+    }
+
+    .check-chip:has(input:checked) {
+      background: rgba(75, 46, 131, 0.1);
+      border-color: rgba(75, 46, 131, 0.45);
+      color: var(--purple);
+    }
+
+    .check-chip input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--purple);
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .check-empty {
+      font-size: 0.82rem;
+      color: var(--muted);
+      padding: 6px 0;
     }
 
     .hero-stats {
@@ -330,50 +394,6 @@
 
     tr:hover td:not([class*="grade-"]) { background: #f7f3fc; }
 
-    .legend-wrap {
-      margin: 0 0 14px;
-      overflow: auto;
-      border: 1px solid #d9d2e8;
-      border-radius: 8px;
-    }
-
-    .legend-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
-    }
-
-    .legend-table th,
-    .legend-table td {
-      border: 1px solid #d9d2e8;
-      padding: 8px 10px;
-      vertical-align: middle;
-    }
-
-    .legend-table th {
-      background: #4b2e83;
-      color: #fff;
-      font-size: 0.64rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      font-weight: 800;
-      text-align: center;
-      position: static;
-    }
-
-    .legend-table td.grade {
-      text-align: center;
-      font-weight: 800;
-      white-space: nowrap;
-      width: 140px;
-    }
-
-    .legend-table td.note {
-      text-align: left;
-      color: #2b2438;
-      line-height: 1.35;
-    }
-
     .empty, .loading, .error {
       padding: 36px 20px;
       text-align: center;
@@ -400,7 +420,7 @@
 </head>
 <body>
   <main class="main">
-    <div class="filters-row">
+    <div class="top-row">
       <a class="btn ghost" href="menu.html" style="display:inline-flex;align-items:center;text-decoration:none">← Menu</a>
       <div class="search-box" style="flex:1;min-width:240px">
         <input
@@ -414,32 +434,7 @@
           Excel
         </button>
       </div>
-      <div class="filter-field">
-        <label for="filterMarca">Marca</label>
-        <select id="filterMarca">
-          <option value="">Todas</option>
-        </select>
-      </div>
-      <div class="filter-field">
-        <label for="filterQualidade">Qualidade</label>
-        <select id="filterQualidade">
-          <option value="">Todas</option>
-        </select>
-      </div>
-      <div class="filter-field">
-        <label for="filterSort">Ordenar por</label>
-        <select id="filterSort">
-          <option value="marca">Marca · A–Z</option>
-          <option value="descricao">Descrição · A–Z</option>
-          <option value="sku">SKU · A–Z</option>
-          <option value="qualidade">Qualidade · A–Z</option>
-          <option value="saldo_desc">Saldo · maior</option>
-          <option value="saldo_asc">Saldo · menor</option>
-          <option value="valor_desc">Valor · maior</option>
-          <option value="valor_asc">Valor · menor</option>
-        </select>
-      </div>
-      <div class="status" id="metaStamp" style="align-self:center;margin:0">—</div>
+      <div class="status" id="metaStamp" style="margin:0">—</div>
     </div>
 
     <div class="status" id="statusMsg">Carregando…</div>
@@ -459,19 +454,33 @@
       </div>
     </section>
 
-    <section class="card">
-      <div class="legend-wrap">
-        <table class="legend-table" id="gradeLegendTable">
-          <thead>
-            <tr>
-              <th>Grade</th>
-              <th>Condição estética</th>
-              <th>Condição funcional</th>
-            </tr>
-          </thead>
-          <tbody id="gradeLegendBody"></tbody>
-        </table>
+    <section class="filters-panel" aria-label="Filtros">
+      <div class="filter-field">
+        <span>Marca</span>
+        <div class="check-group" id="filterMarca"></div>
       </div>
+      <div class="filter-field">
+        <span>Qualidade</span>
+        <div class="check-group" id="filterQualidade"></div>
+      </div>
+      <div class="filters-row">
+        <div class="filter-field">
+          <label for="filterSort">Ordenar por</label>
+          <select id="filterSort">
+            <option value="marca">Marca · A–Z</option>
+            <option value="descricao">Descrição · A–Z</option>
+            <option value="sku">SKU · A–Z</option>
+            <option value="qualidade">Qualidade · A–Z</option>
+            <option value="saldo_desc">Saldo · maior</option>
+            <option value="saldo_asc">Saldo · menor</option>
+            <option value="valor_desc">Valor · maior</option>
+            <option value="valor_asc">Valor · menor</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <div class="table-wrap">
         <table>
           <thead>
@@ -496,46 +505,6 @@
     const API_URL = SkylineDash.API_LISTA_PRECOS;
     let allRows = [];
     let viewRows = [];
-
-    /** Legenda de grades — textos de condição provisórios (atualiza quando mandar o definitivo). */
-    const GRADE_LEGEND = [
-      {
-        grade: "Excelente",
-        gradeStyle: "grade-a",
-        estetica: "Aparelho impecável, totalmente sem avarias ou marcas estéticas.",
-        funcional: "100% testado e funcional, pronto para uso imediato."
-      },
-      {
-        grade: "Muito Bom",
-        gradeStyle: "grade-b",
-        estetica: "Pode conter detalhes estéticos leves (como arranhões superficiais ou pequenos amassados).",
-        funcional: "100% funcional. Todos os recursos operam perfeitamente."
-      },
-      {
-        grade: "Bom",
-        gradeStyle: "grade-bom",
-        estetica: "Pode apresentar marcas de uso visíveis, arranhões ou pequenos amassados.",
-        funcional: "100% funcional. Todos os recursos operam normalmente."
-      },
-      {
-        grade: "Outlet",
-        gradeStyle: "grade-outlet",
-        estetica: "Pode possuir marcas de uso mais evidentes, leves avarias ou pequenas manchas no display.",
-        funcional: "Preço super reduzido. Pode possuir alguma função inoperante (como desbloqueio por reconhecimento facial ou leitor digital)."
-      }
-    ];
-
-    function renderGradeLegend() {
-      const tbody = document.getElementById("gradeLegendBody");
-      if (!tbody) return;
-      tbody.innerHTML = GRADE_LEGEND.map((r) => `
-        <tr>
-          <td class="grade ${r.gradeStyle}">${escapeHtml(r.grade)}</td>
-          <td class="note">${escapeHtml(r.estetica)}</td>
-          <td class="note">${escapeHtml(r.funcional)}</td>
-        </tr>
-      `).join("");
-    }
 
     function escapeHtml(s) {
       return String(s ?? "")
@@ -613,20 +582,37 @@
       el.classList.toggle("err", Boolean(isError));
     }
 
-    function fillSelect(id, values) {
+    function fillCheckGroup(id, values) {
       const el = document.getElementById(id);
-      const cur = el.value;
+      const prev = new Set(
+        [...el.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value)
+      );
       const sorted = [...new Set(values.filter((v) => v && v !== "—"))]
         .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
-      el.innerHTML = `<option value="">Todas</option>` + sorted.map((v) =>
-        `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`
-      ).join("");
-      if (cur && sorted.includes(cur)) el.value = cur;
+      if (!sorted.length) {
+        el.innerHTML = `<span class="check-empty">Sem opções</span>`;
+        return;
+      }
+      el.innerHTML = sorted.map((v) => {
+        const checked = prev.has(v) ? " checked" : "";
+        return `<label class="check-chip">
+          <input type="checkbox" value="${escapeHtml(v)}"${checked} />
+          <span>${escapeHtml(v)}</span>
+        </label>`;
+      }).join("");
+      el.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        input.addEventListener("change", applyFilter);
+      });
+    }
+
+    function selectedValues(id) {
+      return [...document.querySelectorAll(`#${id} input[type="checkbox"]:checked`)]
+        .map((i) => i.value);
     }
 
     function fillFilterOptions() {
-      fillSelect("filterMarca", allRows.map((r) => r.marca));
-      fillSelect("filterQualidade", allRows.map((r) => r.qualidade));
+      fillCheckGroup("filterMarca", allRows.map((r) => r.marca));
+      fillCheckGroup("filterQualidade", allRows.map((r) => r.qualidade));
     }
 
     function cmpText(a, b) {
@@ -672,12 +658,12 @@
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
-      const marca = document.getElementById("filterMarca").value;
-      const qualidade = document.getElementById("filterQualidade").value;
+      const marcas = selectedValues("filterMarca");
+      const qualidades = selectedValues("filterQualidade");
 
       const filtered = allRows.filter((r) => {
-        if (marca && r.marca !== marca) return false;
-        if (qualidade && r.qualidade !== qualidade) return false;
+        if (marcas.length && !marcas.includes(r.marca)) return false;
+        if (qualidades.length && !qualidades.includes(r.qualidade)) return false;
         if (!q) return true;
         const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
           .toLowerCase()
@@ -831,12 +817,9 @@
     document.getElementById("btnReload").addEventListener("click", loadData);
     document.getElementById("btnExcel").addEventListener("click", downloadExcel);
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
-    document.getElementById("filterMarca").addEventListener("change", applyFilter);
-    document.getElementById("filterQualidade").addEventListener("change", applyFilter);
     document.getElementById("filterSort").addEventListener("change", applyFilter);
 
     if (typeof SkylineVersion !== "undefined") SkylineVersion.start(60000);
-    renderGradeLegend();
     loadData();
   </script>
 </body>
