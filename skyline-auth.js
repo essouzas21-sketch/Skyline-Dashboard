@@ -27,6 +27,15 @@ const SkylineAuth = (() => {
       hash: "c85b72f4eac01369360d99b71963a0fc96ae402fb94836ad61de48cb682284fb",
       active: true,
       createdAt: "2026-08-21T00:00:00.000Z"
+    },
+    {
+      email: "hassan.soueid@gruposkytech.com.br",
+      name: "Hassan Soueid",
+      role: "user",
+      salt: "skyline-seed-hassan-v1",
+      hash: "543f669bd152d7f825fc3a8369d86d20fdc30c9592e402788a61b2c81b7297b3",
+      active: true,
+      createdAt: "2026-08-21T00:00:00.000Z"
     }
   ];
 
