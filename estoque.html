@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=74"></script>
+  <script src="skyline-dash.js?v=75"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -382,35 +382,49 @@
       border: 1px solid #d9d2e8;
       border-radius: 8px;
       background: #fff;
+      isolation: isolate;
     }
 
     table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       font-size: 0.84rem;
     }
 
     th, td {
       text-align: center;
       padding: 10px 12px;
-      border: 1px solid #d9d2e8;
+      border-right: 1px solid #d9d2e8;
+      border-bottom: 1px solid #d9d2e8;
       vertical-align: middle;
     }
 
-    th {
+    th:first-child,
+    td:first-child {
+      border-left: 1px solid #d9d2e8;
+    }
+
+    thead th {
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: 5;
       background: #4b2e83;
+      background-clip: padding-box;
       color: #ffffff;
       font-size: 0.68rem;
       letter-spacing: 0.06em;
       text-transform: uppercase;
       font-weight: 800;
       white-space: nowrap;
+      border-top: 1px solid #4b2e83;
+      border-bottom: 1px solid #3a2268;
+      box-shadow: 0 2px 0 #4b2e83;
     }
 
-    td {
+    tbody td {
+      position: relative;
+      z-index: 0;
       background: #ffffff;
       color: #2b2438;
     }
