@@ -322,7 +322,7 @@
 
     .hero-stats {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -528,15 +528,11 @@
     <section class="hero-stats">
       <div class="stat">
         <div class="lab">Itens listados</div>
-        <div class="val" id="kpiTotal">0</div>
+        <div class="val" id="kpiTotal">0/0</div>
       </div>
       <div class="stat">
         <div class="lab">Saldo total</div>
-        <div class="val" id="kpiSaldo">0</div>
-      </div>
-      <div class="stat">
-        <div class="lab">Exibindo (filtro)</div>
-        <div class="val" id="kpiVisible">0</div>
+        <div class="val" id="kpiSaldo">0/0</div>
       </div>
     </section>
 
@@ -827,11 +823,25 @@
       renderTable();
     }
 
+    function hasActiveFilter() {
+      const q = String(document.getElementById("filterSearch").value || "").trim();
+      return Boolean(q) || selectedValues("filterMarca").length > 0 || selectedValues("filterQualidade").length > 0;
+    }
+
+    function formatCountPair(visible, total) {
+      const v = Number(visible) || 0;
+      const t = Number(total) || 0;
+      if (hasActiveFilter()) return `${v} de ${t}`;
+      return `${v}/${t}`;
+    }
+
     function renderKpis() {
-      document.getElementById("kpiTotal").textContent = String(allRows.length);
-      document.getElementById("kpiVisible").textContent = String(viewRows.length);
-      const saldoSum = viewRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
-      document.getElementById("kpiSaldo").textContent = String(saldoSum);
+      const totalItens = allRows.length;
+      const visibleItens = viewRows.length;
+      const saldoAll = allRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
+      const saldoView = viewRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
+      document.getElementById("kpiTotal").textContent = formatCountPair(visibleItens, totalItens);
+      document.getElementById("kpiSaldo").textContent = formatCountPair(saldoView, saldoAll);
     }
 
     function renderTable() {
