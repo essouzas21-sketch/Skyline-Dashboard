@@ -9,15 +9,26 @@ const YardexAuth = (() => {
   const PUBLIC_PAGES = new Set(["login.html"]);
 
   /** Admin inicial — senha só em hash (SHA-256 de salt+senha). */
-  const SEED_ADMIN = {
-    email: "ewerton.santos@gruposkytech.com.br",
-    name: "Ewerton Santos",
-    role: "admin",
-    salt: "skyline-seed-v1",
-    hash: "5fd62aeb6b1e227636e90f7b545445cab20fc45abc58f6caad9d1afedf7a0171",
-    active: true,
-    createdAt: "2026-08-20T00:00:00.000Z"
-  };
+  const SEED_USERS = [
+    {
+      email: "ewerton.santos@gruposkytech.com.br",
+      name: "Ewerton Santos",
+      role: "admin",
+      salt: "skyline-seed-v1",
+      hash: "5fd62aeb6b1e227636e90f7b545445cab20fc45abc58f6caad9d1afedf7a0171",
+      active: true,
+      createdAt: "2026-08-20T00:00:00.000Z"
+    },
+    {
+      email: "tv@gruposkytech.com.br",
+      name: "TV Skyline",
+      role: "user",
+      salt: "skyline-seed-tv-v1",
+      hash: "c85b72f4eac01369360d99b71963a0fc96ae402fb94836ad61de48cb682284fb",
+      active: true,
+      createdAt: "2026-08-21T00:00:00.000Z"
+    }
+  ];
 
   function pageName() {
     const path = location.pathname || "";
@@ -66,19 +77,21 @@ const YardexAuth = (() => {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }
 
-  function ensureSeedAdmin() {
+  function ensureSeedUsers() {
     const users = readUsersRaw();
-    const email = normEmail(SEED_ADMIN.email);
-    const idx = users.findIndex((u) => normEmail(u.email) === email);
-    if (idx < 0) {
-      users.push({ ...SEED_ADMIN, email });
-      writeUsers(users);
-    }
+    let changed = false;
+    SEED_USERS.forEach((seed) => {
+      const email = normEmail(seed.email);
+      if (users.some((u) => normEmail(u.email) === email)) return;
+      users.push({ ...seed, email });
+      changed = true;
+    });
+    if (changed) writeUsers(users);
     return users;
   }
 
   function listUsers() {
-    return ensureSeedAdmin()
+    return ensureSeedUsers()
       .map((u) => ({
         email: normEmail(u.email),
         name: String(u.name || "").trim() || normEmail(u.email),
@@ -92,7 +105,7 @@ const YardexAuth = (() => {
 
   function findUserRecord(email) {
     const key = normEmail(email);
-    return ensureSeedAdmin().find((u) => normEmail(u.email) === key) || null;
+    return ensureSeedUsers().find((u) => normEmail(u.email) === key) || null;
   }
 
   function getSession() {
@@ -165,7 +178,7 @@ const YardexAuth = (() => {
     if (!key || !key.includes("@")) {
       return { ok: false, error: "Informe um e-mail válido." };
     }
-    const users = ensureSeedAdmin();
+    const users = ensureSeedUsers();
     const idx = users.findIndex((u) => normEmail(u.email) === key);
     const now = new Date().toISOString();
     const nextRole = role === "admin" ? "admin" : "user";
@@ -228,10 +241,10 @@ const YardexAuth = (() => {
     if (key === normEmail(session.email)) {
       return { ok: false, error: "Você não pode excluir a própria conta." };
     }
-    if (key === normEmail(SEED_ADMIN.email)) {
+    if (key === normEmail("ewerton.santos@gruposkytech.com.br")) {
       return { ok: false, error: "A conta admin principal não pode ser excluída." };
     }
-    const users = ensureSeedAdmin().filter((u) => normEmail(u.email) !== key);
+    const users = ensureSeedUsers().filter((u) => normEmail(u.email) !== key);
     writeUsers(users);
     return { ok: true };
   }
@@ -248,7 +261,7 @@ const YardexAuth = (() => {
 
   function requireAuth() {
     if (isPublicPage()) return getSession();
-    ensureSeedAdmin();
+    ensureSeedUsers();
     const session = getSession();
     if (session) return session;
     const next = encodeURIComponent(location.pathname.split("/").pop() + location.search + location.hash);
@@ -257,7 +270,7 @@ const YardexAuth = (() => {
   }
 
   function boot() {
-    ensureSeedAdmin();
+    ensureSeedUsers();
     if (!isPublicPage()) requireAuth();
   }
 
