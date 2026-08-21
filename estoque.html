@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=73"></script>
+  <script src="skyline-dash.js?v=74"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -165,8 +165,6 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 14px 16px;
-      display: grid;
-      gap: 14px;
     }
 
     .filters-row {
@@ -179,7 +177,7 @@
     .filter-field {
       display: grid;
       gap: 4px;
-      min-width: 160px;
+      min-width: 180px;
     }
 
     .filter-field > span,
@@ -202,50 +200,124 @@
       min-width: 180px;
     }
 
-    .check-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    .multi-dd {
+      position: relative;
+      min-width: 200px;
     }
 
-    .check-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
+    .multi-dd-btn {
+      width: 100%;
+      height: 40px;
+      border-radius: 10px;
       border: 1px solid var(--line);
-      background: var(--panel-2);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 36px 0 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      text-align: left;
       cursor: pointer;
-      user-select: none;
-      font-size: 0.86rem;
+      position: relative;
+    }
+
+    .multi-dd-btn::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: translateY(-60%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    .multi-dd.open .multi-dd-btn {
+      border-color: rgba(75, 46, 131, 0.45);
+      box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12);
+    }
+
+    .multi-dd-btn .multi-dd-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .multi-dd-btn .multi-dd-label.is-placeholder {
+      color: var(--muted);
+    }
+
+    .multi-dd-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: 30;
+      max-height: 260px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 12px 28px rgba(15, 40, 70, 0.14);
+      padding: 8px;
+    }
+
+    .multi-dd.open .multi-dd-menu {
+      display: grid;
+      gap: 2px;
+    }
+
+    .multi-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
       font-weight: 600;
       color: var(--text);
-      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
     }
 
-    .check-chip:hover {
-      border-color: rgba(75, 46, 131, 0.35);
+    .multi-dd-item:hover {
+      background: rgba(75, 46, 131, 0.08);
     }
 
-    .check-chip:has(input:checked) {
-      background: rgba(75, 46, 131, 0.1);
-      border-color: rgba(75, 46, 131, 0.45);
-      color: var(--purple);
-    }
-
-    .check-chip input {
+    .multi-dd-item input {
       width: 15px;
       height: 15px;
       accent-color: var(--purple);
       margin: 0;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
-    .check-empty {
+    .multi-dd-empty {
+      padding: 10px;
       font-size: 0.82rem;
       color: var(--muted);
-      padding: 6px 0;
+    }
+
+    .multi-dd-actions {
+      display: flex;
+      gap: 8px;
+      padding: 6px 4px 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 4px;
+    }
+
+    .multi-dd-actions button {
+      border: 0;
+      background: transparent;
+      color: var(--purple);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 4px;
     }
 
     .hero-stats {
@@ -455,15 +527,15 @@
     </section>
 
     <section class="filters-panel" aria-label="Filtros">
-      <div class="filter-field">
-        <span>Marca</span>
-        <div class="check-group" id="filterMarca"></div>
-      </div>
-      <div class="filter-field">
-        <span>Qualidade</span>
-        <div class="check-group" id="filterQualidade"></div>
-      </div>
       <div class="filters-row">
+        <div class="filter-field">
+          <span>Marca</span>
+          <div class="multi-dd" id="filterMarca" data-placeholder="Todas as marcas"></div>
+        </div>
+        <div class="filter-field">
+          <span>Qualidade</span>
+          <div class="multi-dd" id="filterQualidade" data-placeholder="Todas as qualidades"></div>
+        </div>
         <div class="filter-field">
           <label for="filterSort">Ordenar por</label>
           <select id="filterSort">
@@ -582,27 +654,90 @@
       el.classList.toggle("err", Boolean(isError));
     }
 
-    function fillCheckGroup(id, values) {
-      const el = document.getElementById(id);
+    function updateMultiDdLabel(root) {
+      const label = root.querySelector(".multi-dd-label");
+      if (!label) return;
+      const selected = [...root.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value);
+      const placeholder = root.dataset.placeholder || "Todas";
+      if (!selected.length) {
+        label.textContent = placeholder;
+        label.classList.add("is-placeholder");
+        return;
+      }
+      label.classList.remove("is-placeholder");
+      if (selected.length === 1) label.textContent = selected[0];
+      else if (selected.length <= 3) label.textContent = selected.join(", ");
+      else label.textContent = `${selected.length} selecionadas`;
+    }
+
+    function closeAllMultiDd(except = null) {
+      document.querySelectorAll(".multi-dd.open").forEach((el) => {
+        if (el !== except) el.classList.remove("open");
+      });
+    }
+
+    function fillMultiDd(id, values) {
+      const root = document.getElementById(id);
       const prev = new Set(
-        [...el.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value)
+        [...root.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value)
       );
       const sorted = [...new Set(values.filter((v) => v && v !== "—"))]
         .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
-      if (!sorted.length) {
-        el.innerHTML = `<span class="check-empty">Sem opções</span>`;
-        return;
-      }
-      el.innerHTML = sorted.map((v) => {
-        const checked = prev.has(v) ? " checked" : "";
-        return `<label class="check-chip">
-          <input type="checkbox" value="${escapeHtml(v)}"${checked} />
-          <span>${escapeHtml(v)}</span>
-        </label>`;
-      }).join("");
-      el.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-        input.addEventListener("change", applyFilter);
+      const placeholder = root.dataset.placeholder || "Todas";
+
+      const optionsHtml = sorted.length
+        ? sorted.map((v) => {
+            const checked = prev.has(v) ? " checked" : "";
+            return `<label class="multi-dd-item">
+              <input type="checkbox" value="${escapeHtml(v)}"${checked} />
+              <span>${escapeHtml(v)}</span>
+            </label>`;
+          }).join("")
+        : `<div class="multi-dd-empty">Sem opções</div>`;
+
+      root.innerHTML = `
+        <button type="button" class="multi-dd-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="multi-dd-label is-placeholder">${escapeHtml(placeholder)}</span>
+        </button>
+        <div class="multi-dd-menu" role="listbox">
+          <div class="multi-dd-actions">
+            <button type="button" data-action="all">Marcar todas</button>
+            <button type="button" data-action="clear">Limpar</button>
+          </div>
+          ${optionsHtml}
+        </div>
+      `;
+
+      const btn = root.querySelector(".multi-dd-btn");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const willOpen = !root.classList.contains("open");
+        closeAllMultiDd(root);
+        root.classList.toggle("open", willOpen);
+        btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
       });
+
+      root.querySelector(".multi-dd-menu").addEventListener("click", (e) => e.stopPropagation());
+
+      root.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          updateMultiDdLabel(root);
+          applyFilter();
+        });
+      });
+
+      root.querySelector('[data-action="all"]')?.addEventListener("click", () => {
+        root.querySelectorAll('input[type="checkbox"]').forEach((i) => { i.checked = true; });
+        updateMultiDdLabel(root);
+        applyFilter();
+      });
+      root.querySelector('[data-action="clear"]')?.addEventListener("click", () => {
+        root.querySelectorAll('input[type="checkbox"]').forEach((i) => { i.checked = false; });
+        updateMultiDdLabel(root);
+        applyFilter();
+      });
+
+      updateMultiDdLabel(root);
     }
 
     function selectedValues(id) {
@@ -611,8 +746,8 @@
     }
 
     function fillFilterOptions() {
-      fillCheckGroup("filterMarca", allRows.map((r) => r.marca));
-      fillCheckGroup("filterQualidade", allRows.map((r) => r.qualidade));
+      fillMultiDd("filterMarca", allRows.map((r) => r.marca));
+      fillMultiDd("filterQualidade", allRows.map((r) => r.qualidade));
     }
 
     function cmpText(a, b) {
@@ -818,6 +953,10 @@
     document.getElementById("btnExcel").addEventListener("click", downloadExcel);
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
     document.getElementById("filterSort").addEventListener("change", applyFilter);
+    document.addEventListener("click", () => closeAllMultiDd());
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllMultiDd();
+    });
 
     if (typeof SkylineVersion !== "undefined") SkylineVersion.start(60000);
     loadData();
