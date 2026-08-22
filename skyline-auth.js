@@ -36,6 +36,24 @@ const SkylineAuth = (() => {
       hash: "543f669bd152d7f825fc3a8369d86d20fdc30c9592e402788a61b2c81b7297b3",
       active: true,
       createdAt: "2026-08-21T00:00:00.000Z"
+    },
+    {
+      email: "mohamad.ali@gruposkytech.com.br",
+      name: "Mohamad Ali",
+      role: "user",
+      salt: "skyline-seed-mohamad-v1",
+      hash: "fda9f855cbcfc19c0b2101b7c6fdb20198a27e95482365ac53b7b42abd9f1183",
+      active: true,
+      createdAt: "2026-08-22T00:00:00.000Z"
+    },
+    {
+      email: "rafael.santos@gruposkytech.com.br",
+      name: "Rafael Santos",
+      role: "user",
+      salt: "skyline-seed-rafael-v1",
+      hash: "573ef72ed41708cefcd3fdb045df47193ae0df6dcc7d3196e2a1344f57248884",
+      active: true,
+      createdAt: "2026-08-22T00:00:00.000Z"
     }
   ];
 
