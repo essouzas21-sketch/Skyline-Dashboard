@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=71"></script>
+  <script src="skyline-dash.js?v=77"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -1073,7 +1073,7 @@
       <div class="gm-kpi reprov">
         <div class="kpi-head"><span class="kpi-label">Reprovados</span><span class="kpi-icon">✕</span></div>
         <div class="kpi-value" id="kpiReprov">0</div>
-        <div class="kpi-hint" id="kpiTaxaReprovHint">Sem motivo teste</div>
+        <div class="kpi-hint" id="kpiTaxaReprovHint">Sem teste / retorno ao técnico</div>
       </div>
       <div class="gm-kpi">
         <div class="kpi-head"><span class="kpi-label">Meta 98%</span><span class="kpi-icon">🎯</span></div>
@@ -1920,7 +1920,9 @@
     }
 
     function renderCharts(periodRows, metrics) {
-      const reprovados = metrics.filtered.filter((r) => r.decisao === "reprovado" && !SkylineDash.isCqeMotivoTeste(r.motivo));
+      const reprovados = metrics.filtered.filter(
+        (r) => r.decisao === "reprovado" && !SkylineDash.isCqeMotivoIgnorado(r.motivo_raw || r.motivo)
+      );
       const tickSmall = { font: { size: 10, weight: "600" } };
       const barLayoutPad = { top: 6, bottom: 4, left: 2, right: 28 };
       const dataLabelBase = {
@@ -2183,7 +2185,7 @@
 
       document.getElementById("kpiTaxaAprov").textContent = fmtPct(metrics.aprovado, metrics.total);
       document.getElementById("kpiReprov").textContent = metrics.reprovado;
-      document.getElementById("kpiTaxaReprovHint").textContent = `${fmtPct(metrics.reprovado, metrics.total)} do total · sem motivo teste`;
+      document.getElementById("kpiTaxaReprovHint").textContent = `${fmtPct(metrics.reprovado, metrics.total)} do total · sem teste / retorno ao técnico`;
       document.getElementById("kpiTotal").textContent = metrics.total;
       document.getElementById("kpiMeta").textContent = `${metrics.taxaAprov.toFixed(1).replace(".", ",")}%`;
       const metaBar = document.getElementById("kpiMetaBar");

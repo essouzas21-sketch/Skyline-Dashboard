@@ -50,7 +50,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "63",
+  CACHE_VERSION: "64",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
@@ -350,15 +350,23 @@ const SkylineDash = {
     return out;
   },
 
-  isCqeMotivoTeste(motivo) {
-    const norm = String(motivo || "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[.,;:!?\s]+$/g, "")
+  /** Motivos de reprova que não entram nos KPIs/gráficos do CQE. */
+  isCqeMotivoIgnorado(motivo) {
+    const norm = this.normCqeMotivoText(motivo)
+      .replace(/[.,;:!?\-_]+/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
-    return norm === "teste";
+    if (!norm) return false;
+    if (norm === "teste") return true;
+    // Motivo operacional: retorno ao técnico — não contabilizar no dash.
+    if (norm === "retorno ao tecnico") return true;
+    if (norm.includes("retorno ao tecnico")) return true;
+    return false;
+  },
+
+  /** Alias legado — usa a lista completa de motivos ignorados. */
+  isCqeMotivoTeste(motivo) {
+    return this.isCqeMotivoIgnorado(motivo);
   },
 
   /**
@@ -563,13 +571,18 @@ const SkylineDash = {
     return sankhya || fim || null;
   },
 
-  /** CQE: ignora reprovação com motivo "teste"; mesmo id no dia conta 1x por decisão (aprovado e reprovado separados). */
+  /** CQE: ignora reprova com motivo teste / retorno ao técnico; mesmo id no dia conta 1x por decisão. */
   processCqeRows(rows, dateField = "data_qualidade") {
     const seen = new Set();
     const result = [];
 
     rows.forEach((row) => {
-      if (row.decisao === "reprovado" && this.isCqeMotivoTeste(row.motivo)) return;
+      if (
+        row.decisao === "reprovado" &&
+        this.isCqeMotivoIgnorado(row.motivo_raw || row.motivo)
+      ) {
+        return;
+      }
 
       const id = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : null;
       if (id) {
