@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usuários — Skyline Dashboard</title>
   <link rel="stylesheet" href="skyline-dash.css" />
-  <script src="skyline-auth.js?v=5"></script>
+  <script src="skyline-auth.js?v=6"></script>
   <style>
     :root {
       --bg: #694992;
@@ -275,21 +275,24 @@
         </table>
       </div>
       <p class="hint">
-        Os usuários ficam salvos neste navegador. Em outro computador, cadastre novamente ou exporte/importe depois se precisar.
+        Perfis no Supabase (<code>skyline_profiles</code>). Senha/login: Authentication → Users.
+        Rode o SQL em <code>supabase-setup-auth.sql</code> se ainda não criou a tabela.
       </p>
     </section>
   </div>
 
   <script>
-    const session = SkylineAuth.requireAdmin();
-    if (!session) {
-      /* redirect em andamento */
-    } else {
+    (async function () {
+      await SkylineAuth.ready();
+      const session = SkylineAuth.requireAdmin();
+      if (!session) return;
+
       const form = document.getElementById("userForm");
       const formMsg = document.getElementById("formMsg");
       const formTitle = document.getElementById("formTitle");
       const pwdHint = document.getElementById("pwdHint");
       let editing = false;
+      let cachedUsers = [];
 
       document.getElementById("btnLogout").addEventListener("click", (e) => {
         e.preventDefault();
@@ -312,9 +315,9 @@
         document.getElementById("email").readOnly = false;
         document.getElementById("role").value = "user";
         document.getElementById("active").value = "1";
-        document.getElementById("password").required = true;
+        document.getElementById("password").required = false;
         formTitle.textContent = "Novo usuário";
-        pwdHint.textContent = "Senha obrigatória para novo usuário (mín. 6).";
+        pwdHint.textContent = "Senha: crie o usuário em Supabase → Authentication → Users (mesmo e-mail).";
         clearMsg();
       }
 
@@ -328,19 +331,24 @@
         document.getElementById("role").value = user.role;
         document.getElementById("active").value = user.active ? "1" : "0";
         formTitle.textContent = "Editar usuário";
-        pwdHint.textContent = "Deixe a senha em branco para manter a atual.";
+        pwdHint.textContent = "Senha só no painel Supabase (Authentication → Users).";
         clearMsg();
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      function render() {
-        const users = SkylineAuth.listUsers();
+      async function render() {
         const body = document.getElementById("usersBody");
-        if (!users.length) {
-          body.innerHTML = `<tr><td colspan="5">Nenhum usuário.</td></tr>`;
+        try {
+          cachedUsers = await SkylineAuth.listUsers();
+        } catch (err) {
+          body.innerHTML = `<tr><td colspan="5">Erro ao carregar: ${escapeHtml(err.message || err)}</td></tr>`;
           return;
         }
-        body.innerHTML = users.map((u) => `
+        if (!cachedUsers.length) {
+          body.innerHTML = `<tr><td colspan="5">Nenhum usuário. Rode o SQL de setup e crie logins no Auth.</td></tr>`;
+          return;
+        }
+        body.innerHTML = cachedUsers.map((u) => `
           <tr>
             <td>${escapeHtml(u.email)}</td>
             <td>${escapeHtml(u.name)}</td>
@@ -358,20 +366,21 @@
         body.querySelectorAll("[data-edit]").forEach((btn) => {
           btn.addEventListener("click", () => {
             const email = btn.getAttribute("data-edit");
-            const user = SkylineAuth.listUsers().find((x) => x.email === email);
+            const user = cachedUsers.find((x) => x.email === email);
             if (user) fillEdit(user);
           });
         });
         body.querySelectorAll("[data-del]").forEach((btn) => {
-          btn.addEventListener("click", () => {
+          btn.addEventListener("click", async () => {
             const email = btn.getAttribute("data-del");
-            if (!confirm(`Excluir ${email}?`)) return;
-            const res = SkylineAuth.removeUser(email);
+            if (!confirm(`Excluir perfil ${email}?`)) return;
+            const res = await SkylineAuth.removeUser(email);
             if (!res.ok) {
               alert(res.error || "Não foi possível excluir.");
               return;
             }
-            render();
+            if (res.warning) alert(res.warning);
+            await render();
             resetForm();
           });
         });
@@ -399,15 +408,18 @@
           showMsg(res.error || "Falha ao salvar.", false);
           return;
         }
-        showMsg(editing ? "Usuário atualizado." : "Usuário criado.", true);
-        render();
+        showMsg(
+          res.warning || (editing ? "Usuário atualizado." : "Perfil criado."),
+          true
+        );
+        await render();
         resetForm();
       });
 
       document.getElementById("btnReset").addEventListener("click", resetForm);
       resetForm();
-      render();
-    }
+      await render();
+    })();
   </script>
 </body>
 </html>

@@ -307,13 +307,13 @@
     </nav>
   </div>
 
-  <script src="skyline-auth.js?v=5"></script>
+  <script src="skyline-auth.js?v=6"></script>
   <script src="skyline-version.js?v=2"></script>
   <script src="skyline-dash.js?v=71"></script>
   <script>
     SkylineVersion.start(30000);
-    (function () {
-      const session = SkylineAuth.getSession();
+    (async function () {
+      const session = await SkylineAuth.ready();
       if (!session) return;
       const bar = document.getElementById("authBar");
       const label = document.getElementById("authUserLabel");
