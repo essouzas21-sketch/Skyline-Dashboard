@@ -435,13 +435,6 @@
           <option value="Outlet">Outlet</option>
         </select>
       </div>
-      <div class="field-group" id="nivelFieldGroup">
-        <label for="nivelSelect">NIVEL</label>
-        <select id="nivelSelect" aria-label="NIVEL" required>
-          <option value="A" selected>A</option>
-          <option value="B">B</option>
-        </select>
-      </div>
     </div>
 
     <div id="status" class="status"></div>
@@ -495,15 +488,12 @@
     const state = {
       rows: [],
       current: null,
-      grade: "Like New",
-      nivel: "A"
+      grade: "Like New"
     };
 
     const endpointInput = document.getElementById("endpoint");
     const serialInput = document.getElementById("serialInput");
     const gradeSelect = document.getElementById("gradeSelect");
-    const nivelSelect = document.getElementById("nivelSelect");
-    const nivelFieldGroup = document.getElementById("nivelFieldGroup");
     const statusEl = document.getElementById("status");
     const resultBox = document.getElementById("resultBox");
     const labelDesc = document.getElementById("labelDesc");
@@ -733,60 +723,27 @@
       return base.length > maxChars ? `${base.slice(0, maxChars)}...` : base;
     }
 
-    function isOutletGrade(grade = gradeSelect.value) {
-      return String(grade || "")
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") === "outlet";
-    }
-
     function buildGradeBadgeText() {
       const grade = state.current ? state.grade : gradeSelect.value;
-      const nivel = state.current ? state.nivel : nivelSelect.value;
-      if (isOutletGrade(grade)) return "OUTLET";
-      return `${grade} ${nivel}`.trim();
+      return String(grade || "").trim();
     }
 
-    function syncNivelVisibility() {
-      const outlet = isOutletGrade();
-      nivelFieldGroup.classList.toggle("is-hidden", outlet);
-      nivelSelect.required = !outlet;
-      if (!outlet && !nivelSelect.value) {
-        nivelSelect.value = "A";
-      }
-      if (state.current) {
-        state.grade = gradeSelect.value;
-        state.nivel = outlet ? "" : nivelSelect.value;
-      }
-      updateLabelView();
-    }
-
-    function resetGradeNivel() {
+    function resetGrade() {
       gradeSelect.value = "Like New";
-      nivelSelect.value = "A";
-      nivelFieldGroup.classList.remove("is-hidden");
-      nivelSelect.required = true;
     }
 
-    function captureGradeNivel() {
+    function captureGrade() {
       state.grade = gradeSelect.value;
-      state.nivel = isOutletGrade() ? "" : nivelSelect.value;
     }
 
     function buildSerialLabelText(serial) {
       return `Serial: ${serial}`;
     }
 
-    function ensureGradeNivel() {
+    function ensureGrade() {
       if (!gradeSelect.value) {
         setStatus("Selecione a GRADE.", true);
         gradeSelect.focus();
-        return false;
-      }
-      if (!isOutletGrade() && !nivelSelect.value) {
-        setStatus("Selecione o NIVEL.", true);
-        nivelSelect.focus();
         return false;
       }
       return true;
@@ -807,7 +764,7 @@
       resultBox.innerHTML = `
         <p><strong>Serial:</strong> ${serial}</p>
         <p><strong>Texto na etiqueta:</strong> ${serialLabel}</p>
-        <p><strong>Grade / Nivel:</strong> ${gradeBadge || "-"}</p>
+        <p><strong>Grade:</strong> ${gradeBadge || "-"}</p>
         <p><strong>Descricao:</strong> ${descricao}</p>
         <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "-"}</p>
         <p><strong>Status:</strong> ${state.current.status || "-"}</p>
@@ -900,7 +857,7 @@
     }
 
     function searchBySerial() {
-      if (!ensureGradeNivel()) return;
+      if (!ensureGrade()) return;
 
       const serialTyped = normalizeSerial(serialInput.value);
       if (!serialTyped) {
@@ -935,9 +892,9 @@
         return;
       }
 
-      captureGradeNivel();
+      captureGrade();
       renderCurrent(found);
-      resetGradeNivel();
+      resetGrade();
       updateLabelView();
 
       const dupNote = matches.length > 1 ? ` (${matches.length} registros; priorizado prod_cprod)` : "";
@@ -954,11 +911,6 @@
         gradeSelect.focus();
         return;
       }
-      if (state.grade !== "OUTLET" && !state.nivel) {
-        setStatus("Selecione o NIVEL.", true);
-        nivelSelect.focus();
-        return;
-      }
       if (!ensureCapacidadeInformada(state.current)) return;
       if (!ensureCorInformada(state.current)) return;
       window.print();
@@ -967,12 +919,8 @@
     document.getElementById("loadData").addEventListener("click", loadData);
     document.getElementById("searchBtn").addEventListener("click", searchBySerial);
     document.getElementById("printBtn").addEventListener("click", printLabel);
-    gradeSelect.addEventListener("change", syncNivelVisibility);
-    nivelSelect.addEventListener("change", () => {
-      if (state.current) {
-        state.grade = gradeSelect.value;
-        state.nivel = isOutletGrade() ? "" : nivelSelect.value;
-      }
+    gradeSelect.addEventListener("change", () => {
+      if (state.current) state.grade = gradeSelect.value;
       updateLabelView();
     });
     serialInput.addEventListener("keydown", (event) => {
@@ -981,7 +929,6 @@
       }
     });
 
-    syncNivelVisibility();
     loadData();
   </script>
 </body>
