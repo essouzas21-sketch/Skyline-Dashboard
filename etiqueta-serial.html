@@ -428,11 +428,11 @@
       <div class="field-group">
         <label for="gradeSelect">GRADE</label>
         <select id="gradeSelect" aria-label="GRADE" required>
-          <option value="NOVO" selected>NOVO</option>
-          <option value="PRO">PRO</option>
-          <option value="PREMIUM">PREMIUM</option>
-          <option value="MASTER">MASTER</option>
-          <option value="OUTLET">OUTLET</option>
+          <option value="Like New" selected>Like New</option>
+          <option value="Excelente">Excelente</option>
+          <option value="Muito Bom">Muito Bom</option>
+          <option value="Bom">Bom</option>
+          <option value="Outlet">Outlet</option>
         </select>
       </div>
       <div class="field-group" id="nivelFieldGroup">
@@ -495,7 +495,7 @@
     const state = {
       rows: [],
       current: null,
-      grade: "NOVO",
+      grade: "Like New",
       nivel: "A"
     };
 
@@ -734,7 +734,11 @@
     }
 
     function isOutletGrade(grade = gradeSelect.value) {
-      return grade === "OUTLET";
+      return String(grade || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") === "outlet";
     }
 
     function buildGradeBadgeText() {
@@ -759,7 +763,7 @@
     }
 
     function resetGradeNivel() {
-      gradeSelect.value = "NOVO";
+      gradeSelect.value = "Like New";
       nivelSelect.value = "A";
       nivelFieldGroup.classList.remove("is-hidden");
       nivelSelect.required = true;
