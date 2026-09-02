@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=71"></script>
+  <script src="skyline-dash.js?v=78"></script>
   <style>
     :root {
       --tr-page: #694992;
@@ -583,7 +583,7 @@
     const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
     const statusEl = document.getElementById("statusMsg");
     /** Máscara desligada — números reais. */
-    const APPLY_MASK = false;
+    const APPLY_MASK = true;
     const DEBUG_MODE = new URLSearchParams(location.search).get("debug") === "1";
 
     /** Máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
