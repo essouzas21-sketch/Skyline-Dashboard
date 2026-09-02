@@ -88,7 +88,7 @@ const ProducaoGestao = {
     const META_TEMPO_MIN = 45;
     const MAO_OBRA_MIN = 0.35;
     const API_URL = SkylineDash.API_REPARO;
-    const APPLY_MASK = config.applyMask !== false;
+    const APPLY_MASK = config.applyMask === true;
     const MASK_PER_TECH_HOUR = 3;
     const HOUR_FROM = 7;
     const HOUR_TO = 16;
