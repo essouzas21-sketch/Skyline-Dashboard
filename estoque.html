@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=75"></script>
+  <script src="skyline-dash.js?v=80"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -622,9 +622,33 @@
       return Number.isFinite(n) ? n : null;
     }
 
+    function qualidadeFromProduto(produto) {
+      const s = String(produto || "").trim();
+      const m = s.match(/\s-\s(EXCELENTE|MUITO BOM|BOM|OUTLET)\s*$/i);
+      return m ? m[1].toUpperCase() : "";
+    }
+
+    function resolveQualidade(raw) {
+      const fromField = String(raw.Qualidade ?? raw.qualidade ?? "").trim();
+      if (fromField) return fromField;
+      return qualidadeFromProduto(raw.Produto ?? raw.produto ?? raw.descricao) || "—";
+    }
+
     function mapRow(raw) {
-      const valor = parseMoney(raw["Preco Tabela 1"] ?? raw.preco_tabela_1 ?? raw.PrecoTabela1);
-      const credito = parseMoney(raw["Preco Credito"] ?? raw.preco_credito ?? raw.PrecoCredito);
+      const valor = parseMoney(
+        raw["Preco Venda (Tabela 1)"] ??
+          raw["Preco Tabela 1"] ??
+          raw.preco_venda_tabela_1 ??
+          raw.preco_tabela_1 ??
+          raw.PrecoTabela1
+      );
+      const credito = parseMoney(
+        raw["Preco Venda (Credito)"] ??
+          raw["Preco Credito"] ??
+          raw.preco_venda_credito ??
+          raw.preco_credito ??
+          raw.PrecoCredito
+      );
       const saldo = parseSaldo(
         raw.Saldo_Principal ?? raw.saldo_principal ?? raw.Saldo ?? raw.saldo ?? raw.ESTOQUE ?? raw.estoque
       );
@@ -634,7 +658,7 @@
         descricao: produto || "—",
         produtoFull: produto,
         marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
-        qualidade: String(raw.Qualidade ?? raw.qualidade ?? "").trim() || "—",
+        qualidade: resolveQualidade(raw),
         ativo: String(raw.ATIVO ?? raw.ativo ?? "").trim(),
         usoprod: String(raw.USOPROD ?? raw.usoprod ?? "").trim(),
         saldo,
