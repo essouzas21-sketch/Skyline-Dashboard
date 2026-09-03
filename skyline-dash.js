@@ -50,7 +50,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "64",
+  CACHE_VERSION: "65",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
