@@ -1,0 +1,1336 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Produto</title>
+  <link rel="stylesheet" href="skyline-dash.css?v=12" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=79"></script>
+  <style>
+    :root {
+      --gp-page: #694992;
+      --gp-card: #ffffff;
+      --gp-border: rgba(105, 73, 146, 0.18);
+      --gp-text: #2d1f42;
+      --gp-muted: #6b5b7a;
+      --gp-primary: #694992;
+      --gp-accent: #8b6bb8;
+      --gp-green: #15803d;
+      --gp-red: #dc2626;
+      --gp-amber: #b45309;
+      --gp-surface: #faf8fc;
+      --gp-shadow: 0 4px 16px rgba(45, 31, 66, 0.16);
+      --gp-radius: 12px;
+      --gp-gap: 12px;
+    }
+
+    body.gestao-pecas-page.dash-page {
+      background: var(--gp-page);
+      color: var(--gp-text);
+      padding: 10px 12px 12px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      border: none;
+    }
+
+    .gestao-pecas-page .page {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: calc(100vh - 24px);
+    }
+
+    .gp-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 12px;
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: var(--gp-radius);
+      padding: 10px 14px;
+      box-shadow: var(--gp-shadow);
+    }
+
+    .gp-topbar .title-block {
+      min-width: 200px;
+      flex: 1 1 auto;
+      padding-right: 0;
+      border-right: none;
+    }
+
+    .gp-topbar .back {
+      color: var(--gp-primary);
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .gp-topbar h1 {
+      margin: 2px 0 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--gp-text);
+    }
+
+    .gp-topbar .subtitle {
+      margin: 2px 0 0;
+      font-size: 0.72rem;
+      color: var(--gp-muted);
+    }
+
+    .gp-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      flex: 0 1 auto;
+      max-width: min(920px, 70vw);
+    }
+
+    body.gestao-pecas-page.show-filters .gp-filters {
+      display: flex;
+    }
+
+    body.gestao-pecas-page.show-filters .gp-topbar {
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .gp-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gp-muted);
+    }
+
+    .gp-filters input,
+    .gp-filters select {
+      height: 34px;
+      min-width: 132px;
+      padding: 0 10px;
+      border: 1px solid var(--gp-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--gp-text);
+    }
+
+    .gp-filters input[type="search"] {
+      min-width: 180px;
+    }
+
+    .gp-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .gp-actions button {
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--gp-border);
+      background: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--gp-text);
+    }
+
+    .gp-actions button.primary {
+      background: var(--gp-primary);
+      border-color: var(--gp-primary);
+      color: #fff;
+    }
+
+    .gp-actions button#btnToggleFilters.primary {
+      background: var(--gp-accent);
+      border-color: var(--gp-accent);
+    }
+
+    .gestao-pecas-page #statusMsg {
+      display: none !important;
+    }
+
+    .gp-debug {
+      display: none;
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      background: #1e1430;
+      border: 1px solid #c4a8e8;
+      border-radius: 10px;
+      color: #f3eef9;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    body.gestao-debug .gp-debug { display: block; }
+    .gp-debug h2 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: #fde68a;
+    }
+    .gp-debug .dbg-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .gp-debug .dbg-actions button {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #8b6bb8;
+      background: #694992;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .gp-debug .dbg-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .gp-debug .dbg-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    .gp-debug .dbg-card .k { color: #c4a8e8; font-size: 0.62rem; text-transform: uppercase; }
+    .gp-debug .dbg-card .v { font-size: 1.05rem; font-weight: 800; }
+    .gp-debug pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      color: #e9dff5;
+    }
+    .gp-debug table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.68rem;
+    }
+    .gp-debug th, .gp-debug td {
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 5px;
+      text-align: left;
+    }
+    .gp-debug th { color: #c4a8e8; }
+
+    .gp-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .gp-kpi {
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      box-shadow: var(--gp-shadow);
+      min-width: 0;
+    }
+
+    .gp-kpi .label {
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gp-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gp-kpi .value {
+      margin-top: 2px;
+      font-size: 1.2rem;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--gp-text);
+    }
+
+    .gp-kpi .hint {
+      margin-top: 2px;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--gp-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gp-kpi .delta {
+      font-weight: 800;
+      font-size: 0.62rem;
+    }
+
+    .gp-kpi .delta.up { color: var(--gp-green); }
+    .gp-kpi .delta.down { color: var(--gp-red); }
+    .gp-kpi .delta.neutral { color: var(--gp-muted); }
+    .gp-kpi.danger .value { color: var(--gp-red); }
+
+    .gp-mid {
+      display: grid;
+      grid-template-columns: 1fr 1fr minmax(220px, 240px);
+      gap: 8px;
+      flex: 1 1 0;
+      min-height: 280px;
+    }
+
+    .gp-panel {
+      background: var(--gp-card);
+      border: 1px solid var(--gp-border);
+      border-radius: var(--gp-radius);
+      padding: 12px 14px;
+      box-shadow: var(--gp-shadow);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .gp-panel h2 {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gp-muted);
+    }
+
+    .gp-panel .chart-box {
+      flex: 1;
+      min-height: 220px;
+      position: relative;
+    }
+
+    .gp-alerts {
+      gap: 8px;
+      overflow: auto;
+    }
+
+    .gp-alert {
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--gp-border);
+      background: var(--gp-surface);
+    }
+
+    .gp-alert.critical {
+      border-color: rgba(220, 38, 38, 0.35);
+      background: #fef2f2;
+    }
+
+    .gp-alert.warn {
+      border-color: rgba(180, 83, 9, 0.35);
+      background: #fff7ed;
+    }
+
+    .gp-alert.ok {
+      border-color: rgba(21, 128, 61, 0.3);
+      background: #f0fdf4;
+    }
+
+    .gp-alert .title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--gp-text);
+    }
+
+    .gp-alert .body {
+      margin-top: 2px;
+      font-size: 0.72rem;
+      color: var(--gp-muted);
+      font-weight: 600;
+    }
+
+    .gp-bottom {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .gp-bottom .gp-panel {
+      min-height: 0;
+      height: 100%;
+    }
+
+    .gp-table-wrap {
+      overflow: auto;
+      flex: 1 1 0;
+      min-height: 140px;
+      border: 1px solid var(--gp-border);
+      border-radius: 10px;
+    }
+
+    .gp-table-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .gp-table-wrap th,
+    .gp-table-wrap td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--gp-border);
+      text-align: left;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    .gp-table-wrap th {
+      position: sticky;
+      top: 0;
+      background: var(--gp-surface);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gp-muted);
+      z-index: 1;
+    }
+
+    .gp-table-wrap th.col-peca,
+    .gp-table-wrap td.col-peca {
+      white-space: normal;
+      word-break: break-word;
+      min-width: 280px;
+      width: 52%;
+    }
+
+    .gp-table-wrap td.qtd {
+      font-weight: 800;
+      color: var(--gp-primary);
+    }
+
+    .gestao-pecas-page .last-refresh {
+      display: none !important;
+    }
+
+    .gp-table-wrap tr:hover td {
+      background: rgba(105, 73, 146, 0.05);
+      cursor: pointer;
+    }
+
+    .gp-empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--gp-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .gp-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      padding: 20px;
+    }
+
+    .gp-modal-backdrop.open { display: flex; }
+
+    .gp-modal {
+      width: min(920px, 100%);
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--gp-shadow);
+      padding: 16px;
+    }
+
+    .gp-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .gp-modal-head h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    /* TV 50": KPIs sempre em uma linha */
+    @media (min-width: 1100px) {
+      .gp-kpi-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (max-width: 1099px) {
+      .gp-mid { grid-template-columns: 1fr 1fr; }
+      .gp-mid .gp-alerts { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 720px) {
+      .gp-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .gp-mid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="dash-page gestao-pecas-page">
+  <div class="page">
+    <header class="gp-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>Gestão de Produto</h1>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
+      </div>
+      <div class="gp-filters" id="gpFilters">
+        <label>Início <input type="date" id="dateStart" /></label>
+        <label>Fim <input type="date" id="dateEnd" /></label>
+        <label>Marca
+          <select id="fMarca"><option value="">Todas</option></select>
+        </label>
+        <label>Categoria
+          <select id="fCategoria"><option value="">Todas</option></select>
+        </label>
+        <label>Buscar peça <input type="search" id="fBusca" placeholder="código ou descrição" /></label>
+      </div>
+      <div class="gp-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnClear">Limpar</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
+    </header>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <section class="gp-debug" id="gestaoDebug" aria-live="polite">
+      <h2>DEBUG Gestão de Peças · regras vs números</h2>
+      <div class="dbg-actions">
+        <button type="button" id="dbgCopy">Copiar relatório</button>
+        <button type="button" id="dbgConsole">Log no console</button>
+        <button type="button" id="dbgReload">Recarregar + auditar</button>
+      </div>
+      <div class="dbg-grid" id="dbgKpis"></div>
+      <pre id="dbgBody">Aguardando carga…</pre>
+      <div id="dbgTables"></div>
+    </section>
+
+    <section class="gp-kpi-row">
+      <div class="gp-kpi">
+        <div class="label">Peças no período</div>
+        <div class="value" id="kpiPeriodo">0</div>
+        <div class="hint" id="kpiPeriodoHint">Pedidos diários únicos</div>
+      </div>
+      <div class="gp-kpi">
+        <div class="label">Peças hoje</div>
+        <div class="value" id="kpiHoje">0</div>
+        <div class="hint" id="kpiHojeHint">Pedidos do dia</div>
+      </div>
+      <div class="gp-kpi">
+        <div class="label">Aparelhos no período</div>
+        <div class="value" id="kpiAparelhos">0</div>
+        <div class="hint" id="kpiAparelhosHint">OS distintas</div>
+      </div>
+    </section>
+
+    <section class="gp-mid">
+      <div class="gp-panel">
+        <h2>Top peças solicitadas</h2>
+        <div class="chart-box"><canvas id="chartTopPecas"></canvas></div>
+      </div>
+      <div class="gp-panel">
+        <h2>Top aparelhos</h2>
+        <div class="chart-box"><canvas id="chartAparelhos"></canvas></div>
+      </div>
+      <aside class="gp-panel gp-alerts" id="alertsPanel">
+        <h2>Alertas</h2>
+        <div id="alertsList"></div>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = SkylineDash.API_REPARO;
+    const API_PECAS = SkylineDash.API_PECAS;
+    const ETAPAS = SkylineDash.ETAPAS_OPERACAO;
+    const statusEl = document.getElementById("statusMsg");
+    const SESSION_KEY = "skyline_gestao_rows_v6";
+    const SESSION_TTL_MS = 3600000;
+    const SKY = { primary: "#694992", accent: "#8b6bb8", red: "#dc2626", green: "#15803d", muted: "#6b5b7a" };
+    const dataLabelCount = {
+      anchor: "end",
+      align: "end",
+      offset: 4,
+      color: SKY.primary,
+      font: { weight: "700", size: 11 },
+      clamp: true,
+      display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+      formatter: (v) => v
+    };
+
+    /** Máscara: real + 50 aparelhos/h · 62% Apple / 38% Samsung · progressivo na hora atual. */
+    const APPLY_MASK = false;
+    const DEBUG_MODE = new URLSearchParams(location.search).get("debug") === "1";
+    const HOUR_FROM = 7;
+    const HOUR_TO = 17;
+    const MASK_HOUR_BOOST = 50;
+    const MASK_APPLE_PCT = 0.62;
+    /**
+     * Combos aparelho+peça mais frequentes no histórico (reparo/homolog).
+     * Apple: prioriza BATERIA e TAMPA · Samsung: TELA e TAMPA.
+     */
+    const MASK_COMBOS = {
+      APPLE: [
+        { aparelho: "APPLE IPHONE 11 64GB PRETO", peca: "BATERIA IPHONE 11 COM FLEX - DEJI (3110MAH)", produto_id: "19119803", categoria: "BATERIA" },
+        { aparelho: "APPLE IPHONE 11", peca: "BATERIA IPHONE 11 COM FLEX - DEJI (3110MAH)", produto_id: "19119803", categoria: "BATERIA" },
+        { aparelho: "APPLE IPHONE 13 PRO 256GB GRAFITE", peca: "BATERIA APPLE IPHONE 13 PRO COM FLEX - AUTO CALIBRAGEM - NUCLEAR POWER", produto_id: "19120057", categoria: "BATERIA" },
+        { aparelho: "APPLE IPHONE 12", peca: "BATERIA IPHONE 12 - 12 PRO COM FLEX -MAX", produto_id: "19116257", categoria: "BATERIA" },
+        { aparelho: "APPLE IPHONE 7 32GB PRETO", peca: "BATERIA IPHONE 7 SKYTECH COM FLEX", produto_id: "19116576", categoria: "BATERIA" },
+        { aparelho: "APPLE IPHONE 13 PRO 256GB GRAFITE", peca: "TAMPA IPHONE 13 PRO - GRAFITE (PRETO)", produto_id: "19110099", categoria: "TAMPA" },
+        { aparelho: "APPLE IPHONE 11 64GB BRANCO", peca: "TAMPA IPHONE 11 - BRANCO", produto_id: "19110532", categoria: "TAMPA" },
+        { aparelho: "APPLE IPHONE 11 64GB PRETO", peca: "TAMPA IPHONE 11 - PRETO", produto_id: "19110533", categoria: "TAMPA" },
+        { aparelho: "APPLE IPHONE XR", peca: "TAMPA IPHONE XR - BRANCO", produto_id: "19110404", categoria: "TAMPA" },
+        { aparelho: "APPLE IPHONE 14 PRO MAX", peca: "TAMPA IPHONE 14 PRO MAX - PRETO", produto_id: "19110529", categoria: "TAMPA" }
+      ],
+      SAMSUNG: [
+        { aparelho: "SAMSUNG GALAXY S21 FE 5G 128GB PRETO", peca: "TELA SAMSUNG S21 FE 5G - COM ARO - SKYTECH PRO - PRETO", produto_id: "19108435", categoria: "TELA" },
+        { aparelho: "SAMSUNG GALAXY S22 ULTRA 256GB PRETO", peca: "TELA SAMSUNG S22 ULTRA 5G - COM ARO - SKYTECH PRO - PRETO", produto_id: "19108449", categoria: "TELA" },
+        { aparelho: "SAMSUNG GALAXY A10", peca: "TELA SAMSUNG A10 - A105 - SEM ARO - SKYTECH PRO - PRETO", produto_id: "19117993", categoria: "TELA" },
+        { aparelho: "SAMSUNG GALAXY A10S 32GB PRETO", peca: "TELA SAMSUNG A10S - A107 - COM ARO - SKYTECH PRO - PRETO", produto_id: "19108123", categoria: "TELA" },
+        { aparelho: "SAMSUNG GALAXY A11", peca: "TELA SAMSUNG A11 - A115 - SEM ARO - SKYTECH PRO - PRETO", produto_id: "19117994", categoria: "TELA" },
+        { aparelho: "SAMSUNG GALAXY S21 FE 5G 128GB PRETO", peca: "TAMPA SAMSUNG S21 FE 5G - PRETO (GRAFITE)", produto_id: "19115756", categoria: "TAMPA" },
+        { aparelho: "SAMSUNG GALAXY S22 ULTRA 256GB PRETO", peca: "TAMPA SAMSUNG S22 ULTRA - PRETO", produto_id: "19115422", categoria: "TAMPA" },
+        { aparelho: "SAMSUNG GALAXY S22 PLUS 128GB PRETO", peca: "TAMPA SAMSUNG S22 PLUS - PRETO", produto_id: "19110712", categoria: "TAMPA" },
+        { aparelho: "SAMSUNG GALAXY S20 PLUS 128GB PRETO", peca: "TAMPA SAMSUNG S20 PLUS - PRETO", produto_id: "19110886", categoria: "TAMPA" }
+      ]
+    };
+    const MASK_SOLICITANTES = ["Helen", "Ewerton Souza", "jaqueline alves", "bruno marcos"];
+
+    let allRows = [];
+    let lastRawPayload = [];
+    let lastDebugReport = null;
+    let loadSeq = 0;
+    const charts = {};
+
+    if (DEBUG_MODE) document.body.classList.add("gestao-debug");
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function categorizePeca(nome) {
+      const p = String(nome || "").toUpperCase();
+      if (p.includes("TELA") || p.includes("LCD") || p.includes("DISPLAY")) return "TELA";
+      if (p.includes("BATER")) return "BATERIA";
+      if (p.includes("CAMERA") || p.includes("CÂMERA") || p.includes("CAMARA")) return "CAMERA";
+      if (p.includes("FLEX")) return "FLEX";
+      if (p.includes("TAMPA") || p.includes("CARCACA") || p.includes("CARCAÇA")) return "TAMPA";
+      if (p.includes("CONECTOR") || p.includes("DOCK")) return "CONECTOR";
+      return "OUTROS";
+    }
+
+    function mapGestaoRow(raw, statusForced) {
+      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado;
+      const peca = raw.peca_requisitada || raw.PECA_REQUISITADA || "—";
+      const aparelho = raw.descricao || raw.DESCRICAO || "";
+      return {
+        id: raw.id ?? null,
+        nr: raw.NR ?? raw.nr ?? null,
+        serial: raw.serial ?? null,
+        data_pedido_sankhya: SkylineDash.resolveGestaoDate(raw),
+        produto_requisitado_id: String(produtoId).trim(),
+        descricao: peca,
+        aparelho,
+        marca: SkylineDash.normalizeBrandName(aparelho) || "—",
+        categoria: categorizePeca(peca),
+        solicitante: raw.Nome_solicitante_peca || raw["Usuario Solicitação Peça"] || "—",
+        status_sankhya: statusForced || String(raw.STATUS_SANKHYA || raw.status_sankhya || "").toLowerCase() || "—"
+      };
+    }
+
+    function rejectReasonGestao(raw) {
+      if (!raw || typeof raw !== "object") return "payload_invalido";
+      const produtoId = raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null;
+      if (produtoId == null || String(produtoId).trim() === "") return "sem_produto_requisitado";
+      if (!SkylineDash.resolveGestaoDate(raw)) return "sem_data_pedido";
+      const op = SkylineDash.resolveOperacao(raw);
+      if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
+      const hasLegacyPedido = !!(raw.DATA_PEDIDO_SANKHYA || raw.data_pedido_sankhya);
+      if (!hasLegacyPedido && !raw["Usuario Solicitação Peça"]) return "sem_usuario_solicitacao";
+      const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+      if (
+        sankhya != null &&
+        String(sankhya).trim() !== "" &&
+        String(sankhya).trim().toLowerCase() !== "sucesso"
+      ) {
+        return `sankhya_${String(sankhya).trim().toLowerCase()}`;
+      }
+      return null;
+    }
+
+    function countMap(entries) {
+      const m = new Map();
+      entries.forEach((k) => m.set(k, (m.get(k) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    }
+
+    function buildGestaoDebugReport(rawList, finalRows) {
+      const { start, end } = SkylineDash.getDateRange();
+      const hoje = SkylineDash.todayISO();
+      const reasons = [];
+      const ops = [];
+      const accepted = [];
+      (rawList || []).forEach((raw) => {
+        ops.push(SkylineDash.resolveOperacao(raw) || "(vazia)");
+        const why = rejectReasonGestao(raw);
+        if (why) reasons.push(why);
+        else accepted.push(raw);
+      });
+
+      const mapped = accepted.map((r) => mapGestaoRow(r, "sucesso"));
+      const beforeDedupe = mapped.length;
+      const afterDedupe = SkylineDash.dedupeGestaoRows(mapped);
+      const period = rowsForPeriod(finalRows || afterDedupe, start || "", end || "");
+      const hojeRows = rowsForPeriod(finalRows || afterDedupe, hoje, hoje);
+      const kPeriod = kpis(period);
+      const kHoje = kpis(hojeRows);
+
+      const dedupeKeys = new Map();
+      mapped.forEach((row, i) => {
+        const os = row.id != null && String(row.id).trim() !== "" ? String(row.id).trim() : `row:${i}`;
+        const produto = String(row.produto_requisitado_id || "").trim();
+        const dia = SkylineDash.toLocalDateStr(row.data_pedido_sankhya) || "";
+        const key = `${os}|${produto}|${dia}`;
+        dedupeKeys.set(key, (dedupeKeys.get(key) || 0) + 1);
+      });
+      const dups = [...dedupeKeys.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+
+      return {
+        gerado_em: new Date().toISOString(),
+        api: API_URL,
+        mascara: APPLY_MASK,
+        regras: {
+          fonte: "API_REPARO + API_PECAS (expande N peças/OS)",
+          data: "DATA_PEDIDO_SANKHYA ou Iniciado_Reparo (do reparo)",
+          precisa: "produto_requisitado_id no reparo (entra na base) + catálogo pecas por OS",
+          operacoes: [...ETAPAS],
+          sankhya: "se preenchido, só 'sucesso' (filtro do reparo)",
+          dedupe: "OS + produto/SKU + dia local"
+        },
+        periodo: { start, end, hoje },
+        funil: {
+          raw_api: (rawList || []).length,
+          aceitos_raw: accepted.length,
+          rejeitados_raw: (rawList || []).length - accepted.length,
+          mapped_antes_dedupe: beforeDedupe,
+          apos_dedupe: afterDedupe.length,
+          dups_removidas: Math.max(0, beforeDedupe - afterDedupe.length),
+          kpi_pecas_periodo: kPeriod.pecas,
+          kpi_aparelhos_periodo: kPeriod.aparelhos,
+          kpi_pecas_hoje: kHoje.pecas,
+          kpi_aparelhos_hoje: kHoje.aparelhos,
+          allRows_final: (finalRows || []).length
+        },
+        rejeicoes: countMap(reasons),
+        operacoes_raw: countMap(ops).slice(0, 12),
+        top_pecas_periodo: SkylineDash.aggregateCount(period, (r) => r.descricao).slice(0, 12),
+        top_solicitantes_periodo: SkylineDash.aggregateCount(period, (r) => r.solicitante).slice(0, 12),
+        chaves_duplicadas: dups.slice(0, 20).map(([key, qtd]) => ({ key, qtd })),
+        amostras_ok: period.slice(0, 8).map((r) => ({
+          id: r.id,
+          dia: SkylineDash.toLocalDateStr(r.data_pedido_sankhya),
+          produto: r.produto_requisitado_id,
+          peca: String(r.descricao || "").slice(0, 40),
+          solicitante: r.solicitante
+        })),
+        amostras_rejeitadas: (() => {
+          const out = [];
+          for (const raw of rawList || []) {
+            if (out.length >= 8) break;
+            const why = rejectReasonGestao(raw);
+            if (!why) continue;
+            out.push({
+              id: raw.id ?? null,
+              why,
+              op: SkylineDash.resolveOperacao(raw) || "",
+              produto: raw.produto_requisitado_id ?? raw.produto_id_requisitado ?? null,
+              data: SkylineDash.resolveGestaoDate(raw),
+              sankhya: raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null
+            });
+          }
+          return out;
+        })()
+      };
+    }
+
+    function renderDebugPanel(report) {
+      if (!DEBUG_MODE || !report) return;
+      lastDebugReport = report;
+      const f = report.funil;
+      document.getElementById("dbgKpis").innerHTML = [
+        ["API raw", f.raw_api],
+        ["Aceitos", f.aceitos_raw],
+        ["Rejeitados", f.rejeitados_raw],
+        ["Antes dedupe", f.mapped_antes_dedupe],
+        ["Após dedupe", f.apos_dedupe],
+        ["KPI peças período", f.kpi_pecas_periodo],
+        ["KPI OS período", f.kpi_aparelhos_periodo],
+        ["KPI peças hoje", f.kpi_pecas_hoje]
+      ].map(([k, v]) => `<div class="dbg-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+      const lines = [
+        `API: ${report.api}`,
+        `Período: ${report.periodo.start} → ${report.periodo.end} · hoje ${report.periodo.hoje}`,
+        `Regras: reparo (filtro) + API_PECAS (N peças/OS) + dedupe OS|SKU|dia`,
+        "",
+        "Funil:",
+        `  raw → aceitos: ${f.raw_api} → ${f.aceitos_raw} (rejeitados ${f.rejeitados_raw})`,
+        `  mapped → dedupe: ${f.mapped_antes_dedupe} → ${f.apos_dedupe} (−${f.dups_removidas})`,
+        `  KPI período: ${f.kpi_pecas_periodo} peças · ${f.kpi_aparelhos_periodo} OS`,
+        `  KPI hoje: ${f.kpi_pecas_hoje} peças · ${f.kpi_aparelhos_hoje} OS`,
+        "",
+        "Rejeições:",
+        ...(report.rejeicoes.length ? report.rejeicoes.map(([k, n]) => `  ${k}: ${n}`) : ["  (nenhuma)"]),
+        "",
+        "Operações raw (top):",
+        ...report.operacoes_raw.map(([k, n]) => `  ${k}: ${n}`)
+      ];
+      document.getElementById("dbgBody").textContent = lines.join("\n");
+
+      const table = (title, rows, cols) => {
+        if (!rows?.length) return `<p><strong>${title}</strong>: —</p>`;
+        return `<p><strong>${title}</strong></p><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? "")}</td>`).join("")}</tr>`).join("")
+        }</tbody></table>`;
+      };
+      const pairRows = (arr) => arr.map(([nome, qtd]) => ({ nome, qtd }));
+      document.getElementById("dbgTables").innerHTML = [
+        table("Top peças período", pairRows(report.top_pecas_periodo), ["nome", "qtd"]),
+        table("Top solicitantes período", pairRows(report.top_solicitantes_periodo), ["nome", "qtd"]),
+        table("Chaves duplicadas (OS|produto|dia)", report.chaves_duplicadas, ["key", "qtd"]),
+        table("Amostras OK", report.amostras_ok, ["id", "dia", "produto", "peca", "solicitante"]),
+        table("Amostras rejeitadas", report.amostras_rejeitadas, ["id", "why", "op", "produto", "data", "sankhya"])
+      ].join("");
+      console.info("[Gestão Peças DEBUG]", report);
+    }
+
+    function ingestPayload(payload) {
+      const rawList = SkylineDash.normalizeRows(payload);
+      const ok = [];
+      for (let i = 0; i < rawList.length; i++) {
+        const raw = rawList[i];
+        if (!raw || typeof raw !== "object") continue;
+        if (!SkylineDash.passesGestaoRaw(raw, ETAPAS)) continue;
+        ok.push(mapGestaoRow(raw, "sucesso"));
+      }
+      return { rawList, rows: SkylineDash.dedupeGestaoRows(ok) };
+    }
+
+    /** API_PECAS traz N peças por OS; reparo só traz a última. Expande 1→N. */
+    function expandRowsWithPecasCatalog(gestaoRows, pecasPayload) {
+      const base = Array.isArray(gestaoRows) ? gestaoRows : [];
+      const pecasRows = SkylineDash.normalizeRows(pecasPayload);
+      if (!pecasRows.length) return base;
+
+      const metaById = new Map();
+      base.forEach((row) => {
+        if (row?.id == null || String(row.id).trim() === "") return;
+        const id = String(row.id).trim();
+        if (!metaById.has(id)) metaById.set(id, row);
+      });
+
+      const expanded = [];
+      const expandedIds = new Set();
+      pecasRows.forEach((p) => {
+        if (!p || p.id == null || String(p.id).trim() === "") return;
+        const id = String(p.id).trim();
+        const meta = metaById.get(id);
+        if (!meta) return;
+
+        const codes = String(p.pecas || "")
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const descs = String(p.descricoes || "")
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const n = Math.max(codes.length, descs.length);
+        if (!n) return;
+
+        const seen = new Set();
+        let added = 0;
+        for (let i = 0; i < n; i++) {
+          const code = codes[i] || "";
+          const desc = descs[i] || code || "—";
+          const produto = code || `desc:${desc}`;
+          if (seen.has(produto)) continue;
+          seen.add(produto);
+          expanded.push({
+            id: meta.id,
+            nr: meta.nr,
+            serial: p.serial || meta.serial,
+            data_pedido_sankhya: meta.data_pedido_sankhya,
+            produto_requisitado_id: produto,
+            descricao: desc,
+            aparelho: meta.aparelho,
+            marca: meta.marca,
+            categoria: categorizePeca(desc),
+            solicitante: meta.solicitante,
+            status_sankhya: meta.status_sankhya || "sucesso"
+          });
+          added += 1;
+        }
+        if (added > 0) expandedIds.add(id);
+      });
+
+      base.forEach((row) => {
+        const id = row?.id != null ? String(row.id).trim() : "";
+        if (id && expandedIds.has(id)) return;
+        expanded.push(row);
+      });
+
+      return SkylineDash.dedupeGestaoRows(expanded);
+    }
+
+    function saveSession() {
+      try {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows: allRows }));
+      } catch { /* ignore */ }
+    }
+
+    function restoreSession() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.rows?.length || Date.now() - parsed.at > SESSION_TTL_MS) return false;
+        allRows = parsed.rows;
+        renderDashboard();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function maskCurrentHourBoost() {
+      const now = new Date();
+      const ticks = Math.min(12, Math.floor(now.getMinutes() / 5) + 1);
+      return Math.round((MASK_HOUR_BOOST * ticks) / 12);
+    }
+
+    function maskBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      if (hour < HOUR_FROM || hour > HOUR_TO || hour > nowH) return 0;
+      if (hour < nowH) return MASK_HOUR_BOOST;
+      return maskCurrentHourBoost();
+    }
+
+    function maskHourBoostTotal() {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      let total = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) total += maskBoostForHour(h);
+      return total;
+    }
+
+    function pickMaskCombo(brand, seq) {
+      const list = MASK_COMBOS[brand] || [];
+      if (!list.length) return null;
+      // Alterna tipo prioritário: Apple BATERIA/TAMPA · Samsung TELA/TAMPA
+      const prefer = brand === "APPLE"
+        ? (seq % 2 === 0 ? "BATERIA" : "TAMPA")
+        : (seq % 2 === 0 ? "TELA" : "TAMPA");
+      const preferred = list.filter((c) => c.categoria === prefer);
+      const pool = preferred.length ? preferred : list;
+      return pool[seq % pool.length];
+    }
+
+    function makeMaskGestaoRow(combo, day, hour, seq) {
+      const hh = String(hour).padStart(2, "0");
+      const minute = hour === new Date().getHours()
+        ? Math.min(59, Math.floor(new Date().getMinutes() / 5) * 5)
+        : 30;
+      const mm = String(minute).padStart(2, "0");
+      const marca = combo.aparelho.toUpperCase().includes("SAMSUNG") ? "SAMSUNG" : "APPLE";
+      return {
+        id: `mask-gestao-${day}-${hour}-${seq}`,
+        nr: null,
+        serial: null,
+        data_pedido_sankhya: `${day}T${hh}:${mm}:00`,
+        produto_requisitado_id: combo.produto_id,
+        descricao: combo.peca,
+        aparelho: combo.aparelho,
+        marca,
+        categoria: combo.categoria,
+        solicitante: MASK_SOLICITANTES[seq % MASK_SOLICITANTES.length],
+        status_sankhya: "sucesso"
+      };
+    }
+
+    /** Sempre preserva o real e soma a máscara (62/38, peças prioritárias). */
+    function injectMaskGestaoRows(realRows, start, end, today) {
+      const base = Array.isArray(realRows) ? realRows : [];
+      if (!APPLY_MASK || !(start <= today && end >= today)) return base.slice();
+      if (!maskHourBoostTotal()) return base.slice();
+      const extras = [];
+      let seq = 0;
+      const nowH = new Date().getHours();
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        const n = maskBoostForHour(h);
+        if (!n) continue;
+        const appleN = Math.round(n * MASK_APPLE_PCT);
+        const samsungN = Math.max(0, n - appleN);
+        for (let i = 0; i < appleN; i++) {
+          const combo = pickMaskCombo("APPLE", seq);
+          if (combo) extras.push(makeMaskGestaoRow(combo, today, h, seq++));
+        }
+        for (let i = 0; i < samsungN; i++) {
+          const combo = pickMaskCombo("SAMSUNG", seq);
+          if (combo) extras.push(makeMaskGestaoRow(combo, today, h, seq++));
+        }
+      }
+      // real primeiro + máscara por cima (nunca substitui)
+      return base.concat(extras);
+    }
+
+    function rowsForPeriod(rows, start, end) {
+      const out = [];
+      for (let i = 0; i < rows.length; i++) {
+        const local = SkylineDash.toLocalDateStr(rows[i].data_pedido_sankhya);
+        if (local >= start && local <= end) out.push(rows[i]);
+      }
+      return out;
+    }
+
+    function applyUiFilters(rows) {
+      const marca = document.getElementById("fMarca").value;
+      const cat = document.getElementById("fCategoria").value;
+      const busca = document.getElementById("fBusca").value.trim().toLowerCase();
+      return rows.filter((r) => {
+        if (marca && r.marca !== marca) return false;
+        if (cat && r.categoria !== cat) return false;
+        if (busca) {
+          const blob = `${r.produto_requisitado_id} ${r.descricao} ${r.aparelho}`.toLowerCase();
+          if (!blob.includes(busca)) return false;
+        }
+        return true;
+      });
+    }
+
+    function fillSelect(id, values) {
+      const el = document.getElementById(id);
+      const cur = el.value;
+      const opts = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      el.innerHTML = `<option value="">Todas</option>` + opts.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+      if (opts.includes(cur)) el.value = cur;
+    }
+
+    function populateFilters(rows) {
+      fillSelect("fMarca", rows.map((r) => r.marca).filter((m) => m && m !== "—"));
+      fillSelect("fCategoria", rows.map((r) => r.categoria));
+    }
+
+    function kpis(rows) {
+      const ids = new Set();
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i].id != null && String(rows[i].id).trim() !== "") ids.add(String(rows[i].id).trim());
+      }
+      return { pecas: rows.length, aparelhos: ids.size };
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) {
+        charts[key].destroy();
+        delete charts[key];
+      }
+    }
+
+    function renderCharts(periodRows) {
+      const topPecas = SkylineDash.aggregateCount(periodRows, (r) => r.descricao).slice(0, 8);
+      destroyChart("topPecas");
+      charts.topPecas = new Chart(document.getElementById("chartTopPecas"), {
+        type: "bar",
+        data: {
+          labels: topPecas.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
+          datasets: [{
+            data: topPecas.map(([, v]) => v),
+            backgroundColor: SKY.accent,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+
+      const byAparelho = new Map();
+      for (let i = 0; i < periodRows.length; i++) {
+        const r = periodRows[i];
+        const modelo = String(r.aparelho || "").trim() || "—";
+        const os = r.id != null && String(r.id).trim() !== "" ? String(r.id).trim() : null;
+        if (!os) continue;
+        if (!byAparelho.has(modelo)) byAparelho.set(modelo, new Set());
+        byAparelho.get(modelo).add(os);
+      }
+      const topAparelhos = [...byAparelho.entries()]
+        .map(([nome, ids]) => [nome, ids.size])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+      destroyChart("aparelhos");
+      charts.aparelhos = new Chart(document.getElementById("chartAparelhos"), {
+        type: "bar",
+        data: {
+          labels: topAparelhos.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
+          datasets: [{
+            label: "Aparelhos",
+            data: topAparelhos.map(([, v]) => v),
+            backgroundColor: SKY.primary,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderAlerts(periodRows, hojeRows) {
+      const alerts = [];
+      const top = SkylineDash.aggregateCount(hojeRows, (r) => r.descricao);
+      if (top[0] && top[0][1] >= 3) {
+        alerts.push({
+          cls: "critical",
+          title: `Peça pedida ${top[0][1]}× hoje`,
+          body: top[0][0]
+        });
+      }
+      const marcas = SkylineDash.aggregateCount(periodRows, (r) => r.marca);
+      if (marcas[0]) {
+        alerts.push({
+          cls: "warn",
+          title: `Marca mais acionada: ${marcas[0][0]}`,
+          body: `${marcas[0][1]} solicitação(ões) no período`
+        });
+      }
+      if (hojeRows.length) {
+        alerts.push({
+          cls: "ok",
+          title: `${hojeRows.length} pedido(s) únicos hoje`,
+          body: "Contagem diária deduplicada"
+        });
+      }
+      if (!alerts.length) {
+        alerts.push({ cls: "ok", title: "Sem alertas críticos", body: "Período sem anomalias evidentes" });
+      }
+
+      document.getElementById("alertsList").innerHTML = alerts.map((a) => `
+        <div class="gp-alert ${a.cls}">
+          <div class="title">${escapeHtml(a.title)}</div>
+          <div class="body">${escapeHtml(a.body)}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderDashboard() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const hoje = SkylineDash.todayISO();
+
+      const basePeriod = applyUiFilters(
+        injectMaskGestaoRows(rowsForPeriod(allRows, start, end), start, end, hoje)
+      );
+      const baseHoje = applyUiFilters(
+        injectMaskGestaoRows(rowsForPeriod(allRows, hoje, hoje), hoje, hoje, hoje)
+      );
+      const kPeriod = kpis(basePeriod);
+
+      document.getElementById("kpiPeriodo").textContent = kPeriod.pecas;
+      document.getElementById("kpiHoje").textContent = baseHoje.length;
+      document.getElementById("kpiAparelhos").textContent = kPeriod.aparelhos;
+      document.getElementById("kpiAparelhosHint").textContent = "OS distintas";
+      document.getElementById("kpiPeriodoHint").textContent = "Pedidos diários únicos";
+
+      const agora = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      document.getElementById("periodLabel").textContent =
+        `${SkylineDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
+
+      populateFilters(basePeriod.length ? basePeriod : allRows);
+      renderCharts(basePeriod);
+      renderAlerts(basePeriod, baseHoje);
+      SkylineDash.markRefresh();
+      if (DEBUG_MODE && lastRawPayload.length) {
+        renderDebugPanel(buildGestaoDebugReport(lastRawPayload, allRows));
+      }
+    }
+
+    function clearFilters() {
+      document.getElementById("fMarca").value = "";
+      document.getElementById("fCategoria").value = "";
+      document.getElementById("fBusca").value = "";
+      document.getElementById("btnToday").click();
+    }
+
+    async function loadData() {
+      const seq = ++loadSeq;
+      const hadData = allRows.length > 0;
+      if (!hadData && !restoreSession()) {
+        SkylineDash.showStatus(statusEl, "Carregando dados…", false);
+      }
+
+      try {
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        if (seq !== loadSeq) return;
+        const first = ingestPayload(json);
+        let rawAll = first.rawList.slice();
+        let rows = first.rows;
+        // Homolog/local: soma API real ao fixture para não perder o dia corrente.
+        if (SkylineDash.useHomologData()) {
+          try {
+            const liveRes = await fetch(`${API_URL}${API_URL.includes("?") ? "&" : "?"}_t=${Date.now()}`, {
+              cache: "no-store",
+              mode: "cors",
+              headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+            });
+            if (liveRes.ok) {
+              const liveJson = await liveRes.json();
+              const live = ingestPayload(liveJson);
+              rawAll = rawAll.concat(live.rawList);
+              rows = SkylineDash.dedupeGestaoRows(rows.concat(live.rows));
+            }
+          } catch (_) { /* mantém fixture */ }
+        }
+
+        // Catálogo completo de peças (1 OS pode ter N itens; reparo só traz o último).
+        try {
+          const pecasJson = await SkylineDash.fetchWebhook(API_PECAS);
+          if (seq !== loadSeq) return;
+          rows = expandRowsWithPecasCatalog(rows, pecasJson);
+        } catch (_) { /* mantém linhas do reparo */ }
+
+        lastRawPayload = rawAll;
+        allRows = rows;
+        saveSession();
+        renderDashboard();
+        if (DEBUG_MODE) {
+          renderDebugPanel(buildGestaoDebugReport(lastRawPayload, allRows));
+        }
+        SkylineDash.showStatus(statusEl, `${allRows.length} pedido(s) carregado(s).`, false);
+      } catch (err) {
+        if (seq !== loadSeq) return;
+        if (DEBUG_MODE) {
+          const body = document.getElementById("dbgBody");
+          if (body) body.textContent = `Erro ao carregar: ${err.message}`;
+        }
+        if (allRows.length) {
+          SkylineDash.showStatus(statusEl, `Atualização falhou — cache (${err.message})`, true);
+          return;
+        }
+        if (restoreSession()) {
+          SkylineDash.showStatus(statusEl, `API indisponível — cache (${err.message})`, true);
+          return;
+        }
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+      }
+    }
+
+    const btnToggleFilters = document.getElementById("btnToggleFilters");
+    btnToggleFilters.addEventListener("click", () => {
+      document.body.classList.toggle("show-filters");
+      btnToggleFilters.classList.toggle("primary", document.body.classList.contains("show-filters"));
+    });
+
+    document.getElementById("btnClear").addEventListener("click", clearFilters);
+    document.getElementById("fMarca").addEventListener("change", renderDashboard);
+    document.getElementById("fCategoria").addEventListener("change", renderDashboard);
+    document.getElementById("fBusca").addEventListener("input", () => {
+      clearTimeout(window.__gpBuscaT);
+      window.__gpBuscaT = setTimeout(renderDashboard, 200);
+    });
+
+    restoreSession();
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (DEBUG_MODE) {
+      document.getElementById("dbgCopy")?.addEventListener("click", async () => {
+        if (!lastDebugReport) return;
+        const text = JSON.stringify(lastDebugReport, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          document.getElementById("dbgCopy").textContent = "Copiado!";
+          setTimeout(() => { document.getElementById("dbgCopy").textContent = "Copiar relatório"; }, 1500);
+        } catch (_) {
+          console.info(text);
+          alert("Não deu pra copiar — abri no console.");
+        }
+      });
+      document.getElementById("dbgConsole")?.addEventListener("click", () => {
+        console.info("[Gestão Peças DEBUG]", lastDebugReport);
+      });
+      document.getElementById("dbgReload")?.addEventListener("click", () => loadData());
+    }
+
+    // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 50).
+    if (APPLY_MASK) {
+      setInterval(() => {
+        renderDashboard();
+      }, 60 * 1000);
+    }
+  </script>
+</body>
+</html>

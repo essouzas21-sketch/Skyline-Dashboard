@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Imprimir Recebimento</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f5f5f5;
+      color: #1a1a1a;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: #694992;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    input, button, select {
+      font-size: 15px;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #4b5563;
+    }
+
+    .mode-row {
+      gap: 16px;
+    }
+
+    .mode-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+
+    .search-panel {
+      display: none;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-panel.active {
+      display: flex;
+    }
+
+    .hint {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin: -6px 0 12px;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #374151;
+    }
+
+    .result {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafafa;
+      margin-bottom: 14px;
+    }
+
+    .result p {
+      margin: 4px 0;
+    }
+
+    .label {
+      width: 100mm;
+      height: 50mm;
+      border: 1px dashed #333;
+      box-sizing: border-box;
+      padding: 3mm;
+      overflow: hidden;
+      background: #fff;
+      display: grid;
+      grid-template-columns: 28mm 1fr;
+      gap: 3mm;
+      align-items: center;
+    }
+
+    .label-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .label-logo img {
+      width: 26mm;
+      height: auto;
+      max-height: 44mm;
+      object-fit: contain;
+    }
+
+    .label-content {
+      min-width: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.8mm;
+    }
+
+    .label .field-label {
+      font-size: 6.5pt;
+      color: #595959;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .label .desc {
+      font-size: 8pt;
+      font-weight: 700;
+      line-height: 1.1;
+      max-height: 8mm;
+      overflow: hidden;
+      white-space: normal;
+      word-break: normal;
+    }
+
+    .label .meta-row {
+      display: flex;
+      gap: 3mm;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .label .meta-item {
+      font-size: 8.5pt;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .label .serial {
+      font-size: 9pt;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .barcode-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 8mm;
+    }
+
+    .barcode-wrap.hu {
+      min-height: 9mm;
+    }
+
+    .barcode-wrap.serial {
+      min-height: 9mm;
+    }
+
+    .barcode-wrap svg {
+      width: 100%;
+      height: 8mm;
+      max-width: 100%;
+    }
+
+    .barcode-wrap.hu svg,
+    .barcode-wrap.serial svg {
+      height: 9mm;
+    }
+
+    @media print {
+      @page {
+        size: 100mm 50mm;
+        margin: 0;
+      }
+
+      html,
+      body {
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: hidden !important;
+      }
+
+      .container {
+        max-width: none !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #fff !important;
+      }
+
+      .container > :not(.label-area) {
+        display: none !important;
+      }
+
+      .label-area {
+        display: block !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .label {
+        border: none !important;
+        width: 100mm !important;
+        height: 50mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="menu.html">← Menu</a>
+    <h1>Imprimir Recebimento</h1>
+
+    <div class="row">
+      <input id="endpoint" type="text" value="https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6" />
+      <button id="btnLoadData" type="button">Atualizar dados</button>
+    </div>
+
+    <div class="row mode-row">
+      <label><input type="radio" name="searchMode" value="serial" checked /> Serial</label>
+      <label><input type="radio" name="searchMode" value="numero" /> Número</label>
+      <label><input type="radio" name="searchMode" value="prod" /> prod_cprod</label>
+    </div>
+
+    <div id="panelSerial" class="search-panel active row">
+      <input id="inputSerial" type="text" placeholder="Digite ou leia o serial / IMEI…" autofocus />
+    </div>
+
+    <div id="panelNumero" class="search-panel row">
+      <input id="inputNumero" type="text" placeholder="Número HU (hu_id) ou doc (numero)…" />
+    </div>
+
+    <div id="panelProd" class="search-panel row">
+      <input id="inputNumeroDoc" type="text" placeholder="Número (doc / NR)…" />
+      <input id="inputProdCprod" type="text" placeholder="prod_cprod…" />
+    </div>
+
+    <p class="hint" id="modeHint">Busca pelo serial do aparelho. Duplicatas priorizam registro com prod_cprod.</p>
+
+    <div class="row">
+      <button id="btnSearch" type="button">Buscar</button>
+      <button id="btnPrint" type="button" class="secondary">Imprimir etiqueta</button>
+    </div>
+    <p class="hint">Impressão: selecione papel <strong>100 × 50 mm</strong> (escala 100%, sem margens) na Zebra ZD220.</p>
+
+    <div class="row">
+      <input id="extraField1" type="text" placeholder="GB (opcional)" aria-label="GB" />
+      <input id="extraField2" type="text" placeholder="Cor (opcional)" aria-label="Cor" />
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="resultBox" class="result" hidden></div>
+
+    <div class="label-area">
+      <div id="label" class="label">
+        <div class="label-logo">
+          <img src="data:image/png;base64,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" alt="Skyline mobile" />
+        </div>
+        <div class="label-content">
+          <div class="field-label">HU</div>
+          <div class="barcode-wrap hu">
+            <svg id="barcodeHu"></svg>
+          </div>
+          <div id="labelHu" class="meta-item">HU: -</div>
+          <div class="field-label">MODELO</div>
+          <div id="labelDesc" class="desc">Descricao do produto</div>
+          <div class="meta-row">
+            <div id="labelNr" class="meta-item">NR: -</div>
+          </div>
+          <div class="field-label">SERIAL</div>
+          <div id="labelSerial" class="serial">Serial: -</div>
+          <div class="barcode-wrap serial">
+            <svg id="barcode"></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=71"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    const ENDPOINT_DEFAULT = "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6";
+
+    const state = { rows: [], current: null, loading: false };
+    let loadPromise = null;
+
+    const endpointInput = document.getElementById("endpoint");
+    const extraField1 = document.getElementById("extraField1");
+    const extraField2 = document.getElementById("extraField2");
+    const statusEl = document.getElementById("status");
+    const resultBox = document.getElementById("resultBox");
+    const labelDesc = document.getElementById("labelDesc");
+    const labelSerial = document.getElementById("labelSerial");
+    const labelHu = document.getElementById("labelHu");
+    const labelNr = document.getElementById("labelNr");
+    const barcodeEl = document.getElementById("barcode");
+    const barcodeHuEl = document.getElementById("barcodeHu");
+    const modeHint = document.getElementById("modeHint");
+    const btnLoadData = document.getElementById("btnLoadData");
+    const btnSearch = document.getElementById("btnSearch");
+    const btnPrint = document.getElementById("btnPrint");
+
+    if (!endpointInput || !btnLoadData || !btnSearch || !btnPrint || !statusEl) {
+      console.error("Imprimir Recebimento: elementos da página não encontrados.");
+      return;
+    }
+
+    const panels = {
+      serial: document.getElementById("panelSerial"),
+      numero: document.getElementById("panelNumero"),
+      prod: document.getElementById("panelProd")
+    };
+
+    function setLoading(loading) {
+      state.loading = loading;
+      btnLoadData.disabled = loading;
+    }
+
+    function normalizeRowsLocal(payload) {
+      if (typeof SkylineDash !== "undefined" && typeof SkylineDash.normalizeRows === "function") {
+        return SkylineDash.normalizeRows(payload);
+      }
+      if (Array.isArray(payload)) return payload;
+      if (!payload || typeof payload !== "object") return [];
+      const keys = Object.keys(payload);
+      for (const key of keys) {
+        const k = String(key).trim().toLowerCase();
+        if ((k === "data" || k.startsWith("data ")) && Array.isArray(payload[key])) {
+          return payload[key];
+        }
+      }
+      for (const key of keys) {
+        if (Array.isArray(payload[key])) return payload[key];
+      }
+      return [];
+    }
+
+    async function fetchRowsDirect(endpoint) {
+      const sep = endpoint.includes("?") ? "&" : "?";
+      const res = await fetch(`${endpoint}${sep}_t=${Date.now()}`, {
+        cache: "no-store",
+        mode: "cors",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        throw new Error("Resposta inválida (não é JSON)");
+      }
+      return normalizeRowsLocal(payload);
+    }
+
+    async function fetchRows(endpoint, force = false) {
+      if (typeof SkylineDash === "undefined") {
+        return fetchRowsDirect(endpoint);
+      }
+
+      const homolog = SkylineDash.useHomologData();
+      if (homolog) {
+        const fixture = SkylineDash.homologFixtureFor(endpoint);
+        if (!fixture) throw new Error("Sem fixture local para este endpoint.");
+        const res = await fetch(`${fixture}?_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
+        });
+        if (!res.ok) throw new Error(`Fixture local HTTP ${res.status} (${fixture})`);
+        const payload = JSON.parse(await res.text());
+        return normalizeRowsLocal(payload);
+      }
+
+      try {
+        const payload = await SkylineDash.fetchWebhook(
+          endpoint,
+          SkylineDash.DEFAULT_FETCH_TIMEOUT_MS,
+          { force }
+        );
+        const rows = normalizeRowsLocal(payload);
+        if (rows.length) return rows;
+      } catch (err) {
+        console.warn("[Imprimir Recebimento] fallback direto após falha SkylineDash:", err);
+      }
+
+      return fetchRowsDirect(endpoint);
+    }
+
+    async function loadData(force = false) {
+      if (loadPromise && !force) return loadPromise;
+      if (loadPromise && force) await loadPromise.catch(() => {});
+
+      loadPromise = (async () => {
+        const endpoint = norm(endpointInput.value) || ENDPOINT_DEFAULT;
+        endpointInput.value = endpoint;
+        const homolog = typeof SkylineDash !== "undefined" && SkylineDash.useHomologData();
+        setLoading(true);
+        setStatus(homolog ? "Carregando homolog (recebimento.json)…" : "Carregando endpoint…");
+        try {
+          state.rows = await fetchRows(endpoint, force);
+          if (!state.rows.length) {
+            throw new Error("Nenhum registro retornado pelo endpoint.");
+          }
+          const src = homolog ? "homolog local" : "API";
+          setStatus(`${state.rows.length} registros carregados (${src}).`);
+        } catch (error) {
+          state.rows = [];
+          state.current = null;
+          if (resultBox) resultBox.hidden = true;
+          setStatus(`Falha ao carregar: ${error.message}`, true);
+        } finally {
+          setLoading(false);
+        }
+      })();
+
+      return loadPromise;
+    }
+
+    function setStatus(msg, isError = false) {
+      statusEl.textContent = msg;
+      statusEl.style.color = isError ? "#b91c1c" : "#374151";
+    }
+
+    function norm(value) {
+      return String(value ?? "").trim();
+    }
+
+    function normKey(value) {
+      return norm(value).toLowerCase();
+    }
+
+    function normalizeSerial(value) {
+      return norm(value);
+    }
+
+    function serialCandidates(item) {
+      return [
+        item?.serial,
+        item?.Serial,
+        item?.imei,
+        item?.IMEI
+      ]
+        .map(normalizeSerial)
+        .filter(Boolean);
+    }
+
+    function serialsMatch(a, b) {
+      const na = normalizeSerial(a);
+      const nb = normalizeSerial(b);
+      if (!na || !nb) return false;
+      if (na === nb) return true;
+      if (na.toLowerCase() === nb.toLowerCase()) return true;
+      const da = na.replace(/\D/g, "");
+      const db = nb.replace(/\D/g, "");
+      return Boolean(da && db && da === db);
+    }
+
+    function hasProdCprod(item) {
+      const v = norm(item?.prod_cprod);
+      return Boolean(v && v !== "—" && v !== "-" && v.toLowerCase() !== "null");
+    }
+
+    function resolveDescricao(item) {
+      const descricao = norm(item?.descricao);
+      if (descricao) return descricao;
+      const prod = norm(item?.prod_cprod);
+      if (hasProdCprod(item)) return prod;
+      return "Sem descricao";
+    }
+
+    function pickBestMatch(matches) {
+      if (!matches.length) return null;
+      return matches
+        .map((item, idx) => ({ item, idx }))
+        .sort((a, b) => {
+          const aProd = hasProdCprod(a.item) ? 1 : 0;
+          const bProd = hasProdCprod(b.item) ? 1 : 0;
+          if (aProd !== bProd) return bProd - aProd;
+          const aDesc = norm(a.item.descricao) ? 1 : 0;
+          const bDesc = norm(b.item.descricao) ? 1 : 0;
+          if (aDesc !== bDesc) return bDesc - aDesc;
+          const aAlt = new Date(a.item.data_alt || a.item.data_add || 0).getTime();
+          const bAlt = new Date(b.item.data_alt || b.item.data_add || 0).getTime();
+          if (aAlt !== bAlt) return bAlt - aAlt;
+          return b.idx - a.idx;
+        })[0].item;
+    }
+
+    function formatDescricao(raw, maxChars = 100) {
+      const base = norm(raw) || "Sem descricao";
+      return base.length > maxChars ? `${base.slice(0, maxChars)}...` : base;
+    }
+
+    function buildDescricao(baseDesc) {
+      return [
+        norm(baseDesc) || "Sem descricao",
+        extraField1.value.trim(),
+        extraField2.value.trim()
+      ].filter(Boolean).join(" - ");
+    }
+
+    function getSearchMode() {
+      return document.querySelector('input[name="searchMode"]:checked')?.value || "serial";
+    }
+
+    function updateModeUi() {
+      const mode = getSearchMode();
+      Object.entries(panels).forEach(([key, el]) => {
+        el?.classList.toggle("active", key === mode);
+      });
+      if (!modeHint) return;
+      if (mode === "serial") {
+        modeHint.textContent = "Busca pelo serial do aparelho. Duplicatas priorizam registro com prod_cprod.";
+        setTimeout(() => document.getElementById("inputSerial")?.focus(), 0);
+      } else if (mode === "numero") {
+        modeHint.textContent = "HU (hu_id) é único. Número doc (numero) só funciona se houver um único aparelho.";
+        setTimeout(() => document.getElementById("inputNumero")?.focus(), 0);
+      } else {
+        modeHint.textContent = "Informe o número do documento (campo numero) e o prod_cprod para vincular o item.";
+        setTimeout(() => document.getElementById("inputNumeroDoc")?.focus(), 0);
+      }
+    }
+
+    function resolveHu(item) {
+      const hu = norm(item?.hu_id);
+      return hu || "";
+    }
+
+    function resolveNr(item) {
+      const nr = norm(item?.numero);
+      return nr || "";
+    }
+
+    function drawBarcode(target, value, height = 36) {
+      if (typeof JsBarcode !== "function" || !target || !value) return false;
+      try {
+        JsBarcode(target, String(value), {
+          format: "CODE128",
+          displayValue: false,
+          width: 1.5,
+          height,
+          margin: 0
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function updateLabelView() {
+      if (!state.current) return;
+      const serial = serialCandidates(state.current)[0] || normalizeSerial(state.current.serial);
+      const hu = resolveHu(state.current);
+      const nr = resolveNr(state.current);
+      const descricaoBase = resolveDescricao(state.current);
+      const descricaoComposta = buildDescricao(descricaoBase);
+
+      if (resultBox) {
+        resultBox.hidden = false;
+        resultBox.innerHTML = `
+          <p><strong>Serial:</strong> ${serial || "—"}</p>
+          <p><strong>HU:</strong> ${hu || "—"}</p>
+          <p><strong>NR:</strong> ${nr || "—"}</p>
+          <p><strong>prod_cprod:</strong> ${state.current.prod_cprod || "—"}</p>
+          <p><strong>Descricao base:</strong> ${descricaoBase}</p>
+          <p><strong>Descricao na etiqueta:</strong> ${descricaoComposta}</p>
+          <p><strong>Recebido:</strong> ${state.current.recebido === "S" ? "Sim" : state.current.recebido || "—"}</p>
+        `;
+      }
+
+      if (labelDesc) labelDesc.textContent = formatDescricao(descricaoComposta, 80);
+      if (labelHu) labelHu.textContent = `HU: ${hu || "-"}`;
+      if (labelNr) labelNr.textContent = `NR: ${nr || "-"}`;
+      if (labelSerial) labelSerial.textContent = `Serial: ${serial || "-"}`;
+    }
+
+    function renderCurrent(item) {
+      state.current = item;
+      const serial = serialCandidates(item)[0] || "";
+      const hu = resolveHu(item);
+
+      if (!serial && !hu) {
+        setStatus("Registro sem serial/HU — não é possível gerar código de barras.", true);
+        return;
+      }
+
+      updateLabelView();
+
+      if (typeof JsBarcode !== "function") {
+        setStatus("Registro encontrado, mas o gerador de código de barras não carregou (CDN).", true);
+        return;
+      }
+
+      const huOk = hu ? drawBarcode(barcodeHuEl, hu, 34) : false;
+      const serialOk = serial ? drawBarcode(barcodeEl, serial, 34) : false;
+
+      if (hu && !huOk) {
+        setStatus("Registro encontrado, mas HU inválida para código de barras.", true);
+        return;
+      }
+      if (serial && !serialOk) {
+        setStatus("Registro encontrado, mas serial inválido para código de barras.", true);
+        return;
+      }
+    }
+
+    function matchesHuOrId(item, typed) {
+      const t = norm(typed);
+      if (!t) return false;
+      if (String(item.hu_id ?? "") === t) return true;
+      if (String(item.nr_item_id ?? "") === t) return true;
+      const nHu = Number(t);
+      if (Number.isFinite(nHu) && Number(item.hu_id) === nHu) return true;
+      return false;
+    }
+
+    function searchBySerial() {
+      const typed = normalizeSerial(document.getElementById("inputSerial")?.value);
+      if (!typed) {
+        setStatus("Informe o serial.", true);
+        return null;
+      }
+      const matches = state.rows.filter((item) =>
+        serialCandidates(item).some((candidate) => serialsMatch(candidate, typed))
+      );
+      return { matches, label: "Serial" };
+    }
+
+    function searchByNumero() {
+      const typed = norm(document.getElementById("inputNumero").value);
+      if (!typed) {
+        setStatus("Informe o número.", true);
+        return null;
+      }
+
+      let matches = state.rows.filter((item) => matchesHuOrId(item, typed));
+      if (matches.length) {
+        return { matches, label: "Número HU" };
+      }
+
+      matches = state.rows.filter((item) => normKey(item.numero) === normKey(typed));
+      if (matches.length > 1) {
+        setStatus(
+          `Número doc ${typed}: ${matches.length} aparelhos. Use serial, HU ou prod_cprod + número.`,
+          true
+        );
+        return null;
+      }
+      if (matches.length === 1) {
+        return { matches, label: "Número doc" };
+      }
+
+      setStatus("Número não encontrado (HU, nr_item ou doc).", true);
+      return null;
+    }
+
+    function searchByProdCprod() {
+      const numeroDoc = norm(document.getElementById("inputNumeroDoc").value);
+      const prod = norm(document.getElementById("inputProdCprod").value);
+      if (!numeroDoc || !prod) {
+        setStatus("Informe o número (doc) e o prod_cprod.", true);
+        return null;
+      }
+      const matches = state.rows.filter((item) =>
+        normKey(item.numero) === normKey(numeroDoc) &&
+        normKey(item.prod_cprod) === normKey(prod)
+      );
+      return { matches, label: "prod_cprod" };
+    }
+
+    async function runSearch() {
+      if (state.loading || !state.rows.length) {
+        setStatus("Carregando base para buscar…");
+        await loadData(!state.rows.length);
+        if (!state.rows.length) return;
+      }
+
+      const mode = getSearchMode();
+      let result =
+        mode === "serial" ? searchBySerial() :
+        mode === "numero" ? searchByNumero() :
+        searchByProdCprod();
+
+      if (!result) return;
+
+      // Se não achou, força refresh da API e tenta de novo (base pode estar desatualizada)
+      if (!result.matches.length && mode === "serial") {
+        setStatus("Serial não encontrado — atualizando base e tentando de novo…");
+        await loadData(true);
+        if (!state.rows.length) return;
+        result = searchBySerial();
+        if (!result) return;
+      }
+
+      const { matches, label } = result;
+      if (!matches.length) {
+        if (resultBox) resultBox.hidden = true;
+        state.current = null;
+        setStatus(`${label} não encontrado na base (${state.rows.length} registros).`, true);
+        return;
+      }
+
+      const found = pickBestMatch(matches);
+      renderCurrent(found);
+      const dupNote = matches.length > 1 ? ` (${matches.length} registros; priorizado prod_cprod)` : "";
+      setStatus(`${label} encontrado${dupNote}.`);
+    }
+
+    function printLabel() {
+      if (!state.current) {
+        setStatus("Busque um item antes de imprimir.", true);
+        return;
+      }
+      window.print();
+    }
+
+    document.querySelectorAll('input[name="searchMode"]').forEach((el) => {
+      el.addEventListener("change", updateModeUi);
+    });
+
+    btnLoadData.addEventListener("click", () => { void loadData(true); });
+    btnSearch.addEventListener("click", () => { void runSearch(); });
+    btnPrint.addEventListener("click", printLabel);
+    extraField1.addEventListener("input", updateLabelView);
+    extraField2.addEventListener("input", updateLabelView);
+
+    ["inputSerial", "inputNumero", "inputNumeroDoc", "inputProdCprod"].forEach((id) => {
+      document.getElementById(id).addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void runSearch();
+        }
+      });
+    });
+
+    updateModeUi();
+    void loadData(true);
+  })();
+  </script>
+</body>
+</html>

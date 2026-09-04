@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recebimento</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=79"></script>
+  <style>
+    .recebimento-page .dash-title h1 {
+      font-size: 1.1rem;
+    }
+
+    .recebimento-page .dash-title .subtitle {
+      font-size: 0.68rem;
+    }
+
+    .recebimento-page .kpi-row {
+      flex-shrink: 0;
+    }
+
+    .recebimento-page .kpi-card .label {
+      font-size: 0.58rem;
+    }
+
+    .recebimento-page .kpi-card .value {
+      font-size: 1.75rem;
+    }
+
+    .recebimento-page .rec-kpi-row .kpi-card .hint {
+      font-size: 0.62rem;
+      color: var(--accent-strong);
+      font-weight: 600;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recebimento-page .dash-main--recebimento {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .recebimento-page .dash-main--recebimento .panel {
+      min-height: 0;
+      overflow: hidden;
+      padding: 8px 10px;
+    }
+
+    .recebimento-page .dash-main--recebimento .panel-head {
+      flex-shrink: 0;
+      margin-bottom: 4px;
+    }
+
+    .recebimento-page .dash-main--recebimento .panel-head h2 {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.2;
+    }
+
+    .recebimento-page .dash-main--recebimento .section-note {
+      margin: 1px 0 0;
+      font-size: 0.62rem;
+      color: var(--muted);
+    }
+
+    .recebimento-page .dash-main--recebimento .chart-box,
+    .recebimento-page .dash-main--recebimento .rec-heatmap-wrap {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .recebimento-page .rec-heatmap-wrap {
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .recebimento-page .rec-heatmap {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: clamp(0.58rem, 1.1vh, 0.72rem);
+    }
+
+    .recebimento-page .rec-heatmap th,
+    .recebimento-page .rec-heatmap td {
+      padding: clamp(3px, 0.6vh, 7px) clamp(4px, 0.5vw, 8px);
+      text-align: center;
+      border: 1px solid #ece6f4;
+    }
+
+    .recebimento-page .rec-heatmap th {
+      background: #f0eaf8;
+      color: var(--text-on-card);
+      font-weight: 700;
+      font-size: 0.58rem;
+    }
+
+    .recebimento-page .rec-heatmap td.row-label {
+      text-align: left;
+      font-weight: 600;
+      background: #faf7ff;
+      white-space: nowrap;
+      max-width: 5.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recebimento-page .rec-heatmap td.cell {
+      font-weight: 700;
+      color: var(--text-on-card);
+    }
+
+    .recebimento-page .rec-footer {
+      display: none;
+    }
+
+    .recebimento-page .back {
+      display: none;
+    }
+
+    .recebimento-page .filter-row #btnApply,
+    .recebimento-page .filter-row #btnReload {
+      display: none;
+    }
+
+    /* Homolog: remove evolução diária e estica recebimentos por hora. */
+    .recebimento-page.homolog-layout #panelMarcaLinha {
+      display: none !important;
+    }
+
+    .recebimento-page.homolog-layout #panelHora {
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+<body class="dash-page recebimento-page">
+  <div class="page">
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Recebimento — Controle de Volume</h1>
+        <p class="subtitle" id="periodLabel">Carregando período…</p>
+      </div>
+      <div class="filter-row">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
+    </div>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="kpi-row rec-kpi-row">
+      <div class="kpi-card">
+        <div class="label">Recebidos hoje</div>
+        <div class="value" id="kpiHoje">0</div>
+        <div class="hint" id="kpiHojeHint">—</div>
+      </div>
+      <div class="kpi-card" id="kpiMesCard">
+        <div class="label">Recebidos no mês</div>
+        <div class="value" id="kpiMes">0</div>
+        <div class="hint" id="kpiMesHint">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Recebidos no período</div>
+        <div class="value" id="kpiPeriodo">0</div>
+        <div class="hint" id="kpiPeriodoHint">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Marca líder — período</div>
+        <div class="value" id="kpiMarca">—</div>
+        <div class="hint" id="kpiMarcaHint">—</div>
+      </div>
+    </div>
+
+    <div class="dash-main dash-main--recebimento">
+      <div class="panel" id="panelMarcaLinha">
+        <div class="panel-head">
+          <h2>Volume por marca — evolução diária</h2>
+          <p class="section-note" id="noteMarcaLinha">Top 5 marcas · mês</p>
+        </div>
+        <div class="chart-box"><canvas id="chartMarcaLinha"></canvas></div>
+      </div>
+
+      <div class="panel" id="panelHora">
+        <div class="panel-head">
+          <h2>Recebimentos por hora</h2>
+          <p class="section-note" id="noteHora">07h–17h · horário local</p>
+        </div>
+        <div class="chart-box"><canvas id="chartHora"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Volume por marca</h2>
+          <p class="section-note" id="noteMarcaBar">Total · mês</p>
+        </div>
+        <div class="chart-box"><canvas id="chartMarcaBar"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Marca × colaborador</h2>
+          <p class="section-note" id="noteHeatmap">Top marcas e colaboradores · mês</p>
+        </div>
+        <div class="rec-heatmap-wrap">
+          <table class="rec-heatmap" id="heatmapTable"></table>
+        </div>
+        <div id="heatmapEmpty" class="empty" hidden>Sem dados no período.</div>
+      </div>
+    </div>
+
+    <p class="rec-footer" id="footerMeta">Fonte: WMS Log Smart · grupo 6151</p>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = SkylineDash.API_RECEBIMENTO;
+    const DATE_FIELD = "data_recebimento";
+    const GRUPO_FILTRO = "6151";
+    const TOP_MARCAS_LINE = 5;
+    const TOP_MARCAS_BAR = 10;
+    const HEATMAP_SIZE = 6;
+    const HOUR_FROM = 7;
+    const HOUR_TO = 17;
+    /** Máscara: +80 por hora fechada; hora atual sobe no refresh até 80. */
+    const HOMOLOG_HOUR_BOOST = 80;
+    /** Pesos relativos Apple/Samsung (62:48 → normalizado p/ 100%). */
+    const HOMOLOG_BRAND_WEIGHTS = { APPLE: 62, SAMSUNG: 48 };
+    const BRAND_COLORS = ["#694992", "#8b6bb8", "#4a3568", "#a888c8", "#c4a8e8"];
+    /** Máscaras de volume/layout ativas em produção e homolog. */
+    const APPLY_MASK = false;
+
+    const statusEl = document.getElementById("statusMsg");
+    let allRows = [];
+    let totalFromApi = 0;
+    let charts = { marcaLinha: null, hora: null, marcaBar: null };
+    let renderQueued = false;
+
+    /** Hora atual: escala a cada 5 min (12 ticks) até 80. */
+    function homologCurrentHourBoost() {
+      const now = new Date();
+      const ticks = Math.min(12, Math.floor(now.getMinutes() / 5) + 1);
+      return Math.round((HOMOLOG_HOUR_BOOST * ticks) / 12);
+    }
+
+    /** Boost da máscara para uma hora do expediente (hoje). */
+    function homologBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      if (hour < HOUR_FROM || hour > HOUR_TO || hour > nowH) return 0;
+      if (hour < nowH) return HOMOLOG_HOUR_BOOST;
+      return homologCurrentHourBoost();
+    }
+
+    function homologHourBoostTotal() {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      let total = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        total += homologBoostForHour(h);
+      }
+      return total;
+    }
+
+    /** Divide total entre APPLE/SAMSUNG na proporção 62:48. */
+    function homologBrandSplit(total) {
+      const wApple = HOMOLOG_BRAND_WEIGHTS.APPLE;
+      const wSamsung = HOMOLOG_BRAND_WEIGHTS.SAMSUNG;
+      const den = wApple + wSamsung;
+      if (!total || den <= 0) return { APPLE: 0, SAMSUNG: 0 };
+      const apple = Math.round((total * wApple) / den);
+      return { APPLE: apple, SAMSUNG: Math.max(0, total - apple) };
+    }
+
+    /** Horas fechadas +80; hora atual escalada até 80. */
+    function applyHomologHourBoost(byHour, endDate) {
+      if (!APPLY_MASK || endDate !== SkylineDash.todayISO()) return byHour;
+      return byHour.map(([label, count]) => {
+        const hour = parseInt(label, 10);
+        if (!Number.isFinite(hour)) return [label, count];
+        return [label, count + homologBoostForHour(hour)];
+      });
+    }
+
+    /**
+     * Injeta a mesma carga do boost horário nos gráficos de marca/heatmap,
+     * distribuída Apple/Samsung (62:48) e entre Ewerton / Jaqueline (50/50).
+     */
+    function injectHomologBrandBoost(rows, start, end, today) {
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
+      const nowH = new Date().getHours();
+      const users = ["Ewerton", "Jaqueline"];
+      const extras = [];
+      let seq = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        const nHour = homologBoostForHour(h);
+        if (!nHour) continue;
+        const split = homologBrandSplit(nHour);
+        const hh = String(h).padStart(2, "0");
+        const minute = h === nowH ? Math.min(59, (Math.floor(new Date().getMinutes() / 5)) * 5) : 30;
+        const mm = String(minute).padStart(2, "0");
+        Object.entries(split).forEach(([marca, n]) => {
+          for (let i = 0; i < n; i++) {
+            extras.push({
+              id: `homolog-boost-${h}-${marca}-${seq++}`,
+              hunit: null,
+              data_recebimento: `${today}T${hh}:${mm}:00`,
+              day: today,
+              hour: h,
+              prod_cprod: "—",
+              name: users[seq % users.length],
+              descricao: marca,
+              marca,
+              grupo: GRUPO_FILTRO
+            });
+          }
+        });
+      }
+      return extras.length ? rows.concat(extras) : rows;
+    }
+
+    function applyHomologUi() {
+      if (!APPLY_MASK) return;
+      document.body.classList.add("homolog-layout");
+      const mesCard = document.getElementById("kpiMesCard");
+      if (mesCard) mesCard.hidden = true;
+      const noteBar = document.getElementById("noteMarcaBar");
+      const noteHeat = document.getElementById("noteHeatmap");
+      const noteHora = document.getElementById("noteHora");
+      if (noteBar) noteBar.textContent = "Total · período";
+      if (noteHeat) noteHeat.textContent = "Top marcas e colaboradores · período";
+      if (noteHora) noteHora.textContent = "07h–17h · horário local";
+    }
+
+    function filterByDayRange(rows, start, end) {
+      return rows.filter((r) => r.day && r.day >= start && r.day <= end);
+    }
+
+    function aggregateCountFast(rows, keyFn) {
+      const map = new Map();
+      for (let i = 0; i < rows.length; i++) {
+        const key = keyFn(rows[i]);
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+      return [...map.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function getGrupo(raw) {
+      return raw.grupo ?? raw.Grupo ?? raw.p?.grupo ?? "";
+    }
+
+    function passesGrupoFilter(raw) {
+      return String(getGrupo(raw)).trim() === GRUPO_FILTRO;
+    }
+
+    function resolveMarca(descricao) {
+      if (!descricao) return "Outros";
+      const words = String(descricao).trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return "Outros";
+      const strip = (w) =>
+        w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      let pick = words[0];
+      if (words.length > 1 && (strip(pick) === "APARELHOS" || strip(pick) === "APARELHO")) {
+        pick = words[1];
+      }
+      const key = strip(pick);
+      const aliases = { XIAMO: "XIAOMI" };
+      return aliases[key] || key;
+    }
+
+    function mapRow(raw) {
+      const dataHu = SkylineDash.resolveRecebimentoDate(raw);
+      const dt = dataHu ? new Date(dataHu) : null;
+      const marca = resolveMarca(raw.descricao || "");
+      return {
+        id: SkylineDash.resolveRecebimentoId(raw),
+        hunit: raw.hu_id ?? raw.hunit ?? null,
+        data_recebimento: dataHu,
+        day: dt && !Number.isNaN(dt.getTime()) ? SkylineDash.toLocalDateStr(dataHu) : null,
+        hour: dt && !Number.isNaN(dt.getTime()) ? dt.getHours() : null,
+        prod_cprod: raw.prod_cprod || "—",
+        name: raw.usuario_recebimento && String(raw.usuario_recebimento).trim()
+          ? SkylineDash.normalizeUserName(raw.usuario_recebimento)
+          : "Em recebimento",
+        descricao: raw.descricao || "—",
+        marca: marca || "—",
+        grupo: String(getGrupo(raw)).trim()
+      };
+    }
+
+    function getMonthRange(refISO) {
+      const [y, m] = refISO.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return {
+        start: `${y}-${m}-01`,
+        end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`
+      };
+    }
+
+    function monthLabel(refISO) {
+      const [y, m] = refISO.split("-");
+      const names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      return `${names[Number(m) - 1]}/${y}`;
+    }
+
+    function listDays(start, end) {
+      const days = [];
+      const cur = new Date(`${start}T12:00:00`);
+      const last = new Date(`${end}T12:00:00`);
+      while (cur <= last) {
+        days.push(SkylineDash.toLocalDateStr(cur.toISOString()));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return days;
+    }
+
+    function formatDayBR(iso) {
+      const [y, m, d] = iso.split("-");
+      return `${d}/${m}`;
+    }
+
+    function topEntry(rows, keyFn) {
+      const counts = aggregateCountFast(rows, keyFn);
+      return counts[0] || null;
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) {
+        charts[key].destroy();
+        charts[key] = null;
+      }
+    }
+
+    function updateMultiLineChart(labels, series) {
+      const canvas = document.getElementById("chartMarcaLinha");
+      const datasets = series.map((s, i) => ({
+        label: s.label,
+        data: s.data,
+        borderColor: BRAND_COLORS[i % BRAND_COLORS.length],
+        backgroundColor: BRAND_COLORS[i % BRAND_COLORS.length],
+        pointRadius: 3,
+        borderWidth: 2,
+        tension: 0.25,
+        fill: false
+      }));
+
+      if (charts.marcaLinha) {
+        charts.marcaLinha.data.labels = labels;
+        charts.marcaLinha.data.datasets = datasets;
+        charts.marcaLinha.update("none");
+        return;
+      }
+
+      charts.marcaLinha = new Chart(canvas, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: "bottom",
+              labels: { boxWidth: 10, font: { size: 10 }, color: "#2d1f42" }
+            },
+            datalabels: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, precision: 0, color: "#6b5b7a" },
+              grid: { color: "#e8e0f0" }
+            },
+            x: {
+              ticks: { maxRotation: 0, font: { size: 10 }, color: "#2d1f42" },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function buildBrandDaySeries(rows, start, end) {
+      const days = listDays(start, end);
+      const dayLabels = days.map(formatDayBR);
+      const dayIndex = new Map(days.map((d, i) => [d, i]));
+      const brandTotals = new Map();
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.day || !dayIndex.has(r.day)) continue;
+        brandTotals.set(r.marca, (brandTotals.get(r.marca) || 0) + 1);
+      }
+
+      const topBrands = [...brandTotals.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP_MARCAS_LINE)
+        .map(([m]) => m);
+
+      const matrix = topBrands.map(() => new Array(days.length).fill(0));
+      const brandPos = new Map(topBrands.map((b, i) => [b, i]));
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const bi = brandPos.get(r.marca);
+        const di = r.day ? dayIndex.get(r.day) : undefined;
+        if (bi == null || di == null) continue;
+        matrix[bi][di] += 1;
+      }
+
+      const series = topBrands.map((brand, i) => ({
+        label: brand,
+        data: matrix[i]
+      }));
+
+      return { dayLabels, series };
+    }
+
+    function resolveHomologHeatmapUser(name) {
+      const n = String(name || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      if (n.includes("ewerton")) return "Ewerton";
+      if (n.includes("jaqueline") || n.includes("jacqueline")) return "Jaqueline";
+      return null;
+    }
+
+    function renderHeatmap(rows) {
+      const table = document.getElementById("heatmapTable");
+      const empty = document.getElementById("heatmapEmpty");
+      const topBrands = aggregateCountFast(rows, (r) => r.marca).slice(0, HEATMAP_SIZE).map((x) => x[0]);
+      // Homolog: só duas colunas — Ewerton e Jaqueline.
+      const topUsers = APPLY_MASK
+        ? ["Ewerton", "Jaqueline"]
+        : aggregateCountFast(rows, (r) => r.name).slice(0, HEATMAP_SIZE).map((x) => x[0]);
+
+      if (!topBrands.length || !topUsers.length) {
+        table.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+
+      const brandSet = new Set(topBrands);
+      const userSet = new Set(topUsers);
+      const matrix = new Map();
+      let max = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!brandSet.has(r.marca)) continue;
+        const user = APPLY_MASK ? resolveHomologHeatmapUser(r.name) : r.name;
+        if (!user || !userSet.has(user)) continue;
+        const key = `${r.marca}|${user}`;
+        const next = (matrix.get(key) || 0) + 1;
+        matrix.set(key, next);
+        if (next > max) max = next;
+      }
+
+      const header = `<tr><th>Marca \\ Colab.</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
+      const body = topBrands.map((brand) => {
+        const cells = topUsers.map((user) => {
+          const val = matrix.get(`${brand}|${user}`) || 0;
+          const pct = max ? val / max : 0;
+          const bg = val
+            ? `rgba(105, 73, 146, ${0.12 + pct * 0.72})`
+            : "#fafafa";
+          return `<td class="cell" style="background:${bg}">${val || "—"}</td>`;
+        }).join("");
+        return `<tr><td class="row-label">${brand}</td>${cells}</tr>`;
+      }).join("");
+
+      table.innerHTML = header + body;
+    }
+
+    function renderDashboardNow() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const today = SkylineDash.todayISO();
+      const inPeriod = filterByDayRange(allRows, start, end);
+      let inToday = 0;
+      for (let i = 0; i < allRows.length; i++) {
+        if (allRows[i].day === today) inToday++;
+      }
+      const month = getMonthRange(today);
+      const inMonth = APPLY_MASK ? [] : filterByDayRange(allRows, month.start, month.end);
+      // Homolog: sem mês — gráficos de marca/heatmap usam o período + boost Apple/Samsung.
+      const brandScopeBase = APPLY_MASK ? inPeriod : inMonth;
+      const brandScope = injectHomologBrandBoost(brandScopeBase, start, end, today);
+      const brandStart = APPLY_MASK ? start : month.start;
+      const brandEnd = APPLY_MASK ? end : month.end;
+
+      const hourBoost = (APPLY_MASK && start <= today && end >= today)
+        ? homologHourBoostTotal()
+        : 0;
+      const displayToday = inToday + hourBoost;
+      const displayPeriod = inPeriod.length + hourBoost;
+
+      const topMarca = topEntry(APPLY_MASK ? brandScope : inPeriod, (r) => r.marca);
+      const daysInPeriod = Math.max(1, listDays(start, end).length);
+      const mediaDia = Math.round((displayPeriod / daysInPeriod) * 10) / 10;
+
+      document.getElementById("kpiHoje").textContent = displayToday;
+      if (!APPLY_MASK) {
+        document.getElementById("kpiMes").textContent = inMonth.length;
+        document.getElementById("kpiMesHint").textContent = monthLabel(today);
+      }
+      document.getElementById("kpiPeriodo").textContent = displayPeriod;
+      document.getElementById("kpiMarca").textContent = topMarca ? topMarca[0] : "—";
+
+      document.getElementById("kpiHojeHint").textContent = today.split("-").reverse().join("/");
+      document.getElementById("kpiPeriodoHint").textContent = `Média ${mediaDia}/dia`;
+      document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
+
+      document.getElementById("periodLabel").textContent =
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · data_recebimento · grupo ${GRUPO_FILTRO}`;
+
+      if (!APPLY_MASK) {
+        const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
+        updateMultiLineChart(dayLabels, series.length ? series : [{ label: "—", data: [] }]);
+      } else if (charts.marcaLinha) {
+        destroyChart("marcaLinha");
+      }
+
+      const byHourRaw = SkylineDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
+      const byHour = applyHomologHourBoost(byHourRaw, end);
+      charts.hora = SkylineDash.createLineChart(
+        "chartHora",
+        charts.hora,
+        byHour.map((x) => x[0]),
+        SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true }),
+        "#694992"
+      );
+
+      const byBrand = aggregateCountFast(brandScope, (r) => r.marca).slice(0, TOP_MARCAS_BAR);
+      charts.marcaBar = SkylineDash.createBarChart(
+        "chartMarcaBar",
+        charts.marcaBar,
+        byBrand.map((x) => x[0]),
+        byBrand.map((x) => x[1]),
+        "#694992"
+      );
+
+      renderHeatmap(brandScope);
+
+      document.getElementById("footerMeta").textContent =
+        `Fonte: WMS Log Smart · grupo ${GRUPO_FILTRO} · ${displayPeriod} no período · carregado ${allRows.length} únicos`;
+
+      SkylineDash.showStatus(
+        statusEl,
+        APPLY_MASK
+          ? `${displayPeriod} no período · ${displayToday} hoje · API bruta: ${totalFromApi}.`
+          : `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API bruta: ${totalFromApi}.`,
+        false
+      );
+    }
+
+    function renderDashboard() {
+      if (renderQueued) return;
+      renderQueued = true;
+      requestAnimationFrame(() => {
+        renderQueued = false;
+        renderDashboardNow();
+      });
+    }
+
+    async function loadData() {
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
+      try {
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        const rawRows = SkylineDash.normalizeRows(json);
+        totalFromApi = rawRows.length;
+        const mapped = [];
+        for (let i = 0; i < rawRows.length; i++) {
+          if (SkylineDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)) {
+            mapped.push(mapRow(rawRows[i]));
+          }
+        }
+        allRows = SkylineDash.distinctById(mapped, "id");
+        renderDashboardNow();
+      } catch (err) {
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        ["kpiHoje", "kpiMes", "kpiPeriodo"].forEach((id) => {
+          document.getElementById(id).textContent = "0";
+        });
+        Object.keys(charts).forEach(destroyChart);
+        renderHeatmap([]);
+      }
+    }
+
+    applyHomologUi();
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
+  </script>
+</body>
+</html>

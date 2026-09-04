@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produção 6 — Gestão</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <link rel="stylesheet" href="skyline-producao-gestao.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=79"></script>
+  <script src="skyline-producao.js?v=21"></script>
+  <script src="skyline-producao-gestao.js?v=16"></script>
+</head>
+<body class="dash-page rg-page">
+  <div class="page">
+    <header class="rg-topbar">
+      <div class="rg-topbar-head">
+        <div class="title-block">
+          <a class="back" href="menu.html">← Menu</a>
+          <h1 id="pageTitle">Produção 6 — Gestão</h1>
+          <p class="subtitle" id="periodLabel">Marcos · Almir · Kauan</p>
+        </div>
+        <div class="rg-filters">
+          <label>Início <input type="date" id="dateStart" /></label>
+          <label>Fim <input type="date" id="dateEnd" /></label>
+          <label>Técnico <select id="fTecnico"><option value="">Todos</option></select></label>
+          <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
+          <label>Peça <select id="fPeca"><option value="">Todas</option></select></label>
+          <label>Sankhya <select id="fSankhya"><option value="">Todos</option></select></label>
+          <label>HU <select id="fHu"><option value="">Todas</option></select></label>
+          <label>Serial <select id="fSerial"><option value="">Todos</option></select></label>
+          <button type="button" class="primary" id="btnApply">Atualizar</button>
+          <button type="button" id="btnToday">Hoje</button>
+          <button type="button" id="btnReload">↻</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <section class="rg-kpis" id="kpiRow"></section>
+
+    <section class="rg-main-grid">
+      <div class="rg-panel rg-status-panel span-2">
+        <h3>Produção por técnico</h3>
+        <div class="rg-status-wrap">
+          <table class="rg-status-table">
+            <thead>
+              <tr>
+                <th>Técnico</th>
+                <th>Fin.</th>
+                <th>Reparo</th>
+                <th>Pausa</th>
+                <th>Σ</th>
+                <th>Trabalhado</th>
+              </tr>
+            </thead>
+            <tbody id="statusByTecBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="rg-panel">
+        <h3>Distribuição tempo reparo</h3>
+        <div class="chart-box"><canvas id="chartHist"></canvas></div>
+      </div>
+      <div class="rg-panel">
+        <h3>Média peças / aparelho — por técnico</h3>
+        <div class="chart-box"><canvas id="chartPecas"></canvas></div>
+      </div>
+      <div class="rg-panel span-2">
+        <h3>Tempo médio em reparo — por técnico</h3>
+        <div class="chart-box"><canvas id="chartTempoTec"></canvas></div>
+      </div>
+      <div class="rg-panel span-2">
+        <h3>Heatmap — finalizados por hora (7h–16h · horário local)</h3>
+        <div class="rg-heatmap-wrap"><table class="rg-heatmap" id="heatmapTable"></table></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="rg-tooltip" id="richTooltip"></div>
+
+  <div class="rg-modal-backdrop" id="drillModal">
+    <div class="rg-modal">
+      <div class="rg-modal-head">
+        <h3 id="drillTitle">Detalhes</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="rg-modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>HU</th><th>Serial</th><th>Técnico</th><th>Triagem</th><th>Início</th><th>Fim</th>
+              <th>Reparo</th><th>Pausas</th><th>C/ pausas</th><th>Peça</th><th>Custo</th><th>Sankhya</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    ProducaoGestao.init({ producao: 6, moduleKey: "android", pageTitle: "Produção 6 — Gestão" });
+  </script>
+</body>
+</html>

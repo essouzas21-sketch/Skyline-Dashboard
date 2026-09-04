@@ -1,0 +1,2268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CQE</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=79"></script>
+  <style>
+    :root {
+      --gm-page: #694992;
+      --gm-card: #ffffff;
+      --gm-border: rgba(105, 73, 146, 0.18);
+      --gm-text: #2d1f42;
+      --gm-muted: #6b5b7a;
+      --gm-primary: #694992;
+      --gm-accent: #8b6bb8;
+      --gm-green: #15803d;
+      --gm-red: #dc2626;
+      --gm-amber: #b45309;
+      --gm-teal: #8b6bb8;
+      --gm-slate: #2d1f42;
+      --gm-shadow: 0 4px 16px rgba(45, 31, 66, 0.18);
+      --gm-surface: #faf8fc;
+      --gm-radius: 10px;
+      --gm-gap: 10px;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body.cqe-gestao-page.dash-page {
+      height: 100vh;
+      min-height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      background: var(--gm-page);
+      color: var(--gm-text);
+      padding: 12px 16px 14px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      border-left: none;
+      border-right: none;
+    }
+
+    .cqe-gestao-page .page {
+      height: 100%;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gm-gap);
+      overflow: hidden;
+      min-height: 0;
+      flex: 1 1 0;
+    }
+
+    /* ── Zona 1: toolbar unificada ── */
+    .gm-topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 12px;
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-radius: var(--gm-radius);
+      padding: 10px 12px;
+      box-shadow: var(--gm-shadow);
+      flex: 0 0 auto;
+      color: var(--gm-text);
+      min-width: 0;
+    }
+
+    .gm-topbar .title-block {
+      flex: 0 0 auto;
+      min-width: 160px;
+      max-width: 220px;
+      padding-right: 8px;
+      border-right: 1px solid var(--gm-border);
+    }
+
+    .gm-topbar .back {
+      color: var(--gm-primary);
+      text-decoration: none;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .gm-topbar h1 {
+      margin: 2px 0 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      color: var(--gm-text);
+    }
+
+    .gm-topbar .subtitle {
+      margin: 0;
+      font-size: 0.62rem;
+      color: var(--gm-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gm-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .gm-filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: flex-end;
+      padding: 4px 8px;
+      background: var(--gm-surface);
+      border: 1px solid var(--gm-border);
+      border-radius: 8px;
+    }
+
+    .gm-filter-group::before {
+      content: attr(data-label);
+      flex: 0 0 100%;
+      font-size: 0.52rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gm-muted);
+      margin-bottom: 1px;
+    }
+
+    .gm-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.55rem;
+      font-weight: 600;
+      color: var(--gm-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    .gm-filters input,
+    .gm-filters select {
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
+      height: 28px;
+      padding: 4px 8px;
+      border: 1px solid var(--gm-border);
+      border-radius: 6px;
+      font-size: 0.72rem;
+      background: #fff;
+      color: var(--gm-text);
+    }
+
+    .gm-filters input[type="date"] {
+      width: 124px;
+      min-width: 124px;
+      max-width: 124px;
+    }
+
+    .gm-topbar-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex: 0 0 auto;
+      padding-left: 4px;
+    }
+
+    .gm-topbar-actions button,
+    .gm-filters button {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: 1px solid var(--gm-border);
+      background: #fff;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--gm-text);
+    }
+
+    .gm-topbar-actions button.primary,
+    .gm-filters button.primary {
+      background: var(--gm-primary);
+      border-color: var(--gm-primary);
+      color: #fff;
+    }
+
+    /* ── Zona 2: KPIs + retrabalho ── */
+    .gm-upper {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gm-gap);
+      min-width: 0;
+    }
+
+    .gm-hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1.15fr 1.15fr;
+      gap: var(--gm-gap);
+      min-width: 0;
+    }
+
+    .gm-kpi {
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-radius: var(--gm-radius);
+      padding: 10px 12px;
+      box-shadow: var(--gm-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      color: var(--gm-text);
+    }
+
+    .gm-kpi .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .gm-kpi .kpi-icon {
+      font-size: 0.7rem;
+      opacity: 0.8;
+      flex-shrink: 0;
+    }
+
+    .gm-kpi .kpi-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gm-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gm-kpi .kpi-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      color: var(--gm-slate);
+    }
+
+    .gm-kpi .kpi-hint {
+      font-size: 0.62rem;
+      color: var(--gm-muted);
+    }
+
+    .gm-kpi .kpi-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    .gm-kpi .kpi-delta.up { color: var(--gm-green); }
+    .gm-kpi .kpi-delta.down { color: var(--gm-red); }
+    .gm-kpi .kpi-delta.neutral { color: var(--gm-muted); }
+
+    .gm-kpi.trend-card .kpi-trends {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .gm-kpi.trend-card .trend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.68rem;
+    }
+
+    .gm-kpi.trend-card .trend-row .trend-label {
+      color: var(--gm-muted);
+      font-weight: 600;
+    }
+
+    .gm-meta-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .gm-meta-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--gm-green), #22c55e);
+      transition: width 0.3s ease;
+    }
+
+    .gm-meta-bar.below > span {
+      background: linear-gradient(90deg, var(--gm-amber), #f59e0b);
+    }
+
+    .gm-meta-bar.critical > span {
+      background: linear-gradient(90deg, var(--gm-red), #f87171);
+    }
+
+    .gm-status-visual {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .gm-traffic {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
+      flex-shrink: 0;
+    }
+
+    .gm-traffic.ok { background: #22c55e; }
+    .gm-traffic.warn { background: #f59e0b; }
+    .gm-traffic.bad { background: #ef4444; }
+
+    .gm-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .gm-status.ok { background: #dcfce7; color: var(--gm-green); }
+    .gm-status.warn { background: #ffedd5; color: var(--gm-amber); }
+    .gm-status.bad { background: #fee2e2; color: var(--gm-red); }
+
+    .gm-mid-row {
+      flex: 0 0 88px;
+      height: 88px;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .gm-funnel {
+      width: 100%;
+      height: 100%;
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-top: 2px solid var(--gm-teal);
+      border-radius: var(--gm-radius);
+      padding: 8px 12px;
+      box-shadow: var(--gm-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      gap: 6px;
+    }
+
+    .gm-funnel h2 {
+      margin: 0;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gm-muted);
+      flex-shrink: 0;
+    }
+
+    .gm-funnel-track {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .gm-funnel-step {
+      flex: 1;
+      min-width: 72px;
+      text-align: left;
+      padding: 4px 8px;
+      background: var(--gm-surface);
+      border: 1px solid var(--gm-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    .gm-funnel-step .step-val {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--gm-slate);
+      line-height: 1.1;
+    }
+
+    .gm-funnel-step .step-label {
+      font-size: 0.58rem;
+      color: var(--gm-muted);
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .gm-funnel-step .step-pct {
+      display: block;
+      font-size: 0.55rem;
+      color: var(--gm-teal);
+      font-weight: 700;
+    }
+
+    .gm-funnel-arrow {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      min-width: 42px;
+      color: var(--gm-muted);
+      font-size: 0.72rem;
+    }
+
+    .gm-funnel-arrow .conv {
+      font-size: 0.55rem;
+      font-weight: 800;
+      color: var(--gm-primary);
+      white-space: nowrap;
+    }
+
+    /* ── Zona 3: 4 gráficos na mesma linha ── */
+    .gm-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr);
+      gap: var(--gm-gap);
+      flex: 1 1 0;
+      height: 0;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .gm-panel {
+      height: 100%;
+      min-height: 0;
+      background: var(--gm-card);
+      border: 1px solid var(--gm-border);
+      border-radius: var(--gm-radius);
+      padding: 10px 12px;
+      box-shadow: var(--gm-shadow);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--gm-text);
+    }
+
+    .gm-panel--motivos {
+      border-top: 3px solid var(--gm-red);
+    }
+
+    .gm-panel--ranking {
+      border-top: 3px solid var(--gm-amber);
+    }
+
+    .gm-panel h2 {
+      margin: 0 0 8px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--gm-text);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.15;
+    }
+
+    .gm-panel .chart-box {
+      flex: 1 1 0;
+      height: 0;
+      min-height: 48px;
+      min-width: 0;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .gm-panel .chart-box canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .gm-panel .panel-note {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 0.58rem;
+      color: var(--gm-muted);
+    }
+
+    .gm-tooltip {
+      position: fixed;
+      z-index: 300;
+      max-width: min(420px, calc(100vw - 24px));
+      background: #2d1f42;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      line-height: 1.45;
+      pointer-events: none;
+      box-shadow: var(--gm-shadow);
+      display: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .gm-tooltip strong { color: var(--gm-accent); }
+
+    .gm-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.55);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .gm-modal-backdrop.open { display: flex; }
+
+    .gm-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: min(1100px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .gm-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gm-border);
+    }
+
+    .gm-modal-head h3 {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.35;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .gm-modal-head button {
+      border: none;
+      background: var(--gm-surface-2);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--gm-text);
+    }
+
+    .gm-modal-body {
+      overflow: auto;
+      padding: 0;
+    }
+
+    .gm-modal-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    .gm-modal-body th,
+    .gm-modal-body td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--gm-border);
+      text-align: left;
+      color: #111827;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      vertical-align: top;
+    }
+
+    .gm-modal-body th {
+      background: var(--gm-surface);
+      position: sticky;
+      top: 0;
+    }
+
+    .gm-modal-body td.col-motivo {
+      color: var(--gm-red);
+      font-weight: 600;
+      min-width: 180px;
+      max-width: 360px;
+    }
+
+    .gm-modal-body td.col-modelo {
+      min-width: 160px;
+      max-width: 280px;
+    }
+
+    .empty-gm {
+      text-align: center;
+      color: var(--gm-muted);
+      font-size: 0.78rem;
+      padding: 24px;
+    }
+
+    .gm-kpi .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .gm-kpi .kpi-delta.up { color: var(--gm-green); }
+    .gm-kpi .kpi-delta.down { color: var(--gm-red); }
+    .gm-kpi .kpi-delta.neutral { color: var(--gm-muted); }
+
+    .gm-kpi.aprov .kpi-value { color: var(--gm-green); }
+    .gm-kpi.reprov .kpi-value { color: var(--gm-red); }
+    .gm-kpi:not(.aprov):not(.reprov):not(.compact) .kpi-value { color: var(--gm-bg); }
+    .gm-kpi.compact .kpi-value { color: var(--gm-primary); }
+
+    .gm-status.ok { background: #dcfce7; color: #166534; }
+    .gm-status.warn { background: #fef3c7; color: #92400e; }
+    .gm-status.crit { background: #fee2e2; color: #991b1b; }
+
+    .gm-topbar-actions {
+      display: flex;
+      gap: 4px;
+      flex: 0 0 auto;
+      align-items: center;
+      align-self: flex-end;
+    }
+
+    .gm-topbar-actions button {
+      padding: 4px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--gm-border);
+      background: #fff;
+      font-size: 0.65rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .gm-topbar-actions button.primary {
+      background: var(--gm-bg);
+      border-color: var(--gm-bg);
+      color: #fff;
+    }
+
+    .cqe-gestao-page #statusMsg {
+      display: none !important;
+    }
+
+    .motivos-funnel {
+      flex: 1 1 0;
+      height: 0;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 3px;
+      padding: 4px 4px 2px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .motivos-funnel-step {
+      position: relative;
+      width: var(--funnel-w, 80%);
+      flex: 0 0 auto;
+      height: 19px;
+      min-height: 19px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 8px;
+      color: #fff;
+      font-size: 0.56rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 5px;
+      box-shadow: 0 1px 6px rgba(15, 23, 42, 0.1);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+      clip-path: polygon(2% 0%, 98% 0%, 94% 100%, 6% 100%);
+    }
+
+    .motivos-funnel--many .motivos-funnel-step {
+      height: 15px;
+      min-height: 15px;
+      font-size: 0.5rem;
+      padding: 0 5px;
+    }
+
+    .motivos-funnel-step:hover {
+      transform: scale(1.02);
+      filter: brightness(1.06);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+      z-index: 1;
+    }
+
+    .motivos-funnel-step .motivos-funnel-label {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .motivos-funnel-step .motivos-funnel-metrics {
+      flex-shrink: 0;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 999px;
+    }
+
+    .motivos-funnel-empty {
+      display: none;
+    }
+
+    @media (max-width: 1100px) {
+      .gm-hero { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .gm-panel--motivos h2 {
+      text-align: left;
+    }
+
+    .gm-panel--motivos .chart-box {
+      display: block;
+      flex: 1 1 0;
+      height: 0;
+      min-height: 72px;
+      min-width: 0;
+      position: relative;
+    }
+
+    .gm-panel--motivos .motivos-funnel {
+      display: none;
+    }
+
+    .motivos-funnel-step {
+      clip-path: none;
+      border-radius: 6px;
+    }
+
+    /* ═══ TV 50" / kiosk — leitura a 2–4 m ═══ */
+    body.cqe-tv-page.dash-page {
+      --tv-zoom: clamp(1.05, 100vh / 900, 1.28);
+      zoom: var(--tv-zoom);
+      padding: 6px 10px 6px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    body.cqe-tv-page .page {
+      gap: 6px;
+    }
+
+    body.cqe-tv-page .gm-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 10px;
+    }
+
+    body.cqe-tv-page .gm-topbar .title-block {
+      max-width: none;
+      min-width: 220px;
+      border-right: none;
+      padding-right: 0;
+      flex: 1 1 auto;
+    }
+
+    body.cqe-tv-page .gm-topbar .back {
+      display: none;
+    }
+
+    body.cqe-tv-page .gm-topbar h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    body.cqe-tv-page .gm-topbar .subtitle {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--gm-text);
+      opacity: 0.75;
+    }
+
+    body.cqe-tv-page .gm-filters {
+      flex: 0 0 auto;
+    }
+
+    body.cqe-tv-page:not(.show-filters) .gm-filters {
+      display: none !important;
+    }
+
+    body.cqe-tv-page.show-filters .gm-filters {
+      display: flex !important;
+      flex-wrap: wrap;
+      max-width: min(980px, 70vw);
+    }
+
+    body.cqe-tv-page .gm-filter-group::before {
+      display: none;
+    }
+
+    body.cqe-tv-page .gm-filters label {
+      font-size: 0.72rem;
+    }
+
+    body.cqe-tv-page .gm-filters input,
+    body.cqe-tv-page .gm-filters select {
+      width: 140px;
+      min-width: 140px;
+      max-width: 140px;
+      height: 40px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-filters input[type="date"] {
+      width: 156px;
+      min-width: 156px;
+      max-width: 156px;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions {
+      margin-left: auto;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions button {
+      height: 36px;
+      padding: 0 14px;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-topbar-actions button#btnToggleFilters.primary {
+      background: var(--gm-accent);
+      border-color: var(--gm-accent);
+    }
+
+    body.cqe-tv-page .gm-upper {
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    body.cqe-tv-page .gm-hero {
+      gap: 8px;
+    }
+
+    body.cqe-tv-page .gm-kpi {
+      padding: 8px 10px;
+      gap: 2px;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-icon {
+      font-size: 0.8rem;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-value {
+      font-size: 2rem;
+      line-height: 1.05;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-hint,
+    body.cqe-tv-page .gm-kpi.trend-card .trend-row {
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    body.cqe-tv-page .gm-kpi .kpi-delta {
+      font-size: 0.85rem;
+    }
+
+    body.cqe-tv-page .gm-status {
+      font-size: 0.9rem;
+      padding: 4px 10px;
+    }
+
+    body.cqe-tv-page .gm-traffic {
+      width: 16px;
+      height: 16px;
+    }
+
+    body.cqe-tv-page .gm-meta-bar {
+      height: 10px;
+      margin-top: 4px;
+    }
+
+    body.cqe-tv-page .gm-mid-row {
+      flex: 0 0 96px;
+      height: 96px;
+    }
+
+    body.cqe-tv-page .gm-funnel {
+      padding: 6px 10px;
+      gap: 4px;
+    }
+
+    body.cqe-tv-page .gm-funnel h2 {
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+
+    body.cqe-tv-page .gm-funnel-step {
+      padding: 6px 8px;
+      min-width: 84px;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-val {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-funnel-step .step-pct {
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow {
+      min-width: 48px;
+      font-size: 0.85rem;
+    }
+
+    body.cqe-tv-page .gm-funnel-arrow .conv {
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-grid {
+      gap: 8px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    body.cqe-tv-page .gm-panel {
+      padding: 8px 10px;
+    }
+
+    body.cqe-tv-page .gm-panel--motivos .chart-box {
+      min-height: 110px;
+    }
+
+    body.cqe-tv-page .gm-panel h2 {
+      font-size: 0.92rem;
+      margin-bottom: 2px;
+      font-weight: 800;
+    }
+
+    body.cqe-tv-page .gm-panel .panel-note {
+      display: none;
+    }
+
+    body.cqe-tv-page .last-refresh {
+      font-size: 0.85rem !important;
+      font-weight: 700;
+      opacity: 0.95;
+      padding: 4px 8px;
+      right: 12px;
+      bottom: 6px;
+    }
+  </style>
+</head>
+<body class="dash-page cqe-gestao-page cqe-tv-page">
+  <div class="page">
+    <header class="gm-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>CQE — Operacional (TV)</h1>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
+      </div>
+      <div class="gm-filters">
+        <div class="gm-filter-group" data-label="Período">
+          <label>Início <input type="date" id="dateStart" /></label>
+          <label>Fim <input type="date" id="dateEnd" /></label>
+          <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
+        </div>
+        <div class="gm-filter-group" data-label="Produto / equipe">
+          <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
+          <label>Técnico <select id="fTecnico"><option value="">Todos</option></select></label>
+          <label>Marca <select id="fMarca"><option value="">Todas</option></select></label>
+          <label>Tipo <select id="fTipo"><option value="">Todos</option></select></label>
+          <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
+          <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
+        </div>
+      </div>
+      <div class="gm-topbar-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnFullscreen" title="Tela cheia (F11)">⛶</button>
+        <button type="button" id="btnReload" title="Recarregar dados">↻</button>
+      </div>
+    </header>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <div class="gm-upper">
+    <section class="gm-hero">
+      <div class="gm-kpi aprov">
+        <div class="kpi-head"><span class="kpi-label">Taxa aprovação</span><span class="kpi-icon">✓</span></div>
+        <div class="kpi-value" id="kpiTaxaAprov">—</div>
+        <div class="kpi-hint" id="kpiTaxaAprovHint">Aprovados / inspecionados</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Inspecionados</span><span class="kpi-icon">📋</span></div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-hint" id="kpiTotalHint">No período</div>
+      </div>
+      <div class="gm-kpi reprov">
+        <div class="kpi-head"><span class="kpi-label">Reprovados</span><span class="kpi-icon">✕</span></div>
+        <div class="kpi-value" id="kpiReprov">0</div>
+        <div class="kpi-hint" id="kpiTaxaReprovHint">Sem teste / retorno ao técnico</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Meta 98%</span><span class="kpi-icon">🎯</span></div>
+        <div class="kpi-value" id="kpiMeta">98%</div>
+        <div class="gm-meta-bar" id="kpiMetaBar"><span id="kpiMetaFill" style="width:0%"></span></div>
+        <div class="kpi-hint" id="kpiMetaHint">Progresso vs meta</div>
+      </div>
+      <div class="gm-kpi">
+        <div class="kpi-head"><span class="kpi-label">Status</span><span class="kpi-icon">⚑</span></div>
+        <div class="gm-status-visual" id="kpiStatusWrap"></div>
+        <div class="kpi-hint" id="kpiStatusHint">—</div>
+      </div>
+    </section>
+
+    <div class="gm-mid-row">
+      <section class="gm-funnel">
+        <h2>Fluxo de retrabalho</h2>
+        <div class="gm-funnel-track" id="funnelTrack"></div>
+      </section>
+    </div>
+    </div>
+
+    <section class="gm-grid">
+      <div class="gm-panel">
+        <h2>Qualidade — aprovados</h2>
+        <p class="panel-note" id="qualAprovNote">Eixo X: quantidade de aprovações</p>
+        <div class="chart-box"><canvas id="chartQualAprov"></canvas></div>
+      </div>
+      <div class="gm-panel gm-panel--motivos">
+        <h2 id="motivosFunnelTitle">Motivos de reprovação</h2>
+        <p class="panel-note">Barras: quantidade por motivo</p>
+        <div class="motivos-funnel" id="motivosFunnel" hidden></div>
+        <div class="chart-box" id="motivosChartBox"><canvas id="chartMotivos"></canvas></div>
+      </div>
+      <div class="gm-panel gm-panel--ranking">
+        <h2>Reprovação por técnico</h2>
+        <p class="panel-note">Usuario A–Z · barras: taxa % · rótulo: reprov / total</p>
+        <div class="chart-box"><canvas id="chartRanking"></canvas></div>
+      </div>
+      <div class="gm-panel">
+        <h2>Reprovações por marca</h2>
+        <p class="panel-note">Eixo X: quantidade de reprovações</p>
+        <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="gm-tooltip" id="richTooltip"></div>
+
+  <div class="gm-modal-backdrop" id="drillModal">
+    <div class="gm-modal">
+      <div class="gm-modal-head">
+        <h3 id="drillTitle">Detalhes</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="gm-modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>IMEI</th>
+              <th>OS (NR)</th>
+              <th>Modelo</th>
+              <th>Técnico</th>
+              <th>Qualidade</th>
+              <th>Decisão</th>
+              <th>Motivo</th>
+              <th>T. reparo</th>
+              <th>T. até QC</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = SkylineDash.API_REPARO;
+    const DATE_FIELD = "data_qualidade";
+    const META_APROVACAO = 98;
+    const SKY = {
+      bg: "#694992",
+      strong: "#8b6bb8",
+      accent: "#c4a8e8",
+      fill: "rgba(105, 73, 146, 0.15)",
+      green: "#15803d",
+      red: "#dc2626",
+      amber: "#b45309",
+      teal: "#8b6bb8",
+      surface: "#faf8fc"
+    };
+    const USUARIOS_EXCLUIDOS_APROV = new Set([
+      "ewerton souza",
+      "ewerton souza implantacao log smart",
+      "helen",
+      "bruno marcos"
+    ]);
+    const statusEl = document.getElementById("statusMsg");
+    const tooltipEl = document.getElementById("richTooltip");
+
+    let allRows = [];
+    let rawById = new Map();
+    const charts = {};
+    const reprovAlias = new Map();
+
+    /** TV: técnicos como Usuario A–Z (gestão mantém nomes reais). */
+    function usuarioLetter(index) {
+      let n = index + 1;
+      let s = "";
+      while (n > 0) {
+        n -= 1;
+        s = String.fromCharCode(65 + (n % 26)) + s;
+        n = Math.floor(n / 26);
+      }
+      return s;
+    }
+
+    function buildReprovAlias(names) {
+      reprovAlias.clear();
+      [...new Set(names.filter((n) => n && n !== "—" && n !== "Usuario X"))]
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .forEach((name, i) => {
+          reprovAlias.set(name, `Usuario ${usuarioLetter(i)}`);
+        });
+    }
+
+    function aliasReprov(name) {
+      if (!name || name === "—") return "—";
+      const bucket = SkylineDash.bucketCqeUsuarioReprov(name);
+      if (bucket === "Usuario X") return "Usuario X";
+      return reprovAlias.get(bucket) ?? reprovAlias.get(name) ?? "—";
+    }
+
+    function logReprovAliasMap() {
+      if (!reprovAlias.size) return;
+      const lines = [...reprovAlias.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], "pt-BR", { numeric: true }))
+        .map(([real, alias]) => `${real} → ${alias}`);
+      console.info("[CQE TV] Mapa técnicos:\n" + lines.join("\n"));
+    }
+
+    const ETAPA_LABELS = {
+      qualidade_saldo: "Qualidade saldo",
+      qualidade_consumo_pecas: "Qualidade consumo",
+      reparo: "Reparo",
+      consulta_preco_sankhya: "Consulta Sankhya",
+      gestao_pecas: "Gestão peças",
+      triagem: "Triagem",
+      limpeza: "Limpeza"
+    };
+
+    function normNameKey(name) {
+      return String(name || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function isUsuarioExcluidoAprov(nome) {
+      const k = normNameKey(nome);
+      return k && k !== "—" && USUARIOS_EXCLUIDOS_APROV.has(k);
+    }
+
+    function fmtPctQty(part, total) {
+      return `${fmtPct(part, total)} (${part})`;
+    }
+
+    function normalizeDecisao(decisao) {
+      const v = String(decisao || "").trim().toLowerCase();
+      if (v.includes("reprov")) return "reprovado";
+      if (v.includes("aprov")) return "aprovado";
+      return null;
+    }
+
+    function resolveLinha(desc) {
+      const d = String(desc || "").toUpperCase();
+      if (d.includes("IPHONE") || d.includes("APPLE")) return "iPhone";
+      if (/SAMSUNG|MOTOROLA|XIAOMI|LG |NOKIA|REALME|POCO/.test(d)) return "Android";
+      return "Outros";
+    }
+
+    function resolveGravidade(motivo, categoria = null) {
+      return SkylineDash.resolveCqeGravidade(motivo, categoria);
+    }
+
+    function shortModel(desc) {
+      const s = String(desc || "—").trim();
+      if (s.length <= 28) return s;
+      return `${s.slice(0, 26)}…`;
+    }
+
+    function diffMs(a, b) {
+      if (!a || !b) return null;
+      const ta = new Date(a).getTime();
+      const tb = new Date(b).getTime();
+      if (Number.isNaN(ta) || Number.isNaN(tb)) return null;
+      return Math.max(0, tb - ta);
+    }
+
+    function mapRow(raw) {
+      const decisao = normalizeDecisao(raw.decisao);
+      if (!decisao) return null;
+      const motivoRaw = String(raw.motivo_reprovacao || "").trim() || "Sem motivo informado";
+      const motivoInfo = SkylineDash.normalizeCqeMotivoReprovacao(motivoRaw);
+      const motivo = motivoInfo.label;
+      const descricao = String(raw.descricao || "—").trim() || "—";
+      const tempoReparo = diffMs(raw["Iniciado_Reparo"], raw["Fim do Reparo"]);
+      const tempoAteQc = diffMs(raw["Fim do Reparo"], raw.Data_qualidade ?? raw.data_qualidade);
+      return {
+        id: raw.id ?? null,
+        raw,
+        data_qualidade: SkylineDash.resolveCqeQualidadeDate(raw, decisao),
+        usuario: SkylineDash.normalizeUserName(raw["Usuario qualidade"] || "—"),
+        usuario_final: SkylineDash.normalizeUserName(raw["Usuario final"] || "—"),
+        tecnico: SkylineDash.normalizeUserName(raw["Usuario final"] || raw["Usuário reparo"] || "—"),
+        decisao,
+        motivo,
+        motivo_raw: motivoRaw,
+        motivo_categoria: motivoInfo.categoria,
+        motivo_item: motivoInfo.item,
+        gravidade: resolveGravidade(motivoRaw, motivoInfo.categoria),
+        modelo: descricao,
+        modelo_curto: shortModel(descricao),
+        marca: SkylineDash.normalizeBrandName(descricao),
+        linha: resolveLinha(descricao),
+        tipo_reparo: String(raw.operação || raw.operacao || "—").trim() || "—",
+        etapa: ETAPA_LABELS[String(raw.etapa_origem || "").trim()] || String(raw.etapa_origem || "—"),
+        nr: String(raw.NR || "—").trim() || "—",
+        serial: String(raw.serial || "—").trim() || "—",
+        hu: String(raw.hu || "—").trim() || "—",
+        peca: String(raw.peca_requisitada || "—").trim() || "—",
+        tempo_reparo_ms: tempoReparo,
+        tempo_ate_qc_ms: tempoAteQc,
+        reaberto_id: raw.triagem_servico_reaberto_id ?? null
+      };
+    }
+
+
+    /** Máscara CQE: real + 56/h · 62% Apple · escala na hora atual (refresh). */
+    const APPLY_MASK = false;
+    const HOUR_FROM = 7;
+    const HOUR_TO = 17;
+    const MASK_HOUR_BOOST = 56;
+    const MASK_APPLE_PCT = 0.62;
+    const MASK_APPLE_MODELS = [
+      "APPLE IPHONE 13 PRO 256GB GRAFITE",
+      "APPLE IPHONE 11 64GB PRETO",
+      "APPLE IPHONE 12",
+      "APPLE IPHONE 11 64GB BRANCO",
+      "APPLE IPHONE XR"
+    ];
+    const MASK_SAMSUNG_MODELS = [
+      "SAMSUNG GALAXY S21 FE 5G 128GB PRETO",
+      "SAMSUNG GALAXY S22 ULTRA 256GB PRETO",
+      "SAMSUNG GALAXY S20 PLUS 128GB PRETO",
+      "SAMSUNG GALAXY A10S 32GB PRETO",
+      "SAMSUNG GALAXY S22 5G 128GB PRETO"
+    ];
+    /** Qualidade (aprovados): Fran Romão e Sheila Ferreira (aliases unificados). */
+    const MASK_QC_USERS = ["Fran Romão", "Sheila Ferreira"];
+    const MASK_REPROV_TECHS = ["Colaborador A", "Colaborador B", "Colaborador C", "Colaborador D", "Colaborador J"];
+    /** Total de reprovados fixo (KPI = motivos = marca). */
+    const MASK_REPROV_TARGET = 9;
+    /** Taxa do dia na máscara (meta continua 98%). */
+    const MASK_TAXA_APROV_TARGET = 97.1;
+    /** 5 motivos fracionados — sem tela/display. */
+    const MASK_MOTIVOS = [
+      "Bateria inchada",
+      "Não liga",
+      "Câmera traseira",
+      "Microfone sem áudio",
+      "Wi-Fi instável"
+    ];
+
+    function normalizeQcMaskName(name) {
+      const k = normNameKey(name);
+      if (k === "fran" || k === "fran romao") return "Fran Romão";
+      if (k === "sheila" || k === "sheila ferreira") return "Sheila Ferreira";
+      return name;
+    }
+
+    function maskCurrentHourBoost() {
+      const ticks = Math.min(12, Math.floor(new Date().getMinutes() / 5) + 1);
+      return Math.round((MASK_HOUR_BOOST * ticks) / 12);
+    }
+
+    function maskBoostForHour(hour) {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      if (hour < HOUR_FROM || hour > HOUR_TO || hour > nowH) return 0;
+      if (hour < nowH) return MASK_HOUR_BOOST;
+      return maskCurrentHourBoost();
+    }
+
+    function makeMaskCqeRaw(marca, day, hour, seq, reprovSeq) {
+      const nowH = new Date().getHours();
+      const minute = hour === nowH
+        ? Math.min(59, Math.floor(new Date().getMinutes() / 5) * 5)
+        : 15 + (seq % 40);
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(minute).padStart(2, "0");
+      const iso = `${day}T${hh}:${mm}:00`;
+      const models = marca === "APPLE" ? MASK_APPLE_MODELS : MASK_SAMSUNG_MODELS;
+      const modelo = models[seq % models.length];
+      // Base ~98%; equalização final força 9 reprov + taxa na meta.
+      const aprovado = seq % 50 !== 0;
+      const startMin = Math.max(0, minute - 18);
+      const qc = MASK_QC_USERS[seq % MASK_QC_USERS.length];
+      const tech = MASK_REPROV_TECHS[seq % MASK_REPROV_TECHS.length];
+      return {
+        id: `mask-cqe-${day}-${hour}-${seq}`,
+        decisao: aprovado ? "aprovado" : "reprovado",
+        motivo_reprovacao: aprovado
+          ? ""
+          : MASK_MOTIVOS[reprovSeq % MASK_MOTIVOS.length],
+        descricao: modelo,
+        Data_qualidade: iso,
+        data_qualidade: iso,
+        "Usuario qualidade": qc,
+        "Usuario final": tech,
+        "Usuário reparo": tech,
+        "Iniciado_Reparo": `${day}T${hh}:${String(startMin).padStart(2, "0")}:00`,
+        "Fim do Reparo": iso,
+        NR: String(910000 + seq),
+        serial: `CQE${hour}${seq}`,
+        hu: String(710000 + seq),
+        operação: "reparo",
+        operacao: "reparo",
+        etapa_origem: "qualidade_saldo",
+        peca_requisitada: "—"
+      };
+    }
+
+    /** Real + máscara (56/h · 62% Apple / 38% Samsung). */
+    function injectMaskCqeRows(rows, start, end, today) {
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
+      const extras = [];
+      let seq = 0;
+      let reprovSeq = 0;
+      const nowH = new Date().getHours();
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        const n = maskBoostForHour(h);
+        if (!n) continue;
+        const appleN = Math.round(n * MASK_APPLE_PCT);
+        const samN = Math.max(0, n - appleN);
+        const pushBrand = (marca, count) => {
+          for (let i = 0; i < count; i++) {
+            const aprovado = seq % 50 !== 0;
+            const rSeq = aprovado ? 0 : reprovSeq++;
+            const row = mapRow(makeMaskCqeRaw(marca, today, h, seq++, rSeq));
+            if (row) extras.push(row);
+          }
+        };
+        pushBrand("APPLE", appleN);
+        pushBrand("SAMSUNG", samN);
+      }
+      return extras.length ? rows.concat(extras) : rows;
+    }
+
+    /** Equaliza reprovados ao alvo da máscara (9). */
+    function enforceMaskReprovCount(rows) {
+      if (!APPLY_MASK || !rows.length) return rows;
+      const out = rows.map((r) => ({ ...r }));
+      const maskFirst = (a, b) => {
+        const am = String(out[a].id || "").startsWith("mask-cqe") ? 0 : 1;
+        const bm = String(out[b].id || "").startsWith("mask-cqe") ? 0 : 1;
+        return am - bm || a - b;
+      };
+      const reprovIs = [];
+      const aprovIs = [];
+      out.forEach((r, i) => {
+        if (r.decisao === "reprovado") reprovIs.push(i);
+        else if (r.decisao === "aprovado") aprovIs.push(i);
+      });
+      reprovIs.sort(maskFirst);
+      aprovIs.sort(maskFirst);
+
+      while (reprovIs.length > MASK_REPROV_TARGET) {
+        const i = reprovIs.pop();
+        out[i] = {
+          ...out[i],
+          decisao: "aprovado",
+          motivo: "",
+          motivo_raw: "",
+          motivo_categoria: null,
+          motivo_item: null,
+          gravidade: null
+        };
+      }
+      while (reprovIs.length < MASK_REPROV_TARGET && aprovIs.length) {
+        const i = aprovIs.pop();
+        const motivoRaw = MASK_MOTIVOS[reprovIs.length % MASK_MOTIVOS.length];
+        const motivoInfo = SkylineDash.normalizeCqeMotivoReprovacao(motivoRaw);
+        out[i] = {
+          ...out[i],
+          decisao: "reprovado",
+          motivo: motivoInfo.label,
+          motivo_raw: motivoRaw,
+          motivo_categoria: motivoInfo.categoria,
+          motivo_item: motivoInfo.item,
+          gravidade: resolveGravidade(motivoRaw, motivoInfo.categoria)
+        };
+        reprovIs.push(i);
+      }
+      return out;
+    }
+
+    /** Ajusta aprovados para a taxa do dia ficar em 97,1% (meta 98%). */
+    function equalizeMaskTaxaDia(rows) {
+      if (!APPLY_MASK || !rows.length) return rows;
+      const reprovRows = [];
+      const aprovRows = [];
+      const otherRows = [];
+      rows.forEach((r) => {
+        if (r.decisao === "reprovado") reprovRows.push(r);
+        else if (r.decisao === "aprovado") aprovRows.push({ ...r });
+        else otherRows.push(r);
+      });
+      if (!reprovRows.length) return rows;
+
+      const target = MASK_TAXA_APROV_TARGET / 100;
+      const needAprov = Math.ceil((target * reprovRows.length) / (1 - target) - 1e-9);
+      const maskScore = (r) => {
+        const id = String(r.id || "");
+        if (id.startsWith("mask-cqe-pad")) return 2;
+        if (id.startsWith("mask-cqe")) return 1;
+        return 0;
+      };
+      aprovRows.sort((a, b) => maskScore(a) - maskScore(b));
+
+      while (aprovRows.length > needAprov) aprovRows.pop();
+
+      const today = SkylineDash.todayISO();
+      const hour = Math.min(HOUR_TO, Math.max(HOUR_FROM, new Date().getHours() || HOUR_FROM));
+      let pad = 0;
+      while (aprovRows.length < needAprov && pad < 50000) {
+        const marca = (pad % 100) < Math.round(MASK_APPLE_PCT * 100) ? "APPLE" : "SAMSUNG";
+        const raw = makeMaskCqeRaw(marca, today, hour, 800000 + pad, 0);
+        raw.id = `mask-cqe-pad-${today}-${pad}`;
+        raw.decisao = "aprovado";
+        raw.motivo_reprovacao = "";
+        raw.serial = `CQEPAD${pad}`;
+        raw.NR = String(920000 + pad);
+        raw.hu = String(720000 + pad);
+        const row = mapRow(raw);
+        if (row) aprovRows.push(row);
+        pad++;
+      }
+      return aprovRows.concat(reprovRows, otherRows);
+    }
+
+    function fmtPct(part, total, digits = 1) {
+      if (!total) return "0,0%";
+      return `${((part / total) * 100).toFixed(digits).replace(".", ",")}%`;
+    }
+
+    function fmtPctNum(part, total) {
+      if (!total) return 0;
+      return (part / total) * 100;
+    }
+
+    function fmtMetaLabel(value = META_APROVACAO) {
+      const n = Number(value);
+      const text = Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+      return `${text}%`;
+    }
+
+    function fmtDelta(current, ref, suffix = " p.p.") {
+      if (ref == null || current == null) return { text: "—", cls: "neutral", arrow: "" };
+      const d = current - ref;
+      const sign = d > 0 ? "+" : "";
+      const cls = d > 0.05 ? "up" : d < -0.05 ? "down" : "neutral";
+      const arrow = d > 0.05 ? "↑" : d < -0.05 ? "↓" : "→";
+      return { text: `${arrow} ${sign}${d.toFixed(1).replace(".", ",")}${suffix}`, cls, arrow };
+    }
+
+    function addDays(iso, delta) {
+      const d = new Date(`${iso}T12:00:00`);
+      d.setDate(d.getDate() + delta);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function computeMetrics(rows, { equalizeReprov = false } = {}) {
+      let filtered = SkylineDash.processCqeRows(rows);
+      if (equalizeReprov) {
+        filtered = equalizeMaskTaxaDia(enforceMaskReprovCount(filtered));
+      }
+      let aprovado = 0;
+      let reprovado = 0;
+      filtered.forEach((r) => {
+        if (r.decisao === "aprovado") aprovado++;
+        else reprovado++;
+      });
+      const total = aprovado + reprovado;
+      return {
+        filtered,
+        aprovado,
+        reprovado,
+        total,
+        taxaAprov: fmtPctNum(aprovado, total),
+        taxaReprov: fmtPctNum(reprovado, total)
+      };
+    }
+
+    function deviceKey(row) {
+      const serial = String(row.serial || "").trim();
+      if (serial && serial !== "—") return `s:${serial}`;
+      const hu = String(row.hu || "").trim();
+      if (hu && hu !== "—") return `h:${hu}`;
+      const nr = String(row.nr || "").trim();
+      if (nr && nr !== "—") return `n:${nr}`;
+      const id = row.id != null ? String(row.id).trim() : "";
+      if (id) return `i:${id}`;
+      return null;
+    }
+
+    function eventTime(row) {
+      const t = new Date(row.data_qualidade).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    }
+
+    function isInPeriod(row, start, end) {
+      const day = SkylineDash.toLocalDateStr(row.data_qualidade);
+      return day >= start && day <= end;
+    }
+
+    function buildRetrabalho(periodRows, allMapped, periodStart, periodEnd, metricsOpt = null) {
+      const m = metricsOpt || computeMetrics(periodRows);
+      const allProcessed = SkylineDash.processCqeRows(allMapped);
+
+      const history = new Map();
+      allProcessed.forEach((r) => {
+        const key = deviceKey(r);
+        if (!key) return;
+        if (!history.has(key)) history.set(key, []);
+        history.get(key).push(r);
+      });
+      history.forEach((events) => {
+        events.sort((a, b) => eventTime(a) - eventTime(b));
+      });
+
+      const reprovDevices = new Set();
+      m.filtered
+        .filter((r) => r.decisao === "reprovado")
+        .forEach((r) => {
+          const key = deviceKey(r);
+          if (key) reprovDevices.add(key);
+        });
+
+      let aprovPosRetrabalho = 0;
+      let voltaram = 0;
+      reprovDevices.forEach((key) => {
+        const events = history.get(key) || [];
+        let anchorIdx = -1;
+        events.forEach((e, i) => {
+          if (e.decisao === "reprovado" && isInPeriod(e, periodStart, periodEnd)) {
+            anchorIdx = i;
+          }
+        });
+        if (anchorIdx < 0) return;
+
+        const later = events.slice(anchorIdx + 1);
+        if (later.length) voltaram++;
+        if (later.some((e) => e.decisao === "aprovado")) aprovPosRetrabalho++;
+      });
+
+      const sucata = m.filtered.filter((r) =>
+        /sucat|descart|irrecuper/.test(String(r.motivo).toLowerCase())
+      ).length;
+
+      return {
+        entraram: m.total,
+        aprovados: m.aprovado,
+        reprovados: m.reprovado,
+        voltaram,
+        aprovPosRetrabalho,
+        sucata,
+        retrabalhoPct: m.total ? (voltaram / m.total) * 100 : 0
+      };
+    }
+
+    function statusMeta(taxaAprov) {
+      if (taxaAprov >= META_APROVACAO) {
+        return { label: "Saudável", cls: "ok", hint: `≥ ${fmtMetaLabel()} aprovação` };
+      }
+      if (taxaAprov >= META_APROVACAO - 5) {
+        return { label: "Atenção", cls: "warn", hint: "Próximo do limite da meta" };
+      }
+      return { label: "Crítico", cls: "bad", hint: "Abaixo da meta de qualidade" };
+    }
+
+    function applyUiFilters(rows) {
+      const modelo = document.getElementById("fModelo").value;
+      const tecnico = document.getElementById("fTecnico").value;
+      const marca = document.getElementById("fMarca").value;
+      const tipo = document.getElementById("fTipo").value;
+      const linha = document.getElementById("fLinha").value;
+      const qualidade = document.getElementById("fQualidade").value;
+      const cliente = document.getElementById("fCliente").value;
+
+      return rows.filter((r) => {
+        if (modelo && r.modelo !== modelo) return false;
+        if (tecnico && r.tecnico !== tecnico) return false;
+        if (marca && r.marca !== marca) return false;
+        if (tipo && r.tipo_reparo !== tipo) return false;
+        if (linha && r.linha !== linha) return false;
+        if (qualidade && r.usuario !== qualidade) return false;
+        if (cliente && r.nr !== cliente) return false;
+        return true;
+      });
+    }
+
+    function populateFilters(rows) {
+      const fill = (id, values, limit = 80) => {
+        const el = document.getElementById(id);
+        const cur = el.value;
+        const sorted = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+        const slice = sorted.slice(0, limit);
+        el.innerHTML = `<option value="">Todos</option>` + slice.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+        if (cur && slice.includes(cur)) el.value = cur;
+      };
+      fill("fModelo", rows.map((r) => r.modelo));
+      buildReprovAlias(rows.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.tecnico)));
+      const techEl = document.getElementById("fTecnico");
+      const techCur = techEl.value;
+      const techNames = [...new Set(rows.map((r) => r.tecnico).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"))
+        .slice(0, 80);
+      techEl.innerHTML = `<option value="">Todos</option>` + techNames.map((v) =>
+        `<option value="${escapeHtml(v)}">${escapeHtml(aliasReprov(v))}</option>`
+      ).join("");
+      if (techCur && techNames.includes(techCur)) techEl.value = techCur;
+      fill("fMarca", rows.map((r) => r.marca));
+      fill("fTipo", rows.map((r) => r.tipo_reparo));
+      fill("fLinha", rows.map((r) => r.linha));
+      fill("fQualidade", rows.map((r) => r.usuario));
+      fill("fCliente", rows.map((r) => r.nr), 40);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) {
+        charts[key].destroy();
+        charts[key] = null;
+      }
+    }
+
+    function resizeAllCharts() {
+      Object.values(charts).forEach((chart) => {
+        if (chart) chart.resize();
+      });
+    }
+
+    function sampleForTooltip(rows) {
+      return rows[0] || null;
+    }
+
+    function richTooltipHtml(row, extra = "", opts = {}) {
+      if (!row) return `<div>Sem registro</div>`;
+      const foto = row.raw?.foto || row.raw?.Foto || row.raw?.url_foto;
+      const tecnico = opts.anonTecnico === false ? row.tecnico : aliasReprov(row.tecnico);
+      return `
+        <div><strong>IMEI:</strong> ${escapeHtml(row.serial)}</div>
+        <div><strong>OS (NR):</strong> ${escapeHtml(row.nr)} · HU ${escapeHtml(row.hu)}</div>
+        <div><strong>Técnico:</strong> ${escapeHtml(tecnico)}</div>
+        <div><strong>Qualidade:</strong> ${escapeHtml(row.usuario)}</div>
+        <div><strong>Modelo:</strong> ${escapeHtml(row.modelo || row.modelo_curto)}</div>
+        <div><strong>T. reparo:</strong> ${row.tempo_reparo_ms != null ? SkylineDash.formatDuration(row.tempo_reparo_ms) : "—"}</div>
+        <div><strong>T. até QC:</strong> ${row.tempo_ate_qc_ms != null ? SkylineDash.formatDuration(row.tempo_ate_qc_ms) : "—"}</div>
+        <div><strong>Motivo:</strong> ${escapeHtml(row.motivo_raw || row.motivo)}</div>
+        ${foto ? `<div><strong>Foto:</strong> disponível</div>` : ""}
+        ${extra ? `<div style="margin-top:4px;color:${SKY.accent}">${extra}</div>` : ""}
+      `;
+    }
+
+    function bindRichTooltip(canvas, matchFn, opts = {}) {
+      canvas.onmousemove = (ev) => {
+        const chart = Chart.getChart(canvas);
+        if (!chart) return;
+        const pts = chart.getElementsAtEventForMode(ev, "nearest", { intersect: true }, false);
+        if (!pts.length) {
+          tooltipEl.style.display = "none";
+          return;
+        }
+        const idx = pts[0].index;
+        const rows = matchFn(idx, chart);
+        tooltipEl.innerHTML = richTooltipHtml(
+          sampleForTooltip(rows),
+          rows.length > 1 ? `${rows.length} registro(s)` : "",
+          opts
+        );
+        tooltipEl.style.display = "block";
+        tooltipEl.style.left = `${Math.min(ev.clientX + 12, window.innerWidth - 340)}px`;
+        tooltipEl.style.top = `${Math.min(ev.clientY + 12, window.innerHeight - 200)}px`;
+      };
+      canvas.onmouseleave = () => { tooltipEl.style.display = "none"; };
+    }
+
+    function openDrill(title, rows, opts = {}) {
+      document.getElementById("drillTitle").textContent = title;
+      const tbody = document.getElementById("drillBody");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-gm">Nenhum registro.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.slice(0, 200).map((r) => `
+          <tr>
+            <td>${escapeHtml(r.serial)}</td>
+            <td>${escapeHtml(r.nr)}</td>
+            <td class="col-modelo">${escapeHtml(r.modelo || r.modelo_curto)}</td>
+            <td>${escapeHtml(opts.anonTecnico === false ? r.tecnico : aliasReprov(r.tecnico))}</td>
+            <td>${escapeHtml(r.usuario)}</td>
+            <td>${escapeHtml(r.decisao)}</td>
+            <td class="col-motivo">${escapeHtml(r.motivo_raw || r.motivo)}</td>
+            <td>${r.tempo_reparo_ms != null ? SkylineDash.formatDuration(r.tempo_reparo_ms) : "—"}</td>
+            <td>${r.tempo_ate_qc_ms != null ? SkylineDash.formatDuration(r.tempo_ate_qc_ms) : "—"}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("drillModal").classList.add("open");
+    }
+
+    function renderFunnel(funnel) {
+      const base = funnel.entraram || 1;
+      const steps = [
+        { label: "Entraram", val: funnel.entraram },
+        { label: "Aprovados", val: funnel.aprovados },
+        { label: "Reprovados", val: funnel.reprovados },
+        { label: "V. manutenção", val: funnel.voltaram },
+        { label: "Aprov. retrab.", val: funnel.aprovPosRetrabalho },
+        { label: "Sucata", val: funnel.sucata }
+      ];
+      document.getElementById("funnelTrack").innerHTML = steps.map((s, i) => {
+        const pctOfEntry = fmtPct(s.val, base, 0);
+        const arrow = i < steps.length - 1
+          ? (() => {
+              const next = steps[i + 1].val;
+              const c = s.val > 0 ? Math.round((next / s.val) * 100) : 0;
+              return `<div class="gm-funnel-arrow"><span class="conv">${c}%</span><span>→</span></div>`;
+            })()
+          : "";
+        return `
+          <div class="gm-funnel-step">
+            <div class="step-val">${s.val}</div>
+            <div class="step-label">${s.label}</div>
+            <div class="step-pct">${pctOfEntry} do fluxo</div>
+          </div>${arrow}
+        `;
+      }).join("");
+    }
+
+    function renderMotivosBars(reprovados, chartOpts) {
+      const title = document.getElementById("motivosFunnelTitle");
+      const chartBox = document.getElementById("motivosChartBox");
+      const motivos = SkylineDash.aggregateCount(
+        reprovados,
+        (r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo)
+      );
+      const {
+        tickSmall,
+        barLayoutPad,
+        dataLabelCount,
+        xCountScale
+      } = chartOpts;
+
+      if (!motivos.length) {
+        title.textContent = "Motivos de reprovação";
+        destroyChart("motivos");
+        if (chartBox) chartBox.hidden = false;
+        return;
+      }
+      if (chartBox) chartBox.hidden = false;
+      title.textContent = `Motivos de reprovação (${motivos.length})`;
+
+      const yMotivosScale = {
+        offset: true,
+        ticks: {
+          ...tickSmall,
+          autoSkip: false,
+          padding: 4,
+          font: { size: motivos.length > 10 ? 9 : 10, weight: "600" },
+          callback: function (val) {
+            return String(this.getLabelForValue(val) || "");
+          }
+        },
+        afterFit: (scale) => {
+          scale.width = Math.min(220, Math.max(120, scale.width));
+        }
+      };
+
+      destroyChart("motivos");
+      charts.motivos = new Chart(document.getElementById("chartMotivos"), {
+        type: "bar",
+        data: {
+          labels: motivos.map(([m]) => m),
+          datasets: [{
+            label: "Reprovações",
+            data: motivos.map(([, qtd]) => qtd),
+            backgroundColor: SKY.bg,
+            borderRadius: 4,
+            barThickness: motivos.length > 12 ? 10 : motivos.length > 6 ? 14 : 20,
+            maxBarThickness: 24
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              ...barLayoutPad,
+              left: 4,
+              right: Math.max(28, barLayoutPad?.right || 28)
+            }
+          },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.bg) },
+          scales: {
+            x: { ...xCountScale, title: { display: false } },
+            y: yMotivosScale
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const motivo = motivos[elems[0].index][0];
+            openDrill(
+              `Motivo: ${motivo}`,
+              reprovados.filter((r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === motivo)
+            );
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartMotivos"), (idx) =>
+        reprovados.filter(
+          (r) => SkylineDash.cqeMotivoChartKey(r.motivo_raw || r.motivo) === (motivos[idx]?.[0] || "")
+        )
+      );
+      requestAnimationFrame(() => {
+        if (charts.motivos) charts.motivos.resize();
+      });
+    }
+
+    function renderCharts(periodRows, metrics) {
+      const reprovados = metrics.filtered.filter(
+        (r) => r.decisao === "reprovado" && !SkylineDash.isCqeMotivoIgnorado(r.motivo_raw || r.motivo)
+      );
+      const tickSmall = { font: { size: 10, weight: "600" } };
+      const barLayoutPad = { top: 6, bottom: 4, left: 2, right: 28 };
+      const dataLabelBase = {
+        clip: false,
+        anchor: "end",
+        align: "end",
+        offset: 4,
+        font: { weight: "700", size: 10 }
+      };
+      const dataLabelCount = (color, fmt = (v) => v) => ({
+        ...dataLabelBase,
+        color,
+        display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+        formatter: (v) => fmt(v)
+      });
+
+      const yBarScale = (n) => ({
+        offset: true,
+        ticks: {
+          ...tickSmall,
+          autoSkip: false,
+          maxTicksLimit: 6,
+          padding: 4,
+          font: { size: 10, weight: "600" },
+          callback: function (val) {
+            const label = this.getLabelForValue(val);
+            const s = String(label || "");
+            return s.length > 16 ? `${s.slice(0, 15)}…` : s;
+          }
+        }
+      });
+      const xCountScale = {
+        beginAtZero: true,
+        grace: "12%",
+        ticks: { ...tickSmall, stepSize: 1, precision: 0, maxTicksLimit: 6 }
+      };
+      const xPctScale = {
+        min: 0,
+        max: 100,
+        grace: "8%",
+        ticks: {
+          ...tickSmall,
+          callback: (v) => `${v}%`,
+          maxTicksLimit: 6
+        }
+      };
+
+      const aprovados = metrics.filtered.filter(
+        (r) => r.decisao === "aprovado" && !isUsuarioExcluidoAprov(r.usuario)
+      );
+      const qualAprovAll = SkylineDash.aggregateCount(
+        aprovados,
+        (r) => (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario)
+      );
+      const qualAprov = APPLY_MASK
+        ? MASK_QC_USERS.map((nome) => {
+            const hit = qualAprovAll.find(([n]) => n === nome);
+            return [nome, hit ? hit[1] : 0];
+          }).filter(([, q]) => q > 0)
+        : qualAprovAll.slice(0, 5);
+      destroyChart("qualAprov");
+      charts.qualAprov = new Chart(document.getElementById("chartQualAprov"), {
+        type: "bar",
+        data: {
+          labels: qualAprov.map(([nome]) => nome),
+          datasets: [{
+            label: "Aprovados",
+            data: qualAprov.map(([, qtd]) => qtd),
+            backgroundColor: SKY.strong,
+            borderRadius: 4,
+            barThickness: qualAprov.length > 4 ? 16 : 22,
+            maxBarThickness: 26
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: barLayoutPad },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.green) },
+          scales: {
+            x: {
+              ...xCountScale,
+              title: { display: false }
+            },
+            y: yBarScale(qualAprov.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const nome = qualAprov[elems[0].index][0];
+            openDrill(
+              `Usuario qualidade: ${nome} — aprovações`,
+              aprovados.filter((r) =>
+                (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario) === nome
+              )
+            );
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartQualAprov"), (idx) =>
+        aprovados.filter((r) =>
+          (APPLY_MASK ? normalizeQcMaskName(r.usuario) : r.usuario) === (qualAprov[idx]?.[0] || "")
+        )
+      );
+      const qualPanelNote = document.getElementById("qualAprovNote");
+      if (qualPanelNote) {
+        qualPanelNote.textContent = qualAprovAll.length > 5
+          ? `Top 5 de ${qualAprovAll.length}`
+          : "Aprovações por colaborador";
+      }
+
+      renderMotivosBars(reprovados, {
+        tickSmall,
+        barLayoutPad,
+        dataLabelCount,
+        yBarScale,
+        xCountScale
+      });
+
+      const reprovContaveis = reprovados.filter((r) => SkylineDash.isCqeUsuarioReprovContavel(r.usuario_final));
+      const rankingAll = SkylineDash.aggregateCqeTaxaReprovTecnico(metrics.filtered);
+      buildReprovAlias([
+        ...reprovContaveis.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.usuario_final)),
+        ...rankingAll.map((x) => x.nome),
+        ...metrics.filtered.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.usuario_final || r.tecnico))
+      ]);
+      logReprovAliasMap();
+      const ranking = rankingAll.filter((x) => x.reprov > 0).slice(0, 5);
+      destroyChart("ranking");
+      if (ranking.length) {
+        charts.ranking = new Chart(document.getElementById("chartRanking"), {
+          type: "bar",
+          data: {
+            labels: ranking.map((x) => aliasReprov(x.nome)),
+            datasets: [{
+              label: "Taxa reprovação %",
+              data: ranking.map((x) => x.pct),
+              backgroundColor: SKY.red,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { ...barLayoutPad, top: 6, right: 34 } },
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                labels: {
+                  pct: {
+                    clip: false,
+                    anchor: "center",
+                    align: "center",
+                    offset: 0,
+                    color: "#ffffff",
+                    font: { weight: "700", size: 10 },
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (v) => `${Number(v).toFixed(1).replace(".", ",")}%`
+                  },
+                  qtd: {
+                    ...dataLabelBase,
+                    color: SKY.red,
+                    display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+                    formatter: (_v, ctx) => {
+                      const row = ranking[ctx.dataIndex];
+                      return row ? `${row.reprov}/${row.total}` : "";
+                    }
+                  }
+                }
+              }
+            },
+            elements: { bar: { barThickness: ranking.length > 8 ? 10 : 14, maxBarThickness: 16 } },
+            scales: {
+              x: {
+                ...xPctScale,
+                title: { display: false }
+              },
+              y: yBarScale(ranking.length)
+            },
+            onClick: (_, elems) => {
+              if (!elems.length) return;
+              const nome = ranking[elems[0].index].nome;
+              openDrill(
+                `${aliasReprov(nome)} — reprovações`,
+                reprovContaveis.filter((r) => SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
+              );
+            }
+          }
+        });
+        bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
+          reprovContaveis.filter((r) =>
+            SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
+          )
+        );
+      }
+
+      const byMarca = SkylineDash.aggregateCount(reprovados, (r) => r.marca || "Outros").slice(0, 6);
+      destroyChart("marca");
+      charts.marca = new Chart(document.getElementById("chartMarca"), {
+        type: "bar",
+        data: {
+          labels: byMarca.map(([m]) => m),
+          datasets: [{
+            label: "Reprovações",
+            data: byMarca.map(([, v]) => v),
+            backgroundColor: SKY.teal,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: barLayoutPad },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount(SKY.teal) },
+          scales: {
+            x: {
+              ...xCountScale,
+              title: { display: false }
+            },
+            y: yBarScale(byMarca.length)
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const marca = byMarca[elems[0].index][0];
+            openDrill(`Marca: ${marca}`, reprovados.filter((r) => (r.marca || "Outros") === marca));
+          }
+        }
+      });
+      bindRichTooltip(document.getElementById("chartMarca"), (idx) =>
+        reprovados.filter((r) => (r.marca || "Outros") === (byMarca[idx]?.[0] || ""))
+      );
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resizeAllCharts);
+      });
+    }
+
+    function renderDashboard() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const hoje = SkylineDash.todayISO();
+      const inPeriodRaw = injectMaskCqeRows(
+        SkylineDash.filterByDateField(allRows, start, end, DATE_FIELD),
+        start,
+        end,
+        hoje
+      );
+      const periodRows = applyUiFilters(inPeriodRaw);
+      const equalizeReprov = APPLY_MASK && start <= hoje && end >= hoje;
+      const metrics = computeMetrics(periodRows, { equalizeReprov });
+      const funnel = buildRetrabalho(periodRows, allRows, start, end, metrics);
+      const st = statusMeta(metrics.taxaAprov);
+
+      document.getElementById("kpiTaxaAprov").textContent = fmtPct(metrics.aprovado, metrics.total);
+      document.getElementById("kpiReprov").textContent = metrics.reprovado;
+      document.getElementById("kpiTaxaReprovHint").textContent = `${fmtPct(metrics.reprovado, metrics.total)} do total · sem teste / retorno ao técnico`;
+      document.getElementById("kpiTotal").textContent = metrics.total;
+      document.getElementById("kpiMeta").textContent = `${metrics.taxaAprov.toFixed(1).replace(".", ",")}%`;
+      const metaBar = document.getElementById("kpiMetaBar");
+      const metaFill = document.getElementById("kpiMetaFill");
+      const progress = Math.min(100, Math.round((metrics.taxaAprov / META_APROVACAO) * 100));
+      metaFill.style.width = `${Math.min(100, Math.round(metrics.taxaAprov))}%`;
+      metaBar.className = "gm-meta-bar" + (st.cls === "ok" ? "" : st.cls === "warn" ? " below" : " critical");
+      document.getElementById("kpiMetaHint").textContent = `Meta ${fmtMetaLabel()} · progresso ${progress}%`;
+      document.getElementById("kpiStatusWrap").innerHTML = `
+        <span class="gm-traffic ${st.cls}"></span>
+        <span class="gm-status ${st.cls}">${st.label}</span>
+      `;
+      document.getElementById("kpiStatusHint").textContent = st.hint;
+      document.getElementById("kpiTaxaAprovHint").textContent = `${metrics.aprovado} aprovados de ${metrics.total}`;
+      renderFunnel(funnel);
+
+      renderCharts(periodRows, metrics);
+
+      document.getElementById("periodLabel").textContent = SkylineDash.formatPeriodBR(start, end);
+      SkylineDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
+    }
+
+    async function loadData() {
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
+      try {
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        const mapped = SkylineDash.normalizeRows(json)
+          .map(mapRow)
+          .filter(Boolean)
+          .filter((r) => r.data_qualidade);
+        allRows = mapped;
+        populateFilters(mapped);
+        SkylineDash.showStatus(statusEl, `${mapped.length} inspeção(ões) carregada(s).`, false);
+        renderDashboard();
+      } catch (err) {
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+      }
+    }
+
+    document.getElementById("drillClose").addEventListener("click", () => {
+      document.getElementById("drillModal").classList.remove("open");
+    });
+    document.getElementById("drillModal").addEventListener("click", (e) => {
+      if (e.target.id === "drillModal") document.getElementById("drillModal").classList.remove("open");
+    });
+
+    ["fModelo", "fTecnico", "fMarca", "fTipo", "fLinha", "fQualidade", "fCliente"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", renderDashboard);
+    });
+
+    const btnToggleFilters = document.getElementById("btnToggleFilters");
+    if (btnToggleFilters) {
+      btnToggleFilters.addEventListener("click", () => {
+        document.body.classList.toggle("show-filters");
+        btnToggleFilters.classList.toggle("primary", document.body.classList.contains("show-filters"));
+        requestAnimationFrame(resizeAllCharts);
+      });
+    }
+
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) { /* TV browsers sem Fullscreen API: use F11 */ }
+      });
+    }
+
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
+    window.addEventListener("resize", () => requestAnimationFrame(resizeAllCharts));
+  </script>
+</body>
+</html>
