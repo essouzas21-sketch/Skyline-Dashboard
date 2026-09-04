@@ -602,6 +602,8 @@
             <option value="saldo_asc">Saldo · menor</option>
             <option value="custo_desc">Custo · maior</option>
             <option value="custo_asc">Custo · menor</option>
+            <option value="loja_desc">Loja · maior</option>
+            <option value="loja_asc">Loja · menor</option>
           </select>
         </div>
       </div>
@@ -618,10 +620,11 @@
               <th>Qualidade</th>
               <th>Saldo_Principal</th>
               <th>Custo</th>
+              <th>Loja</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="6" class="loading">Carregando lista…</td></tr>
+            <tr><td colspan="7" class="loading">Carregando lista…</td></tr>
           </tbody>
         </table>
       </div>
@@ -710,22 +713,30 @@
       return null;
     }
 
-    function pickVendaValue(raw) {
+    function pickVendaValue(raw, kind) {
       if (!raw || typeof raw !== "object") return null;
-      const exact = [
-        "Preco Venda (Tabela 1)",
-        "Preço Venda (Tabela 1)",
-        "Preco Tabela 1",
-        "Preço Tabela 1",
-        "preco_venda_tabela_1",
-        "preco_tabela_1",
-        "PrecoTabela1",
-        "Preco Venda (Credito)",
-        "Preço Venda (Credito)",
-        "Preco Credito",
-        "preco_credito",
-        "PrecoCredito"
-      ];
+      const exact =
+        kind === "loja"
+          ? [
+              "Preco Venda (Credito)",
+              "Preço Venda (Credito)",
+              "Preco Venda (Crédito)",
+              "Preço Venda (Crédito)",
+              "Preco Credito",
+              "Preço Crédito",
+              "preco_venda_credito",
+              "preco_credito",
+              "PrecoCredito"
+            ]
+          : [
+              "Preco Venda (Tabela 1)",
+              "Preço Venda (Tabela 1)",
+              "Preco Tabela 1",
+              "Preço Tabela 1",
+              "preco_venda_tabela_1",
+              "preco_tabela_1",
+              "PrecoTabela1"
+            ];
       for (const key of exact) {
         if (Object.prototype.hasOwnProperty.call(raw, key) && raw[key] != null && raw[key] !== "") {
           return raw[key];
@@ -734,12 +745,14 @@
       for (const [key, value] of Object.entries(raw)) {
         if (value == null || value === "") continue;
         const nk = normFieldKey(key);
-        if (
+        if (kind === "loja") {
+          if (nk === "precovendacredito" || nk === "precocredito" || (nk.includes("preco") && nk.includes("credito"))) {
+            return value;
+          }
+        } else if (
           nk === "precovendatabela1" ||
           nk === "precotabela1" ||
-          nk === "precovendacredito" ||
-          nk === "precocredito" ||
-          (nk.includes("precovenda") && (nk.includes("tabela") || nk.includes("credito")))
+          (nk.includes("preco") && nk.includes("tabela") && nk.includes("1"))
         ) {
           return value;
         }
@@ -749,12 +762,13 @@
 
     function hasSaldoSemVenda(r) {
       const saldo = Number.isFinite(r.saldo) ? r.saldo : 0;
-      return saldo > 0 && r.venda == null;
+      return saldo > 0 && r.venda == null && r.loja == null;
     }
 
     function mapRow(raw) {
       const custo = parseMoney(pickCustoValue(raw));
-      const venda = parseMoney(pickVendaValue(raw));
+      const venda = parseMoney(pickVendaValue(raw, "atacado"));
+      const loja = parseMoney(pickVendaValue(raw, "loja"));
       const saldo = parseSaldo(
         raw.Saldo_Principal ?? raw.saldo_principal ?? raw.Saldo ?? raw.saldo ?? raw.ESTOQUE ?? raw.estoque
       );
@@ -767,7 +781,8 @@
         qualidade: resolveQualidade(raw),
         saldo,
         custo,
-        venda
+        venda,
+        loja
       };
     }
 
@@ -916,6 +931,10 @@
             return cmpNum(a.custo, b.custo, -1) || cmpText(a.descricao, b.descricao);
           case "custo_asc":
             return cmpNum(a.custo, b.custo, 1) || cmpText(a.descricao, b.descricao);
+          case "loja_desc":
+            return cmpNum(a.loja, b.loja, -1) || cmpText(a.descricao, b.descricao);
+          case "loja_asc":
+            return cmpNum(a.loja, b.loja, 1) || cmpText(a.descricao, b.descricao);
           case "marca":
           default:
             return cmpText(a.marca, b.marca) || cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
@@ -1006,7 +1025,7 @@
       const tbody = document.getElementById("tableBody");
       renderKpis();
       if (!viewRows.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty">${
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">${
           allRows.length ? "Nenhum item no filtro." : "Sem itens de custo."
         }</td></tr>`;
         return;
@@ -1022,6 +1041,7 @@
           <td class="${gClass}">${escapeHtml(r.qualidade)}</td>
           <td class="saldo">${escapeHtml(saldoTxt)}</td>
           <td class="money">${escapeHtml(formatMoney(r.custo))}</td>
+          <td class="money">${escapeHtml(formatMoney(r.loja))}</td>
         </tr>`;
       }).join("");
     }
@@ -1060,7 +1080,7 @@
         alert("Nenhum item para exportar.");
         return;
       }
-      const header = ["SKU","Produto","Marca","Qualidade","Saldo_Principal","Custo"]
+      const header = ["SKU","Produto","Marca","Qualidade","Saldo_Principal","Custo","Loja"]
         .map((h) => excelCellText(h, "Header")).join("");
       const body = rows.map((r) => `<Row>${[
         excelCellText(r.sku, "BodyLeft"),
@@ -1068,7 +1088,8 @@
         excelCellText(r.marca, "Body"),
         excelCellText(r.qualidade, gradeExcelStyle(r.qualidade)),
         excelCellNumber(r.saldo, "Body"),
-        excelCellNumber(r.custo, "Money")
+        excelCellNumber(r.custo, "Money"),
+        excelCellNumber(r.loja, "Money")
       ].join("")}</Row>`).join("");
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `custos-${stamp}.xls`;
@@ -1127,7 +1148,7 @@
         renderTable();
         setStatus(`Erro: ${err.message}`, true);
         document.getElementById("tableBody").innerHTML =
-          `<tr><td colspan="6" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+          `<tr><td colspan="7" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
       } finally {
         document.getElementById("btnReload").disabled = false;
         document.getElementById("btnExcel").disabled = false;
