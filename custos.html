@@ -322,8 +322,39 @@
 
     .hero-stats {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
+    }
+
+    .stat.alert {
+      border-color: rgba(224, 49, 49, 0.35);
+      background: linear-gradient(180deg, #fff8f8 0%, #ffffff 100%);
+    }
+
+    .stat.alert .lab { color: #c92a2a; }
+    .stat.alert .val { color: #c92a2a; }
+
+    .stat.alert.ok {
+      border-color: rgba(31, 122, 31, 0.28);
+      background: linear-gradient(180deg, #f4fbf4 0%, #ffffff 100%);
+    }
+
+    .stat.alert.ok .lab,
+    .stat.alert.ok .val { color: #1f7a1f; }
+
+    .stat.clickable {
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .stat.clickable:hover {
+      box-shadow: 0 10px 28px rgba(15, 40, 70, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .stat.clickable.active {
+      outline: 2px solid rgba(75, 46, 131, 0.45);
+      outline-offset: 1px;
     }
 
     .stat {
@@ -499,7 +530,7 @@
     .status.err { color: #e03131; }
 
     @media (max-width: 980px) {
-      .hero-stats { grid-template-columns: 1fr; }
+      .hero-stats { grid-template-columns: 1fr 1fr; }
       .table-wrap { max-height: none; }
     }
   </style>
@@ -537,6 +568,16 @@
       <div class="stat">
         <div class="lab">Valor em custo</div>
         <div class="val" id="kpiCusto">—</div>
+      </div>
+      <div
+        class="stat alert clickable"
+        id="kpiSemVendaCard"
+        title="Clique para filtrar itens com saldo e sem preço de venda"
+        role="button"
+        tabindex="0"
+      >
+        <div class="lab">Saldo sem venda</div>
+        <div class="val" id="kpiSemVenda">0</div>
       </div>
     </section>
 
@@ -591,6 +632,7 @@
     const API_URL = SkylineDash.API_LISTA_PRECOS;
     let allRows = [];
     let viewRows = [];
+    let filterSemVenda = false;
 
     function escapeHtml(s) {
       return String(s ?? "")
@@ -668,8 +710,51 @@
       return null;
     }
 
+    function pickVendaValue(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const exact = [
+        "Preco Venda (Tabela 1)",
+        "Preço Venda (Tabela 1)",
+        "Preco Tabela 1",
+        "Preço Tabela 1",
+        "preco_venda_tabela_1",
+        "preco_tabela_1",
+        "PrecoTabela1",
+        "Preco Venda (Credito)",
+        "Preço Venda (Credito)",
+        "Preco Credito",
+        "preco_credito",
+        "PrecoCredito"
+      ];
+      for (const key of exact) {
+        if (Object.prototype.hasOwnProperty.call(raw, key) && raw[key] != null && raw[key] !== "") {
+          return raw[key];
+        }
+      }
+      for (const [key, value] of Object.entries(raw)) {
+        if (value == null || value === "") continue;
+        const nk = normFieldKey(key);
+        if (
+          nk === "precovendatabela1" ||
+          nk === "precotabela1" ||
+          nk === "precovendacredito" ||
+          nk === "precocredito" ||
+          (nk.includes("precovenda") && (nk.includes("tabela") || nk.includes("credito")))
+        ) {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    function hasSaldoSemVenda(r) {
+      const saldo = Number.isFinite(r.saldo) ? r.saldo : 0;
+      return saldo > 0 && r.venda == null;
+    }
+
     function mapRow(raw) {
       const custo = parseMoney(pickCustoValue(raw));
+      const venda = parseMoney(pickVendaValue(raw));
       const saldo = parseSaldo(
         raw.Saldo_Principal ?? raw.saldo_principal ?? raw.Saldo ?? raw.saldo ?? raw.ESTOQUE ?? raw.estoque
       );
@@ -681,7 +766,8 @@
         marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
         qualidade: resolveQualidade(raw),
         saldo,
-        custo
+        custo,
+        venda
       };
     }
 
@@ -848,6 +934,7 @@
       const qualidades = selectedValues("filterQualidade");
 
       const filtered = allRows.filter((r) => {
+        if (filterSemVenda && !hasSaldoSemVenda(r)) return false;
         if (marcas.length && !marcas.includes(r.marca)) return false;
         if (qualidades.length && !qualidades.includes(r.qualidade)) return false;
         if (!q) return true;
@@ -863,7 +950,12 @@
 
     function hasActiveFilter() {
       const q = String(document.getElementById("filterSearch").value || "").trim();
-      return Boolean(q) || selectedValues("filterMarca").length > 0 || selectedValues("filterQualidade").length > 0;
+      return (
+        Boolean(q) ||
+        filterSemVenda ||
+        selectedValues("filterMarca").length > 0 ||
+        selectedValues("filterQualidade").length > 0
+      );
     }
 
     function formatCountPair(visible, total) {
@@ -893,12 +985,21 @@
       const visibleItens = viewRows.length;
       const saldoAll = allRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
       const saldoView = viewRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
+      const semVendaAll = allRows.filter(hasSaldoSemVenda).length;
+      const semVendaView = viewRows.filter(hasSaldoSemVenda).length;
       document.getElementById("kpiTotal").textContent = formatCountPair(visibleItens, totalItens);
       document.getElementById("kpiSaldo").textContent = formatCountPair(saldoView, saldoAll);
       document.getElementById("kpiCusto").textContent = formatMoneyPair(
         sumCustoEstoque(viewRows),
         sumCustoEstoque(allRows)
       );
+      const kpiSem = document.getElementById("kpiSemVenda");
+      const card = document.getElementById("kpiSemVendaCard");
+      kpiSem.textContent = hasActiveFilter() && !filterSemVenda
+        ? formatCountPair(semVendaView, semVendaAll)
+        : String(semVendaAll);
+      card.classList.toggle("ok", semVendaAll === 0);
+      card.classList.toggle("active", filterSemVenda);
     }
 
     function renderTable() {
@@ -1037,6 +1138,17 @@
     document.getElementById("btnExcel").addEventListener("click", downloadExcel);
     document.getElementById("filterSearch").addEventListener("input", applyFilter);
     document.getElementById("filterSort").addEventListener("change", applyFilter);
+    document.getElementById("kpiSemVendaCard").addEventListener("click", () => {
+      filterSemVenda = !filterSemVenda;
+      applyFilter();
+    });
+    document.getElementById("kpiSemVendaCard").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        filterSemVenda = !filterSemVenda;
+        applyFilter();
+      }
+    });
     document.addEventListener("click", () => closeAllMultiDd());
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeAllMultiDd();
