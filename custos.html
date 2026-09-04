@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="skyline-auth.js?v=6"></script>
+  <title>Custos — Skyline Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=81"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-2: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #f7f9fc;
+      --line: rgba(15, 40, 70, 0.12);
+      --text: #15202b;
+      --muted: #5b6b7f;
+      --cyan: #0b8ec4;
+      --soft: rgba(15, 40, 70, 0.04);
+      --radius: 14px;
+      --shadow: 0 8px 28px rgba(15, 40, 70, 0.08);
+      --font-display: "Orbitron", sans-serif;
+      --font-body: "Exo 2", sans-serif;
+      --purple: #4b2e83;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(75, 46, 131, 0.08), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgba(11, 142, 196, 0.05), transparent 50%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 14px 20px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 4px 18px rgba(15, 40, 70, 0.04);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-block img {
+      height: 34px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-text {
+      display: grid;
+      gap: 2px;
+    }
+
+    .brand-text strong {
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--purple);
+    }
+
+    .brand-text span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .search-box input {
+      flex: 1;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+      font-size: 0.95rem;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: rgba(75, 46, 131, 0.45);
+      box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12);
+    }
+
+    .btn {
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4b2e83, #7c5cbf);
+      color: #ffffff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .main {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 18px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filters-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+
+    .filters-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 4px;
+      min-width: 180px;
+    }
+
+    .filter-field > span,
+    .filter-field > label {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .filter-field select {
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
+
+    .multi-dd {
+      position: relative;
+      min-width: 200px;
+    }
+
+    .multi-dd-btn {
+      width: 100%;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 36px 0 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .multi-dd-btn::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: translateY(-60%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    .multi-dd.open .multi-dd-btn {
+      border-color: rgba(75, 46, 131, 0.45);
+      box-shadow: 0 0 0 3px rgba(75, 46, 131, 0.12);
+    }
+
+    .multi-dd-btn .multi-dd-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .multi-dd-btn .multi-dd-label.is-placeholder {
+      color: var(--muted);
+    }
+
+    .multi-dd-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: 30;
+      max-height: 260px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 12px 28px rgba(15, 40, 70, 0.14);
+      padding: 8px;
+    }
+
+    .multi-dd.open .multi-dd-menu {
+      display: grid;
+      gap: 2px;
+    }
+
+    .multi-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .multi-dd-item:hover {
+      background: rgba(75, 46, 131, 0.08);
+    }
+
+    .multi-dd-item input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--purple);
+      margin: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .multi-dd-empty {
+      padding: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .multi-dd-actions {
+      display: flex;
+      gap: 8px;
+      padding: 6px 4px 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 4px;
+    }
+
+    .multi-dd-actions button {
+      border: 0;
+      background: transparent;
+      color: var(--purple);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+
+    .stat .lab {
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat .val {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: 0.03em;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .sheet-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 4px 14px;
+    }
+
+    .sheet-brand img {
+      height: 36px;
+      width: auto;
+      display: block;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      flex: 1;
+      min-height: 360px;
+      max-height: calc(100vh - 320px);
+      border: 1px solid #d9d2e8;
+      border-radius: 8px;
+      background: #fff;
+      isolation: isolate;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.84rem;
+    }
+
+    th, td {
+      text-align: center;
+      padding: 10px 12px;
+      border-right: 1px solid #d9d2e8;
+      border-bottom: 1px solid #d9d2e8;
+      vertical-align: middle;
+    }
+
+    th:first-child,
+    td:first-child {
+      border-left: 1px solid #d9d2e8;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #4b2e83;
+      background-clip: padding-box;
+      color: #ffffff;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 800;
+      white-space: nowrap;
+      border-top: 1px solid #4b2e83;
+      border-bottom: 1px solid #3a2268;
+      box-shadow: 0 2px 0 #4b2e83;
+    }
+
+    tbody td {
+      position: relative;
+      z-index: 0;
+      background: #ffffff;
+      color: #2b2438;
+    }
+
+    td.sku {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    td.desc {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td.money {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      white-space: nowrap;
+      color: #4b2e83;
+    }
+
+    td.saldo {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    td.grade-a {
+      background: #d9f2d0;
+      color: #1f7a1f;
+      font-weight: 800;
+    }
+
+    td.grade-b {
+      background: #d6e8fb;
+      color: #1f4f9a;
+      font-weight: 800;
+    }
+
+    td.grade-bom {
+      background: #ebe4f7;
+      color: #5b3d8f;
+      font-weight: 800;
+    }
+
+    td.grade-outlet {
+      background: #fde7c7;
+      color: #c45a12;
+      font-weight: 800;
+    }
+
+    tr:hover td:not([class*="grade-"]) { background: #f7f3fc; }
+
+    .empty, .loading, .error {
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+      border: 0 !important;
+    }
+
+    .error { color: #e03131; }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+
+    .status.err { color: #e03131; }
+
+    @media (max-width: 980px) {
+      .hero-stats { grid-template-columns: 1fr; }
+      .table-wrap { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="main">
+    <div class="top-row">
+      <a class="btn ghost" href="menu.html" style="display:inline-flex;align-items:center;text-decoration:none">← Menu</a>
+      <div class="search-box" style="flex:1;min-width:240px">
+        <input
+          id="filterSearch"
+          type="search"
+          placeholder="Buscar SKU, produto, marca ou qualidade…"
+          autocomplete="off"
+        />
+        <button class="btn" type="button" id="btnReload">Atualizar</button>
+        <button class="btn ghost" type="button" id="btnExcel" title="Baixar planilha (.xlsx)">
+          Excel
+        </button>
+      </div>
+      <div class="status" id="metaStamp" style="margin:0">—</div>
+    </div>
+
+    <div class="status" id="statusMsg">Carregando…</div>
+
+    <section class="hero-stats">
+      <div class="stat">
+        <div class="lab">Itens listados</div>
+        <div class="val" id="kpiTotal">0/0</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Saldo total</div>
+        <div class="val" id="kpiSaldo">0/0</div>
+      </div>
+      <div class="stat">
+        <div class="lab">Valor em custo</div>
+        <div class="val" id="kpiCusto">—</div>
+      </div>
+    </section>
+
+    <section class="filters-panel" aria-label="Filtros">
+      <div class="filters-row">
+        <div class="filter-field">
+          <span>Marca</span>
+          <div class="multi-dd" id="filterMarca" data-placeholder="Todas as marcas"></div>
+        </div>
+        <div class="filter-field">
+          <span>Qualidade</span>
+          <div class="multi-dd" id="filterQualidade" data-placeholder="Todas as qualidades"></div>
+        </div>
+        <div class="filter-field">
+          <label for="filterSort">Ordenar por</label>
+          <select id="filterSort">
+            <option value="marca">Marca · A–Z</option>
+            <option value="descricao">Descrição · A–Z</option>
+            <option value="sku">SKU · A–Z</option>
+            <option value="qualidade">Qualidade · A–Z</option>
+            <option value="saldo_desc">Saldo · maior</option>
+            <option value="saldo_asc">Saldo · menor</option>
+            <option value="custo_desc">Custo · maior</option>
+            <option value="custo_asc">Custo · menor</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Produto</th>
+              <th>Marca</th>
+              <th>Qualidade</th>
+              <th>Saldo_Principal</th>
+              <th>Custo</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="6" class="loading">Carregando lista…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API_URL = SkylineDash.API_LISTA_PRECOS;
+    let allRows = [];
+    let viewRows = [];
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function parseMoney(v) {
+      if (v == null || v === "") return null;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      let s = String(v).trim().replace(/R\$\s?/gi, "").replace(/\s/g, "");
+      if (!s) return null;
+      if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+      else if (s.includes(",")) s = s.replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatMoney(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function parseSaldo(v) {
+      if (v == null || v === "") return null;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      const n = Number(String(v).trim().replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function qualidadeFromProduto(produto) {
+      const s = String(produto || "").trim();
+      const m = s.match(/\s-\s(EXCELENTE|MUITO BOM|BOM|OUTLET)\s*$/i);
+      return m ? m[1].toUpperCase() : "";
+    }
+
+    function resolveQualidade(raw) {
+      const fromField = String(raw.Qualidade ?? raw.qualidade ?? "").trim();
+      if (fromField) return fromField;
+      return qualidadeFromProduto(raw.Produto ?? raw.produto ?? raw.descricao) || "—";
+    }
+
+    function normFieldKey(key) {
+      return String(key || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "");
+    }
+
+    function pickCustoValue(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const exact = [
+        "Preco Custo",
+        "Preço Custo",
+        "preco_custo",
+        "PrecoCusto",
+        "custo",
+        "Custo"
+      ];
+      for (const key of exact) {
+        if (Object.prototype.hasOwnProperty.call(raw, key) && raw[key] != null && raw[key] !== "") {
+          return raw[key];
+        }
+      }
+      for (const [key, value] of Object.entries(raw)) {
+        if (value == null || value === "") continue;
+        const nk = normFieldKey(key);
+        if (nk === "precocusto" || nk === "custo" || (nk.includes("preco") && nk.includes("custo"))) {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    function mapRow(raw) {
+      const custo = parseMoney(pickCustoValue(raw));
+      const saldo = parseSaldo(
+        raw.Saldo_Principal ?? raw.saldo_principal ?? raw.Saldo ?? raw.saldo ?? raw.ESTOQUE ?? raw.estoque
+      );
+      const produto = String(raw.Produto ?? raw.produto ?? raw.descricao ?? "").trim();
+      return {
+        sku: String(raw.SKU ?? raw.sku ?? "").trim(),
+        descricao: produto || "—",
+        produtoFull: produto,
+        marca: String(raw.Marca ?? raw.marca ?? "").trim() || "—",
+        qualidade: resolveQualidade(raw),
+        saldo,
+        custo
+      };
+    }
+
+    function gradeClass(qualidade) {
+      const k = String(qualidade || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      if (!k || k === "—") return "";
+      if (k.includes("outlet")) return "grade-outlet";
+      if (k.includes("excelente") || k.includes("grade a") || k.includes("premium a")) return "grade-a";
+      if (k.includes("muito bom") || k.includes("grade b") || k.includes("premium b")) return "grade-b";
+      if (k === "bom" || k.includes("grade c") || /(^|\s)bom(\s|$)/.test(k)) return "grade-bom";
+      return "";
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById("statusMsg");
+      el.textContent = msg || "";
+      el.classList.toggle("err", Boolean(isError));
+    }
+
+    function updateMultiDdLabel(root) {
+      const label = root.querySelector(".multi-dd-label");
+      if (!label) return;
+      const selected = [...root.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value);
+      const placeholder = root.dataset.placeholder || "Todas";
+      if (!selected.length) {
+        label.textContent = placeholder;
+        label.classList.add("is-placeholder");
+        return;
+      }
+      label.classList.remove("is-placeholder");
+      if (selected.length === 1) label.textContent = selected[0];
+      else if (selected.length <= 3) label.textContent = selected.join(", ");
+      else label.textContent = `${selected.length} selecionadas`;
+    }
+
+    function closeAllMultiDd(except = null) {
+      document.querySelectorAll(".multi-dd.open").forEach((el) => {
+        if (el !== except) el.classList.remove("open");
+      });
+    }
+
+    function fillMultiDd(id, values) {
+      const root = document.getElementById(id);
+      const prev = new Set(
+        [...root.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value)
+      );
+      const sorted = [...new Set(values.filter((v) => v && v !== "—"))]
+        .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+      const placeholder = root.dataset.placeholder || "Todas";
+
+      const optionsHtml = sorted.length
+        ? sorted.map((v) => {
+            const checked = prev.has(v) ? " checked" : "";
+            return `<label class="multi-dd-item">
+              <input type="checkbox" value="${escapeHtml(v)}"${checked} />
+              <span>${escapeHtml(v)}</span>
+            </label>`;
+          }).join("")
+        : `<div class="multi-dd-empty">Sem opções</div>`;
+
+      root.innerHTML = `
+        <button type="button" class="multi-dd-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="multi-dd-label is-placeholder">${escapeHtml(placeholder)}</span>
+        </button>
+        <div class="multi-dd-menu" role="listbox">
+          <div class="multi-dd-actions">
+            <button type="button" data-action="all">Marcar todas</button>
+            <button type="button" data-action="clear">Limpar</button>
+          </div>
+          ${optionsHtml}
+        </div>
+      `;
+
+      const btn = root.querySelector(".multi-dd-btn");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const willOpen = !root.classList.contains("open");
+        closeAllMultiDd(root);
+        root.classList.toggle("open", willOpen);
+        btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      });
+
+      root.querySelector(".multi-dd-menu").addEventListener("click", (e) => e.stopPropagation());
+
+      root.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          updateMultiDdLabel(root);
+          applyFilter();
+        });
+      });
+
+      root.querySelector('[data-action="all"]')?.addEventListener("click", () => {
+        root.querySelectorAll('input[type="checkbox"]').forEach((i) => { i.checked = true; });
+        updateMultiDdLabel(root);
+        applyFilter();
+      });
+      root.querySelector('[data-action="clear"]')?.addEventListener("click", () => {
+        root.querySelectorAll('input[type="checkbox"]').forEach((i) => { i.checked = false; });
+        updateMultiDdLabel(root);
+        applyFilter();
+      });
+
+      updateMultiDdLabel(root);
+    }
+
+    function selectedValues(id) {
+      return [...document.querySelectorAll(`#${id} input[type="checkbox"]:checked`)]
+        .map((i) => i.value);
+    }
+
+    function fillFilterOptions() {
+      fillMultiDd("filterMarca", allRows.map((r) => r.marca));
+      fillMultiDd("filterQualidade", allRows.map((r) => r.qualidade));
+    }
+
+    function cmpText(a, b) {
+      return String(a || "").localeCompare(String(b || ""), "pt-BR", { sensitivity: "base", numeric: true });
+    }
+
+    function cmpNum(a, b, dir) {
+      const na = Number.isFinite(a) ? a : (dir > 0 ? Infinity : -Infinity);
+      const nb = Number.isFinite(b) ? b : (dir > 0 ? Infinity : -Infinity);
+      return (na - nb) * dir;
+    }
+
+    function sortRows(rows) {
+      const mode = document.getElementById("filterSort").value || "marca";
+      const list = [...rows];
+      list.sort((a, b) => {
+        switch (mode) {
+          case "descricao":
+            return cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
+          case "sku":
+            return cmpText(a.sku, b.sku);
+          case "qualidade":
+            return cmpText(a.qualidade, b.qualidade) || cmpText(a.descricao, b.descricao);
+          case "saldo_desc":
+            return cmpNum(a.saldo, b.saldo, -1) || cmpText(a.descricao, b.descricao);
+          case "saldo_asc":
+            return cmpNum(a.saldo, b.saldo, 1) || cmpText(a.descricao, b.descricao);
+          case "custo_desc":
+            return cmpNum(a.custo, b.custo, -1) || cmpText(a.descricao, b.descricao);
+          case "custo_asc":
+            return cmpNum(a.custo, b.custo, 1) || cmpText(a.descricao, b.descricao);
+          case "marca":
+          default:
+            return cmpText(a.marca, b.marca) || cmpText(a.descricao, b.descricao) || cmpText(a.sku, b.sku);
+        }
+      });
+      return list;
+    }
+
+    function applyFilter() {
+      const q = String(document.getElementById("filterSearch").value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      const marcas = selectedValues("filterMarca");
+      const qualidades = selectedValues("filterQualidade");
+
+      const filtered = allRows.filter((r) => {
+        if (marcas.length && !marcas.includes(r.marca)) return false;
+        if (qualidades.length && !qualidades.includes(r.qualidade)) return false;
+        if (!q) return true;
+        const blob = `${r.sku} ${r.descricao} ${r.marca} ${r.qualidade} ${r.produtoFull}`
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        return blob.includes(q);
+      });
+      viewRows = sortRows(filtered);
+      renderTable();
+    }
+
+    function hasActiveFilter() {
+      const q = String(document.getElementById("filterSearch").value || "").trim();
+      return Boolean(q) || selectedValues("filterMarca").length > 0 || selectedValues("filterQualidade").length > 0;
+    }
+
+    function formatCountPair(visible, total) {
+      const v = Number(visible) || 0;
+      const t = Number(total) || 0;
+      if (hasActiveFilter()) return `${v} de ${t}`;
+      return `${v}/${t}`;
+    }
+
+    function sumCustoEstoque(rows) {
+      return rows.reduce((sum, r) => {
+        const saldo = Number.isFinite(r.saldo) ? r.saldo : 0;
+        const custo = Number.isFinite(r.custo) ? r.custo : 0;
+        return sum + saldo * custo;
+      }, 0);
+    }
+
+    function formatMoneyPair(visible, total) {
+      if (hasActiveFilter()) {
+        return `${formatMoney(visible)} · total ${formatMoney(total)}`;
+      }
+      return formatMoney(visible);
+    }
+
+    function renderKpis() {
+      const totalItens = allRows.length;
+      const visibleItens = viewRows.length;
+      const saldoAll = allRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
+      const saldoView = viewRows.reduce((sum, r) => sum + (Number.isFinite(r.saldo) ? r.saldo : 0), 0);
+      document.getElementById("kpiTotal").textContent = formatCountPair(visibleItens, totalItens);
+      document.getElementById("kpiSaldo").textContent = formatCountPair(saldoView, saldoAll);
+      document.getElementById("kpiCusto").textContent = formatMoneyPair(
+        sumCustoEstoque(viewRows),
+        sumCustoEstoque(allRows)
+      );
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("tableBody");
+      renderKpis();
+      if (!viewRows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">${
+          allRows.length ? "Nenhum item no filtro." : "Sem itens de custo."
+        }</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = viewRows.map((r) => {
+        const gClass = gradeClass(r.qualidade);
+        const saldoTxt = r.saldo == null ? "—" : String(r.saldo);
+        return `
+        <tr>
+          <td class="sku">${escapeHtml(r.sku || "—")}</td>
+          <td class="desc">${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.marca)}</td>
+          <td class="${gClass}">${escapeHtml(r.qualidade)}</td>
+          <td class="saldo">${escapeHtml(saldoTxt)}</td>
+          <td class="money">${escapeHtml(formatMoney(r.custo))}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function xmlEscape(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function excelCellText(value, styleId) {
+      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+      return `<Cell${style}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+    }
+
+    function excelCellNumber(value, styleId) {
+      if (value == null || !Number.isFinite(value)) return excelCellText("", styleId);
+      const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+      return `<Cell${style}><Data ss:Type="Number">${value}</Data></Cell>`;
+    }
+
+    function gradeExcelStyle(qualidade) {
+      const cls = gradeClass(qualidade);
+      if (cls === "grade-a") return "GradeA";
+      if (cls === "grade-b") return "GradeB";
+      if (cls === "grade-bom") return "GradeBom";
+      if (cls === "grade-outlet") return "GradeOutlet";
+      return "Body";
+    }
+
+    function downloadExcel() {
+      const rows = viewRows.length ? viewRows : allRows;
+      if (!rows.length) {
+        alert("Nenhum item para exportar.");
+        return;
+      }
+      const header = ["SKU","Produto","Marca","Qualidade","Saldo_Principal","Custo"]
+        .map((h) => excelCellText(h, "Header")).join("");
+      const body = rows.map((r) => `<Row>${[
+        excelCellText(r.sku, "BodyLeft"),
+        excelCellText(r.descricao, "BodyLeft"),
+        excelCellText(r.marca, "Body"),
+        excelCellText(r.qualidade, gradeExcelStyle(r.qualidade)),
+        excelCellNumber(r.saldo, "Body"),
+        excelCellNumber(r.custo, "Money")
+      ].join("")}</Row>`).join("");
+      const stamp = new Date().toISOString().slice(0, 10);
+      const filename = `custos-${stamp}.xls`;
+      const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#4B2E83" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
+  <Style ss:ID="Body"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
+  <Style ss:ID="BodyLeft"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style>
+  <Style ss:ID="Money"><NumberFormat ss:Format="R$ #,##0.00"/><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#4B2E83"/></Style>
+  <Style ss:ID="GradeA"><Font ss:Bold="1" ss:Color="#1F7A1F"/><Interior ss:Color="#D9F2D0" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="GradeB"><Font ss:Bold="1" ss:Color="#1F4F9A"/><Interior ss:Color="#D6E8FB" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="GradeBom"><Font ss:Bold="1" ss:Color="#5B3D8F"/><Interior ss:Color="#EBE4F7" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="GradeOutlet"><Font ss:Bold="1" ss:Color="#C45A12"/><Interior ss:Color="#FDE7C7" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Custos">
+  <Table>
+   <Row ss:Height="28">${header}</Row>
+   ${body}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+      const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+
+    async function loadData() {
+      setStatus("Carregando custos…");
+      document.getElementById("btnReload").disabled = true;
+      document.getElementById("btnExcel").disabled = true;
+      try {
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { force: true });
+        const rawRows = SkylineDash.normalizeRows(json);
+        allRows = rawRows
+          .map(mapRow)
+          .filter((r) => r.sku || r.descricao !== "—");
+        document.getElementById("metaStamp").textContent =
+          `${allRows.length} item(ns) · webhook listaprecos · ${new Date().toLocaleString("pt-BR")}`;
+        fillFilterOptions();
+        applyFilter();
+        setStatus(`${allRows.length} item(ns) carregado(s).`);
+        SkylineDash.markRefresh?.();
+      } catch (err) {
+        allRows = [];
+        viewRows = [];
+        fillFilterOptions();
+        renderTable();
+        setStatus(`Erro: ${err.message}`, true);
+        document.getElementById("tableBody").innerHTML =
+          `<tr><td colspan="6" class="error">Falha ao carregar: ${escapeHtml(err.message)}</td></tr>`;
+      } finally {
+        document.getElementById("btnReload").disabled = false;
+        document.getElementById("btnExcel").disabled = false;
+      }
+    }
+
+    document.getElementById("btnReload").addEventListener("click", loadData);
+    document.getElementById("btnExcel").addEventListener("click", downloadExcel);
+    document.getElementById("filterSearch").addEventListener("input", applyFilter);
+    document.getElementById("filterSort").addEventListener("change", applyFilter);
+    document.addEventListener("click", () => closeAllMultiDd());
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllMultiDd();
+    });
+
+    if (typeof SkylineVersion !== "undefined") SkylineVersion.start(60000);
+    loadData();
+  </script>
+</body>
+</html>
