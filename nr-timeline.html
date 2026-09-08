@@ -1167,7 +1167,7 @@
         <button class="btn" type="submit">Rastrear</button>
         <button class="btn ghost" type="button" id="btnRefresh">Atualizar</button>
         <button class="btn ghost" type="button" id="btnPrintNrAprovados" title="Relatório dos aparelhos com CQE aprovado">Relatório CQE</button>
-        <button class="btn ghost" type="button" id="btnExcelNrAprovados" title="Exportar Excel dos aparelhos com CQE aprovado">Excel CQE</button>
+        <button class="btn ghost" type="button" id="btnExcelNrAprovados" title="Exportar Excel de todos os aparelhos da busca (com NR)">Excel NR</button>
       </form>
       <div class="meta-right">
         <strong>MISSION NR</strong>
@@ -2068,6 +2068,16 @@
         });
     }
 
+    function listNrExcelDevices(devices) {
+      return (Array.isArray(devices) ? devices : [])
+        .slice()
+        .sort((a, b) => {
+          const nr = String(a.numero || "").localeCompare(String(b.numero || ""), "pt-BR");
+          if (nr) return nr;
+          return String(a.serial || "").localeCompare(String(b.serial || ""), "pt-BR");
+        });
+    }
+
     function buildNrAprovadoExcelRow(device) {
       const aq = Number(device.custoAquisicao);
       const pecas = reportPecaValor(device.custoPecas);
@@ -2076,6 +2086,7 @@
         ? Math.round(totalParts.reduce((a, b) => a + b, 0) * 100) / 100
         : null;
       return {
+        nr: device.numero || "",
         imei: device.serial || "",
         modelo: device.descricao || "",
         sku: device.prod_cprod || "",
@@ -2084,8 +2095,7 @@
         pecas: formatPecasSolicitadasReport(device),
         custoAquisicao: Number.isFinite(aq) ? aq : null,
         custoPecas: Number.isFinite(pecas) ? pecas : null,
-        custoTotal: Number.isFinite(total) ? total : null,
-        nr: device.numero || ""
+        custoTotal: Number.isFinite(total) ? total : null
       };
     }
 
@@ -2110,13 +2120,14 @@
     }
 
     function downloadNrAprovadosExcel(devices) {
-      const rows = listNrAprovados(devices).map(buildNrAprovadoExcelRow);
+      const rows = listNrExcelDevices(devices).map(buildNrAprovadoExcelRow);
       if (!rows.length) {
-        alert("Nenhum aparelho com CQE = Aprovado nesta busca.");
+        alert("Nenhum aparelho nesta busca para exportar.");
         return;
       }
 
       const header = [
+        "NR",
         "IMEI",
         "Modelo",
         "SKU",
@@ -2130,6 +2141,7 @@
 
       const body = rows.map((r) => {
         const cells = [
+          excelCellText(r.nr),
           excelCellText(r.imei),
           excelCellText(r.modelo),
           excelCellText(r.sku),
@@ -2148,7 +2160,7 @@
         .replace(/,/g, "-")
         .slice(0, 80) || "nr";
       const stamp = new Date().toISOString().slice(0, 10);
-      const filename = `relatorio-cqe-aprovados-${nrSlug}-${stamp}.xls`;
+      const filename = `relatorio-nr-${nrSlug}-${stamp}.xls`;
 
       const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -2158,7 +2170,7 @@
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:html="http://www.w3.org/TR/REC-html40">
  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Title>Relatório CQE Aprovados</Title>
+  <Title>Relatório NR Timeline</Title>
   <Author>Skyline Mission Control</Author>
  </DocumentProperties>
  <Styles>
@@ -2170,8 +2182,9 @@
    <NumberFormat ss:Format="R$ #,##0.00"/>
   </Style>
  </Styles>
- <Worksheet ss:Name="CQE Aprovados">
+ <Worksheet ss:Name="Aparelhos">
   <Table>
+   <Column ss:Width="80"/>
    <Column ss:Width="140"/>
    <Column ss:Width="200"/>
    <Column ss:Width="70"/>
