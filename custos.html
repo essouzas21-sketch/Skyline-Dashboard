@@ -1134,12 +1134,12 @@
         const rawRows = SkylineDash.normalizeRows(json);
         allRows = rawRows
           .map(mapRow)
-          .filter((r) => r.sku || r.descricao !== "—");
+          .filter((r) => /^CEL/i.test(String(r.sku || "").trim()));
         document.getElementById("metaStamp").textContent =
-          `${allRows.length} item(ns) · webhook listaprecos · ${new Date().toLocaleString("pt-BR")}`;
+          `${allRows.length} item(ns) CEL · webhook listaprecos · ${new Date().toLocaleString("pt-BR")}`;
         fillFilterOptions();
         applyFilter();
-        setStatus(`${allRows.length} item(ns) carregado(s).`);
+        setStatus(`${allRows.length} item(ns) CEL carregado(s).`);
         SkylineDash.markRefresh?.();
       } catch (err) {
         allRows = [];
