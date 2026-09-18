@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script src="skyline-auth.js?v=6"></script>
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Triagem</title>
+  <link rel="stylesheet" href="skyline-dash.css?v=12" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=79"></script>
+  <style>
+    :root {
+      --tr-page: #694992;
+      --tr-card: #ffffff;
+      --tr-border: rgba(105, 73, 146, 0.18);
+      --tr-text: #2d1f42;
+      --tr-muted: #6b5b7a;
+      --tr-primary: #694992;
+      --tr-accent: #8b6bb8;
+      --tr-green: #15803d;
+      --tr-red: #dc2626;
+      --tr-amber: #b45309;
+      --tr-surface: #faf8fc;
+      --tr-shadow: 0 4px 16px rgba(45, 31, 66, 0.16);
+      --tr-radius: 12px;
+    }
+
+    html, body.triagem-page.dash-page {
+      height: 100%;
+    }
+
+    body.triagem-page.dash-page {
+      background: var(--tr-page);
+      color: var(--tr-text);
+      padding: 6px 8px 8px;
+      box-sizing: border-box;
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      border: none;
+      margin: 0;
+    }
+
+    .triagem-page .page {
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .tr-topbar {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 10px;
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: var(--tr-radius);
+      padding: 6px 10px;
+      box-shadow: var(--tr-shadow);
+      flex: 0 0 auto;
+    }
+
+    .tr-topbar .title-block { flex: 1 1 auto; min-width: 0; }
+    .tr-topbar .back {
+      color: var(--tr-primary);
+      text-decoration: none;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+    .tr-topbar h1 {
+      margin: 1px 0 0;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .tr-topbar .subtitle {
+      margin: 1px 0 0;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tr-filters {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      max-width: min(520px, 55vw);
+    }
+    body.triagem-page.show-filters .tr-filters { display: flex; }
+    body.triagem-page.show-filters .tr-topbar { flex-wrap: wrap; align-items: flex-end; }
+
+    .tr-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+    }
+    .tr-filters input {
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--tr-border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--tr-text);
+    }
+
+    .tr-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+    .tr-actions button {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--tr-border);
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--tr-text);
+    }
+    .tr-actions button#btnFullscreen {
+      min-width: 36px;
+      padding: 0 10px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .tr-actions button.primary {
+      background: var(--tr-primary);
+      border-color: var(--tr-primary);
+      color: #fff;
+    }
+    .tr-actions button#btnToggleFilters.primary {
+      background: var(--tr-accent);
+      border-color: var(--tr-accent);
+    }
+
+    .triagem-page #statusMsg { display: none !important; }
+    .triagem-page .last-refresh { display: none !important; }
+
+    .tr-debug {
+      display: none;
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      background: #1e1430;
+      border: 1px solid #c4a8e8;
+      border-radius: 10px;
+      color: #f3eef9;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    body.triagem-debug .tr-debug { display: block; }
+    .tr-debug h2 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: #fde68a;
+    }
+    .tr-debug .dbg-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tr-debug .dbg-actions button {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #8b6bb8;
+      background: #694992;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .tr-debug .dbg-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tr-debug .dbg-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    .tr-debug .dbg-card .k { color: #c4a8e8; font-size: 0.62rem; text-transform: uppercase; }
+    .tr-debug .dbg-card .v { font-size: 1.05rem; font-weight: 800; }
+    .tr-debug pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      color: #e9dff5;
+    }
+    .tr-debug table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.68rem;
+    }
+    .tr-debug th, .tr-debug td {
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding: 3px 5px;
+      text-align: left;
+    }
+    .tr-debug th { color: #c4a8e8; }
+
+    .tr-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .tr-kpi {
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      box-shadow: var(--tr-shadow);
+      min-width: 0;
+    }
+    .tr-kpi .label {
+      font-size: 0.55rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tr-kpi .value {
+      margin-top: 1px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--tr-text);
+    }
+    .tr-kpi .hint {
+      margin-top: 1px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--tr-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tr-kpi .delta { font-weight: 800; }
+    .tr-kpi .delta.up { color: var(--tr-green); }
+    .tr-kpi .delta.down { color: var(--tr-red); }
+    .tr-kpi .delta.neutral { color: var(--tr-muted); }
+
+    .tr-mid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr minmax(200px, 22%);
+      gap: 6px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .tr-panel {
+      background: var(--tr-card);
+      border: 1px solid var(--tr-border);
+      border-radius: var(--tr-radius);
+      padding: 8px 10px;
+      box-shadow: var(--tr-shadow);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .tr-panel h2 {
+      margin: 0 0 4px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--tr-muted);
+      flex: 0 0 auto;
+    }
+    .tr-panel .chart-box {
+      flex: 1 1 0;
+      min-height: 0;
+      position: relative;
+      cursor: default;
+    }
+
+    .tr-alerts {
+      gap: 6px;
+      overflow: auto;
+    }
+    .tr-alert {
+      border-radius: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--tr-border);
+      background: var(--tr-surface);
+      margin-bottom: 6px;
+    }
+    .tr-alert.critical { border-color: rgba(220, 38, 38, 0.35); background: #fef2f2; }
+    .tr-alert.warn { border-color: rgba(180, 83, 9, 0.35); background: #fff7ed; }
+    .tr-alert.ok { border-color: rgba(21, 128, 61, 0.3); background: #f0fdf4; }
+    .tr-alert .title {
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--tr-text);
+    }
+    .tr-alert .body {
+      margin-top: 2px;
+      font-size: 0.68rem;
+      color: var(--tr-muted);
+      font-weight: 600;
+    }
+
+    .tr-bottom {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      flex: 0 0 26vh;
+      min-height: 140px;
+      max-height: 28vh;
+    }
+    .tr-bottom .tr-panel {
+      min-height: 0;
+      background: var(--tr-primary);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+    .tr-bottom .tr-panel h2 {
+      color: rgba(255, 255, 255, 0.88);
+    }
+    .tr-bottom .chart-box { min-height: 0; }
+
+    /* TV 50" / Full HD kiosk */
+    @media (min-width: 1400px) and (min-height: 800px) {
+      body.triagem-page.dash-page {
+        padding: 8px 10px 10px;
+      }
+      .triagem-page .page { gap: 8px; }
+      .tr-topbar { padding: 8px 12px; }
+      .tr-topbar .back { display: none; }
+      .tr-topbar h1 { font-size: 1.2rem; }
+      .tr-topbar .subtitle { font-size: 0.82rem; font-weight: 700; color: var(--tr-text); opacity: 0.78; }
+      .tr-actions button { height: 36px; font-size: 0.88rem; font-weight: 800; padding: 0 14px; }
+      .tr-kpi-row { gap: 8px; }
+      .tr-kpi { padding: 8px 12px; }
+      .tr-kpi .label { font-size: 0.62rem; }
+      .tr-kpi .value { font-size: 1.7rem; }
+      .tr-kpi .hint { font-size: 0.7rem; }
+      .tr-mid { gap: 8px; grid-template-columns: 1.25fr 1fr minmax(220px, 20%); }
+      .tr-panel { padding: 10px 12px; }
+      .tr-panel h2 { font-size: 0.78rem; margin-bottom: 6px; }
+      .tr-bottom { flex-basis: 24vh; max-height: 26vh; }
+      .tr-alert .title { font-size: 0.82rem; }
+      .tr-alert .body { font-size: 0.74rem; }
+    }
+
+    @media (min-width: 1100px) {
+      .tr-kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+    }
+    @media (max-width: 1099px) {
+      body.triagem-page.dash-page { height: auto; max-height: none; overflow: auto; }
+      .triagem-page .page { height: auto; overflow: visible; }
+      .tr-mid { grid-template-columns: 1fr 1fr; min-height: 240px; }
+      .tr-mid .tr-alerts { grid-column: 1 / -1; max-height: 140px; }
+      .tr-bottom { flex: none; height: 200px; max-height: none; }
+      .tr-panel .chart-box { min-height: 180px; }
+    }
+    @media (max-width: 720px) {
+      .tr-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tr-mid { grid-template-columns: 1fr; }
+    }
+
+    .tr-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 31, 66, 0.55);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .tr-modal-backdrop.open { display: flex; }
+    .tr-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: min(720px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    .tr-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--tr-border);
+    }
+    .tr-modal-head h3 {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--tr-text);
+    }
+    .tr-modal-head button {
+      border: none;
+      background: var(--tr-surface);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--tr-text);
+    }
+    .tr-modal-body { overflow: auto; padding: 0; }
+    .tr-modal-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+    }
+    .tr-modal-body th,
+    .tr-modal-body td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--tr-border);
+      text-align: left;
+      color: var(--tr-text);
+    }
+    .tr-modal-body th {
+      background: var(--tr-surface);
+      position: sticky;
+      top: 0;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--tr-muted);
+    }
+    .tr-modal-body td.mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .tr-modal-empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--tr-muted);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="dash-page triagem-page">
+  <div class="page">
+    <header class="tr-topbar">
+      <div class="title-block">
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>Triagem</h1>
+        <p class="subtitle" id="periodLabel">Carregando…</p>
+      </div>
+      <div class="tr-filters">
+        <label>Início <input type="date" id="dateStart" /></label>
+        <label>Fim <input type="date" id="dateEnd" /></label>
+      </div>
+      <div class="tr-actions">
+        <button type="button" id="btnToggleFilters" title="Mostrar/ocultar filtros">Filtros</button>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+        <button type="button" id="btnFullscreen" title="Tela cheia (F11)">⛶</button>
+      </div>
+    </header>
+
+    <div id="statusMsg" class="status" hidden></div>
+
+    <section class="tr-debug" id="triagemDebug" aria-live="polite">
+      <h2>DEBUG Triagem · regras vs números</h2>
+      <div class="dbg-actions">
+        <button type="button" id="dbgCopy">Copiar relatório</button>
+        <button type="button" id="dbgConsole">Log no console</button>
+        <button type="button" id="dbgReload">Recarregar + auditar</button>
+      </div>
+      <div class="dbg-grid" id="dbgKpis"></div>
+      <pre id="dbgBody">Aguardando carga…</pre>
+      <div id="dbgTables"></div>
+    </section>
+
+    <section class="tr-kpi-row">
+      <div class="tr-kpi">
+        <div class="label">Triados no período</div>
+        <div class="value" id="kpiTotal">0</div>
+        <div class="hint">OS distintas</div>
+      </div>
+      <div class="tr-kpi">
+        <div class="label">Triados hoje</div>
+        <div class="value" id="kpiHoje">0</div>
+        <div class="hint"><span class="delta neutral" id="kpiVsOntem">vs ontem —</span></div>
+      </div>
+      <div class="tr-kpi">
+        <div class="label">Ritmo / hora</div>
+        <div class="value" id="kpiRitmo">0</div>
+        <div class="hint" id="kpiRitmoHint">Média no expediente</div>
+      </div>
+      <div class="tr-kpi">
+        <div class="label">Colaboradores</div>
+        <div class="value" id="kpiUsers">0</div>
+        <div class="hint">Com triagem no período</div>
+      </div>
+    </section>
+
+    <section class="tr-mid">
+      <div class="tr-panel">
+        <h2>Top colaboradores</h2>
+        <div class="chart-box"><canvas id="chartUsers"></canvas></div>
+      </div>
+      <div class="tr-panel">
+        <h2>Principais marcas</h2>
+        <div class="chart-box"><canvas id="chartMarca"></canvas></div>
+      </div>
+      <aside class="tr-panel tr-alerts">
+        <h2>Alertas</h2>
+        <div id="alertsList"></div>
+      </aside>
+    </section>
+
+    <section class="tr-bottom">
+      <div class="tr-panel">
+        <h2>Triagens por hora · 08h–17h (horário local)</h2>
+        <div class="chart-box"><canvas id="chartHora"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tr-modal-backdrop" id="drillModal" role="dialog" aria-modal="true" aria-labelledby="drillTitle">
+    <div class="tr-modal">
+      <div class="tr-modal-head">
+        <h3 id="drillTitle">IMEIs</h3>
+        <button type="button" id="drillClose">Fechar</button>
+      </div>
+      <div class="tr-modal-body">
+        <table>
+          <thead>
+            <tr>
+              <th>IMEI</th>
+              <th>OS</th>
+              <th>Modelo</th>
+              <th>Data triagem</th>
+              <th>HU</th>
+            </tr>
+          </thead>
+          <tbody id="drillBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API_URL = SkylineDash.API_REPARO;
+    const DATE_FIELD = "data_triagem";
+    /** Triagem completa: reparo + gestão peças + limpeza. */
+    const ETAPAS = SkylineDash.ETAPAS_TRIAGEM;
+    /** Conta também Sankhya erro / outros (não exige sucesso). */
+    const REQUIRE_SANKHYA_SUCESSO = false;
+    const TOP_N = 8;
+    const HOUR_FROM = 7;
+    const HOUR_TO = 17;
+    const SKY = { primary: "#694992", accent: "#8b6bb8", green: "#15803d", red: "#dc2626" };
+    const statusEl = document.getElementById("statusMsg");
+    /** Máscara desligada — números reais. */
+    const APPLY_MASK = false;
+    const DEBUG_MODE = new URLSearchParams(location.search).get("debug") === "1";
+
+    /** Máscara + dados reais · ritmo oscilado · 62% Apple / 38% Samsung. */
+    const HOMOLOG_TECH_WEIGHTS = [
+      ["Alcione", 14],
+      ["Gustavo", 10],
+      ["Viviane F", 13],
+      ["Cleiton", 11],
+      ["Viviane P", 14]
+    ];
+    const HOMOLOG_TECHS = HOMOLOG_TECH_WEIGHTS.map(([name]) => name);
+    const HOMOLOG_APPLE_PCT = 0.62;
+    /** Totais da máscara por hora — alterna p/ não ficar 60 cravado (média ~60). */
+    const HOMOLOG_HOUR_TOTALS = [56, 64];
+
+    let allRows = [];
+    let lastRawPayload = [];
+    let lastDebugReport = null;
+    let chartUsers = null;
+    let chartMarca = null;
+    let chartHora = null;
+    let lastUserKeys = [];
+    let lastPeriodRows = [];
+
+    if (DEBUG_MODE) document.body.classList.add("triagem-debug");
+
+    function rejectReasonTriagem(raw) {
+      if (!raw || typeof raw !== "object") return "payload_invalido";
+      const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
+      if (!dataTriagem) return "sem_data_triagem";
+      const op = SkylineDash.resolveOperacao(raw);
+      if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
+      if (REQUIRE_SANKHYA_SUCESSO) {
+        const sankhya = raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null;
+        if (
+          sankhya != null &&
+          String(sankhya).trim() !== "" &&
+          String(sankhya).trim().toLowerCase() !== "sucesso"
+        ) {
+          return `sankhya_${String(sankhya).trim().toLowerCase()}`;
+        }
+      }
+      return null;
+    }
+
+    function countMap(entries) {
+      const m = new Map();
+      entries.forEach((k) => m.set(k, (m.get(k) || 0) + 1));
+      return [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    }
+
+    function buildTriagemDebugReport(rawList, mappedRows) {
+      const { start, end } = SkylineDash.getDateRange();
+      const hoje = SkylineDash.todayISO();
+      const reasons = [];
+      const ops = [];
+      const acceptedRaw = [];
+      rawList.forEach((raw) => {
+        const why = rejectReasonTriagem(raw);
+        ops.push(SkylineDash.resolveOperacao(raw) || "(vazia)");
+        if (why) reasons.push(why);
+        else acceptedRaw.push(raw);
+      });
+
+      const mapped = mappedRows || acceptedRaw.map(mapRow).filter((r) => r.data_triagem);
+      const withDupesPeriod = start && end
+        ? SkylineDash.filterByDateField(mapped, start, end, DATE_FIELD)
+        : [];
+      const periodDistinct = SkylineDash.distinctById(withDupesPeriod, "id");
+      const hojeDupes = SkylineDash.filterByDateField(mapped, hoje, hoje, DATE_FIELD);
+      const hojeDistinct = SkylineDash.distinctById(hojeDupes, "id");
+
+      const dupIds = (() => {
+        const seen = new Map();
+        withDupesPeriod.forEach((r) => {
+          const id = r.id != null ? String(r.id).trim() : "";
+          if (!id) return;
+          seen.set(id, (seen.get(id) || 0) + 1);
+        });
+        return [...seen.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+      })();
+
+      const byUserPeriod = SkylineDash.aggregateCount(periodDistinct, (r) => r.usuario).slice(0, 15);
+      const byUserHoje = SkylineDash.aggregateCount(hojeDistinct, (r) => r.usuario).slice(0, 15);
+      const byOp = countMap(ops).slice(0, 12);
+      const byReason = countMap(reasons);
+
+      const sampleOk = periodDistinct.slice(0, 8).map((r) => ({
+        id: r.id,
+        data: r.data_triagem,
+        user: r.usuario,
+        serial: r.serial,
+        modelo: String(r.descricao || "").slice(0, 40)
+      }));
+      const sampleReject = [];
+      for (const raw of rawList) {
+        if (sampleReject.length >= 8) break;
+        const why = rejectReasonTriagem(raw);
+        if (!why) continue;
+        sampleReject.push({
+          id: raw.id ?? null,
+          why,
+          op: SkylineDash.resolveOperacao(raw) || "",
+          data: raw["Data Triagem"] || raw.data_triagem || null,
+          sankhya: raw.STATUS_SANKHYA ?? raw.status_sankhya ?? null,
+          user: raw["Usuário triagem"] || raw["Usuário reparo"] || null
+        });
+      }
+
+      return {
+        gerado_em: new Date().toISOString(),
+        api: API_URL,
+        mascara: APPLY_MASK,
+        regras: {
+          fonte: "API_REPARO (webhook/fi)",
+          data: "Data Triagem",
+          operacoes: [...ETAPAS],
+          sankhya: REQUIRE_SANKHYA_SUCESSO
+            ? "se preenchido, só 'sucesso'"
+            : "ignorado (conta sucesso, erro e vazio)",
+          periodo: "filterByDateField(data_triagem)",
+          dedupe: "distinctById(id) — 1 contagem por OS"
+        },
+        periodo: { start, end, hoje },
+        funil: {
+          raw_api: rawList.length,
+          aceitos_raw: acceptedRaw.length,
+          rejeitados_raw: rawList.length - acceptedRaw.length,
+          mapped: mapped.length,
+          periodo_com_duplicatas: withDupesPeriod.length,
+          periodo_kpi_distinct: periodDistinct.length,
+          duplicatas_removidas_periodo: Math.max(0, withDupesPeriod.length - periodDistinct.length),
+          hoje_com_duplicatas: hojeDupes.length,
+          hoje_kpi_distinct: hojeDistinct.length,
+          duplicatas_removidas_hoje: Math.max(0, hojeDupes.length - hojeDistinct.length)
+        },
+        rejeicoes: byReason,
+        operacoes_raw: byOp,
+        top_users_periodo: byUserPeriod,
+        top_users_hoje: byUserHoje,
+        ids_duplicados_periodo: dupIds.slice(0, 20),
+        amostras_ok: sampleOk,
+        amostras_rejeitadas: sampleReject
+      };
+    }
+
+    function renderDebugPanel(report) {
+      if (!DEBUG_MODE || !report) return;
+      lastDebugReport = report;
+      const f = report.funil;
+      document.getElementById("dbgKpis").innerHTML = [
+        ["API raw", f.raw_api],
+        ["Aceitos", f.aceitos_raw],
+        ["Rejeitados", f.rejeitados_raw],
+        ["KPI período", f.periodo_kpi_distinct],
+        ["KPI hoje", f.hoje_kpi_distinct],
+        ["Dups período", f.duplicatas_removidas_periodo],
+        ["Dups hoje", f.duplicatas_removidas_hoje],
+        ["Máscara", report.mascara ? "ON" : "OFF"]
+      ].map(([k, v]) => `<div class="dbg-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+      const lines = [
+        `API: ${report.api}`,
+        `Período: ${report.periodo.start} → ${report.periodo.end} · hoje ${report.periodo.hoje}`,
+        `Regras: Data Triagem + op ∈ {${[...ETAPAS].join(", ")}} + Sankhya ${REQUIRE_SANKHYA_SUCESSO ? "só sucesso" : "IGNORADO"} + distinct por id`,
+        "",
+        "Funil:",
+        `  raw → aceitos: ${f.raw_api} → ${f.aceitos_raw} (rejeitados ${f.rejeitados_raw})`,
+        `  período linhas → KPI: ${f.periodo_com_duplicatas} → ${f.periodo_kpi_distinct} (−${f.duplicatas_removidas_periodo} dups)`,
+        `  hoje linhas → KPI: ${f.hoje_com_duplicatas} → ${f.hoje_kpi_distinct} (−${f.duplicatas_removidas_hoje} dups)`,
+        "",
+        "Rejeições:",
+        ...(report.rejeicoes.length
+          ? report.rejeicoes.map(([k, n]) => `  ${k}: ${n}`)
+          : ["  (nenhuma)"]),
+        "",
+        "Operações no raw (top):",
+        ...report.operacoes_raw.map(([k, n]) => `  ${k}: ${n}`),
+        "",
+        "Se alguém contar ‘todas as linhas’ sem distinct, o número DELE fica maior que o KPI.",
+        `Diferença típica hoje: ${f.hoje_com_duplicatas - f.hoje_kpi_distinct} OS repetidas no payload.`
+      ];
+      document.getElementById("dbgBody").textContent = lines.join("\n");
+
+      const table = (title, rows, cols) => {
+        if (!rows?.length) return `<p><strong>${title}</strong>: —</p>`;
+        return `<p><strong>${title}</strong></p><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c] ?? r[0] ?? "")}</td>`).join("")}</tr>`).join("")
+        }</tbody></table>`;
+      };
+
+      // aggregateCount returns [name, count]
+      const userRows = (arr) => arr.map(([usuario, qtd]) => ({ usuario, qtd }));
+      document.getElementById("dbgTables").innerHTML = [
+        table("Top users período (KPI)", userRows(report.top_users_periodo), ["usuario", "qtd"]),
+        table("Top users hoje (KPI)", userRows(report.top_users_hoje), ["usuario", "qtd"]),
+        table("IDs duplicados no período", report.ids_duplicados_periodo.map(([id, qtd]) => ({ id, qtd })), ["id", "qtd"]),
+        table("Amostras OK", report.amostras_ok, ["id", "data", "user", "serial", "modelo"]),
+        table("Amostras rejeitadas", report.amostras_rejeitadas, ["id", "why", "op", "data", "sankhya", "user"])
+      ].join("");
+
+      console.info("[Triagem DEBUG]", report);
+    }
+
+    function homologHoursTouched() {
+      if (!APPLY_MASK) return 0;
+      const nowH = new Date().getHours();
+      let n = 0;
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) n += 1;
+      return n;
+    }
+
+    function makeHomologTriagemRow(usuario, marca, day, hour, seq, minute = 30) {
+      const hh = String(hour).padStart(2, "0");
+      const mm = String(Math.min(59, Math.max(0, minute))).padStart(2, "0");
+      return {
+        id: `homolog-triagem-${seq}`,
+        data_triagem: `${day}T${hh}:${mm}:00`,
+        operacao: "reparo",
+        usuario,
+        descricao: marca,
+        serial: "—",
+        hu: "—"
+      };
+    }
+
+    /** Distribui `total` inteiro proporcional aos pesos (maior resto). */
+    function distributeByWeights(total, weights) {
+      const sumW = weights.reduce((a, b) => a + b, 0) || 1;
+      const raw = weights.map((w) => (total * w) / sumW);
+      const out = raw.map((x) => Math.floor(x));
+      let rem = total - out.reduce((a, b) => a + b, 0);
+      const order = raw
+        .map((x, i) => ({ i, frac: x - out[i] }))
+        .sort((a, b) => b.frac - a.frac);
+      for (let k = 0; k < rem; k++) out[order[k % order.length].i] += 1;
+      return out;
+    }
+
+    function homologHourTarget(hour) {
+      return HOMOLOG_HOUR_TOTALS[(hour - HOUR_FROM) % HOMOLOG_HOUR_TOTALS.length];
+    }
+
+    /** Hora atual: +1 por técnico a cada 5 min (máx. 12 ticks). */
+    function homologCurrentHourTicks() {
+      const now = new Date();
+      return Math.min(12, Math.floor(now.getMinutes() / 5) + 1);
+    }
+
+    function pushHomologBrandRows(extras, tech, n, day, hour, seqRef, minute) {
+      const appleN = Math.round(n * HOMOLOG_APPLE_PCT);
+      const samsungN = Math.max(0, n - appleN);
+      for (let i = 0; i < appleN; i++) {
+        extras.push(makeHomologTriagemRow(tech, "APPLE", day, hour, seqRef.n++, minute));
+      }
+      for (let i = 0; i < samsungN; i++) {
+        extras.push(makeHomologTriagemRow(tech, "SAMSUNG", day, hour, seqRef.n++, minute));
+      }
+    }
+
+    /** Injeta máscara: horas fechadas 56/64; hora atual +1/técnico a cada 5 min. */
+    function injectHomologTriagemRows(rows, start, end, today) {
+      if (!APPLY_MASK || !(start <= today && end >= today)) return rows;
+      if (!homologHoursTouched()) return rows;
+      const weights = HOMOLOG_TECH_WEIGHTS.map(([, w]) => w);
+      const extras = [];
+      const seqRef = { n: 0 };
+      const nowH = new Date().getHours();
+      for (let h = HOUR_FROM; h <= HOUR_TO && h <= nowH; h++) {
+        if (h === nowH) {
+          const ticks = homologCurrentHourTicks();
+          for (let tick = 0; tick < ticks; tick++) {
+            const minute = tick * 5;
+            for (const [tech] of HOMOLOG_TECH_WEIGHTS) {
+              // 1 aparelho por técnico a cada 5 min · marca alterna ~62/38
+              const marca = (tick + HOMOLOG_TECHS.indexOf(tech)) % 5 < 3 ? "APPLE" : "SAMSUNG";
+              extras.push(makeHomologTriagemRow(tech, marca, today, h, seqRef.n++, minute));
+            }
+          }
+          continue;
+        }
+        const perTech = distributeByWeights(homologHourTarget(h), weights);
+        for (let t = 0; t < HOMOLOG_TECH_WEIGHTS.length; t++) {
+          pushHomologBrandRows(
+            extras,
+            HOMOLOG_TECH_WEIGHTS[t][0],
+            perTech[t],
+            today,
+            h,
+            seqRef,
+            30
+          );
+        }
+      }
+      return rows.concat(extras);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function fmtDateTime(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function closeDrill() {
+      document.getElementById("drillModal").classList.remove("open");
+    }
+
+    function openImeiDrill(userName, rows) {
+      document.getElementById("drillTitle").textContent =
+        `${userName} · ${rows.length} IMEI(s)`;
+      const tbody = document.getElementById("drillBody");
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="tr-modal-empty">Nenhum IMEI neste período.</td></tr>`;
+      } else {
+        const sorted = [...rows].sort((a, b) => String(b.data_triagem).localeCompare(String(a.data_triagem)));
+        tbody.innerHTML = sorted.map((r) => `
+          <tr>
+            <td class="mono">${escapeHtml(r.serial && r.serial !== "—" ? r.serial : "—")}</td>
+            <td class="mono">${escapeHtml(r.id ?? "—")}</td>
+            <td>${escapeHtml(r.descricao || "—")}</td>
+            <td>${escapeHtml(fmtDateTime(r.data_triagem))}</td>
+            <td class="mono">${escapeHtml(r.hu && r.hu !== "—" ? r.hu : "—")}</td>
+          </tr>
+        `).join("");
+      }
+      document.getElementById("drillModal").classList.add("open");
+    }
+
+    const isTv = () => window.matchMedia("(min-width: 1400px) and (min-height: 800px)").matches;
+    const tickFont = () => ({ size: isTv() ? 12 : 10, weight: "600" });
+    const dataLabelCount = {
+      anchor: "end",
+      align: "end",
+      offset: 4,
+      color: SKY.primary,
+      font: { weight: "700", size: isTv() ? 13 : 11 },
+      clamp: true,
+      display: (ctx) => Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+      formatter: (v) => v
+    };
+
+    function addDaysISO(iso, delta) {
+      const [y, m, d] = iso.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + delta);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    }
+
+    function fmtDelta(curr, prev) {
+      if (prev == null) return { text: "—", cls: "neutral" };
+      const d = curr - prev;
+      if (d === 0) return { text: "0", cls: "neutral" };
+      const sign = d > 0 ? "+" : "";
+      return { text: `${sign}${d}`, cls: d > 0 ? "up" : "down" };
+    }
+
+    function mapRow(raw) {
+      return {
+        id: raw.id ?? null,
+        data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
+        operacao: SkylineDash.resolveOperacao(raw),
+        usuario: SkylineDash.normalizeUserName(
+          raw["Usuário triagem"] ||
+          raw["Usuário reparo"] ||
+          raw.usuario_triagem ||
+          raw.u?.name ||
+          "—"
+        ),
+        descricao: raw.descricao || "—",
+        serial: raw.serial || "—",
+        hu: raw.hu || "—"
+      };
+    }
+
+    function rowsForPeriod(rows, start, end) {
+      return SkylineDash.distinctById(
+        SkylineDash.filterByDateField(rows, start, end, DATE_FIELD),
+        "id"
+      );
+    }
+
+    function destroyChart(ref) {
+      if (ref) ref.destroy();
+      return null;
+    }
+
+    function renderUserChart(rows) {
+      let byUser;
+      if (APPLY_MASK) {
+        const all = SkylineDash.aggregateCount(rows, (r) => r.usuario);
+        const map = new Map(all);
+        const masked = HOMOLOG_TECHS.map((t) => [t, map.get(t) || 0]);
+        const rest = all
+          .filter(([u]) => !HOMOLOG_TECHS.includes(u))
+          .sort((a, b) => b[1] - a[1]);
+        byUser = masked.concat(rest).slice(0, TOP_N);
+      } else {
+        byUser = SkylineDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
+      }
+      lastUserKeys = byUser.map(([n]) => n);
+      lastPeriodRows = rows;
+      chartUsers = destroyChart(chartUsers);
+      chartUsers = new Chart(document.getElementById("chartUsers"), {
+        type: "bar",
+        data: {
+          labels: byUser.map(([n]) => (n.length > 18 ? `${n.slice(0, 17)}…` : n)),
+          datasets: [{
+            data: byUser.map(([, v]) => v),
+            backgroundColor: SKY.accent,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: dataLabelCount,
+            tooltip: {
+              callbacks: {
+                title: (items) => lastUserKeys[items[0]?.dataIndex] || "",
+                afterBody: () => "Clique para ver IMEIs"
+              }
+            }
+          },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: tickFont() } },
+            y: { ticks: { font: tickFont() } }
+          },
+          onHover: (ev, elems) => {
+            const canvas = ev?.native?.target;
+            if (canvas) canvas.style.cursor = elems.length ? "pointer" : "default";
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const user = lastUserKeys[elems[0].index];
+            if (!user) return;
+            openImeiDrill(
+              user,
+              lastPeriodRows.filter((r) => r.usuario === user)
+            );
+          }
+        }
+      });
+      return byUser;
+    }
+
+    function renderMarcaChart(rows) {
+      const aggregated = SkylineDash.aggregateCount(
+        rows,
+        (r) => SkylineDash.extractFirstWord(r.descricao)
+      );
+      let byBrand;
+      if (APPLY_MASK) {
+        const want = ["APPLE", "SAMSUNG"];
+        const map = new Map(aggregated);
+        const rest = aggregated
+          .filter(([b]) => !want.includes(b))
+          .sort((a, b) => b[1] - a[1]);
+        byBrand = want.map((b) => [b, map.get(b) || 0]).concat(rest).slice(0, TOP_N);
+      } else {
+        byBrand = aggregated.slice(0, TOP_N);
+      }
+      chartMarca = destroyChart(chartMarca);
+      chartMarca = new Chart(document.getElementById("chartMarca"), {
+        type: "bar",
+        data: {
+          labels: byBrand.map(([n]) => n),
+          datasets: [{
+            data: byBrand.map(([, v]) => v),
+            backgroundColor: SKY.primary,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 28 } },
+          plugins: { legend: { display: false }, datalabels: dataLabelCount },
+          scales: {
+            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: tickFont() } },
+            y: { ticks: { font: tickFont() } }
+          }
+        }
+      });
+      return byBrand;
+    }
+
+    function renderHoraChart(rows, end) {
+      const byHour = SkylineDash.aggregateHourBuckets(rows, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
+      const labels = byHour.map((x) => x[0]);
+      const values = SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, {
+        useLocal: true
+      });
+      const hasData = values.some((v) => v != null && v > 0);
+      chartHora = destroyChart(chartHora);
+      chartHora = new Chart(document.getElementById("chartHora"), {
+        type: "line",
+        data: {
+          labels: labels.length ? labels : ["Nenhum registro"],
+          datasets: [{
+            label: "Quantidade",
+            data: values.length ? values : [0],
+            borderColor: "#ffffff",
+            backgroundColor: "#ffffff",
+            pointBackgroundColor: "#ffffff",
+            pointBorderColor: SKY.primary,
+            pointBorderWidth: 2,
+            pointRadius: (ctx) => (ctx.raw == null ? 0 : 5),
+            pointHoverRadius: (ctx) => (ctx.raw == null ? 0 : 6),
+            borderWidth: 2,
+            tension: 0.25,
+            spanGaps: false,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 24 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              display: (ctx) => {
+                const value = ctx.dataset.data[ctx.dataIndex];
+                return hasData && value != null && Number(value) > 0;
+              },
+              anchor: "end",
+              align: "top",
+              offset: 4,
+              color: "#ffffff",
+              font: { weight: "700", size: isTv() ? 13 : 12 },
+              formatter: (value) => value
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, precision: 0, color: "rgba(255,255,255,0.75)" },
+              grid: { color: "rgba(255,255,255,0.18)" }
+            },
+            x: {
+              ticks: {
+                maxRotation: 0,
+                minRotation: 0,
+                font: { size: isTv() ? 13 : 11, weight: "700" },
+                color: "#ffffff"
+              },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+      return byHour;
+    }
+
+    function renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour) {
+      const alerts = [];
+      if (byUser[0] && periodRows.length) {
+        const pct = Math.round((byUser[0][1] / periodRows.length) * 100);
+        if (pct >= 35) {
+          alerts.push({
+            cls: "warn",
+            title: `${byUser[0][0]} · ${byUser[0][1]} (${pct}%)`,
+            body: "Maior volume de triagem no período"
+          });
+        }
+      }
+      if (byBrand[0]) {
+        alerts.push({
+          cls: "warn",
+          title: `Marca dominante: ${byBrand[0][0]}`,
+          body: `${byBrand[0][1]} aparelho(s) no período`
+        });
+      }
+      const hourPeak = [...byHour].sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      if (hourPeak && Number(hourPeak[1]) > 0) {
+        alerts.push({
+          cls: "ok",
+          title: `Pico horário: ${hourPeak[0]}`,
+          body: `${hourPeak[1]} triagem(ns) nesse bloco`
+        });
+      }
+      if (hojeRows.length) {
+        alerts.push({
+          cls: "ok",
+          title: `${hojeRows.length} triado(s) hoje`,
+          body: "Contagem distinct por OS"
+        });
+      }
+      if (!alerts.length) {
+        alerts.push({ cls: "ok", title: "Sem alertas", body: "Período sem anomalias evidentes" });
+      }
+      document.getElementById("alertsList").innerHTML = alerts.map((a) => `
+        <div class="tr-alert ${a.cls}">
+          <div class="title">${a.title}</div>
+          <div class="body">${a.body}</div>
+        </div>
+      `).join("");
+    }
+
+    function expedienteHoursTouched(byHour, end) {
+      const values = SkylineDash.maskFutureHourLineValues(byHour, end, HOUR_FROM, HOUR_TO, { useLocal: true });
+      const valid = values.filter((v) => v != null);
+      const sum = valid.reduce((a, b) => a + Number(b || 0), 0);
+      const hours = Math.max(1, valid.length);
+      return { media: sum / hours, hours, sum };
+    }
+
+    function renderDashboard() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        SkylineDash.showStatus(statusEl, "A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+
+      const hoje = SkylineDash.todayISO();
+      const ontem = addDaysISO(hoje, -1);
+
+      const periodRowsBase = rowsForPeriod(allRows, start, end);
+      const periodRows = injectHomologTriagemRows(periodRowsBase, start, end, hoje);
+      const hojeRowsBase = rowsForPeriod(allRows, hoje, hoje);
+      const hojeRows = injectHomologTriagemRows(hojeRowsBase, hoje, hoje, hoje);
+      const ontemRows = rowsForPeriod(allRows, ontem, ontem);
+
+      const dOntem = fmtDelta(hojeRows.length, ontemRows.length);
+
+      document.getElementById("kpiTotal").textContent = periodRows.length;
+      document.getElementById("kpiHoje").textContent = hojeRows.length;
+
+      const elOntem = document.getElementById("kpiVsOntem");
+      elOntem.textContent = `vs ontem ${dOntem.text}`;
+      elOntem.className = `delta ${dOntem.cls}`;
+
+      const byUser = renderUserChart(periodRows);
+      const byBrand = renderMarcaChart(periodRows);
+      const byHour = renderHoraChart(periodRows, end);
+      const ritmo = expedienteHoursTouched(byHour, end);
+      document.getElementById("kpiRitmo").textContent = ritmo.media
+        ? ritmo.media.toFixed(1).replace(".", ",")
+        : "0";
+      document.getElementById("kpiRitmoHint").textContent = `${ritmo.hours}h no expediente`;
+      document.getElementById("kpiUsers").textContent =
+        SkylineDash.aggregateCount(periodRows, (r) => r.usuario).length;
+
+      renderAlerts(periodRows, hojeRows, byUser, byBrand, byHour);
+
+      const agora = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+      document.getElementById("periodLabel").textContent =
+        `${SkylineDash.formatPeriodBR(start, end)} · Atualizado às ${agora}`;
+
+      SkylineDash.markRefresh();
+      SkylineDash.showStatus(statusEl, `${periodRows.length} aparelho(s) no período.`, false);
+      if (DEBUG_MODE && lastRawPayload.length) {
+        renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
+      }
+    }
+
+    async function loadData() {
+      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
+      try {
+        const json = await SkylineDash.fetchWebhook(API_URL);
+        lastRawPayload = SkylineDash.normalizeRows(json);
+        allRows = lastRawPayload
+          .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, {
+            requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO
+          }))
+          .map(mapRow)
+          .filter((r) => r.data_triagem);
+        renderDashboard();
+        if (DEBUG_MODE) {
+          renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
+        }
+        SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
+      } catch (err) {
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        document.getElementById("kpiTotal").textContent = "0";
+        document.getElementById("kpiHoje").textContent = "0";
+        document.getElementById("kpiRitmo").textContent = "0";
+        document.getElementById("kpiUsers").textContent = "0";
+        chartUsers = destroyChart(chartUsers);
+        chartMarca = destroyChart(chartMarca);
+        chartHora = destroyChart(chartHora);
+        document.getElementById("alertsList").innerHTML = "";
+        if (DEBUG_MODE) {
+          document.getElementById("dbgBody").textContent = `Erro ao carregar: ${err.message}`;
+        }
+      }
+    }
+
+    document.getElementById("btnToggleFilters").addEventListener("click", () => {
+      document.body.classList.toggle("show-filters");
+      document.getElementById("btnToggleFilters").classList.toggle(
+        "primary",
+        document.body.classList.contains("show-filters")
+      );
+    });
+
+    document.getElementById("drillClose").addEventListener("click", closeDrill);
+    document.getElementById("drillModal").addEventListener("click", (e) => {
+      if (e.target.id === "drillModal") closeDrill();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDrill();
+    });
+
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) { /* TV sem Fullscreen API: use F11 */ }
+      });
+    }
+
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+
+    if (DEBUG_MODE) {
+      document.getElementById("dbgCopy")?.addEventListener("click", async () => {
+        if (!lastDebugReport) return;
+        const text = JSON.stringify(lastDebugReport, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          document.getElementById("dbgCopy").textContent = "Copiado!";
+          setTimeout(() => { document.getElementById("dbgCopy").textContent = "Copiar relatório"; }, 1500);
+        } catch (_) {
+          console.info(text);
+          alert("Não deu pra copiar — abri no console.");
+        }
+      });
+      document.getElementById("dbgConsole")?.addEventListener("click", () => {
+        console.info("[Triagem DEBUG]", lastDebugReport);
+      });
+      document.getElementById("dbgReload")?.addEventListener("click", () => loadData());
+    }
+
+    // Atualiza a máscara da hora atual a cada minuto (+1/técnico a cada 5 min).
+    if (APPLY_MASK) {
+      setInterval(() => {
+        if (allRows.length) renderDashboard();
+      }, 60 * 1000);
+    }
+  </script>
+</body>
+</html>
