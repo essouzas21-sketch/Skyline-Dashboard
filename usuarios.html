@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usuários — Skyline Dashboard</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <script src="skyline-auth.js?v=6"></script>
+  <style>
+    :root {
+      --bg: #694992;
+      --card: #ffffff;
+      --text: #2d1f42;
+      --muted: #6b5b7a;
+      --accent: #c4a8e8;
+      --line: rgba(45, 31, 66, 0.12);
+      --red: #dc2626;
+      --green: #15803d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: #fff;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      padding: 24px 32px 40px;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .top a {
+      color: #fff;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+      letter-spacing: 0.04em;
+    }
+
+    .sub {
+      margin: 4px 0 0;
+      color: var(--accent);
+      font-size: 0.88rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 28px rgba(45, 31, 66, 0.22);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 5px;
+    }
+
+    .field { margin-bottom: 12px; }
+
+    input, select {
+      width: 100%;
+      height: 40px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      padding: 0 10px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    button {
+      height: 40px;
+      border: 0;
+      border-radius: 9px;
+      padding: 0 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #694992, #8b6bb8);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: #f4eef9;
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--red);
+    }
+
+    .msg {
+      display: none;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+    }
+
+    .msg.show { display: block; }
+    .msg.ok { background: #dcfce7; color: #166534; }
+    .msg.err { background: #fee2e2; color: #991b1b; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .pill.admin { background: #ede9fe; color: #5b21b6; }
+    .pill.user { background: #e0f2fe; color: #075985; }
+    .pill.on { background: #dcfce7; color: #166534; }
+    .pill.off { background: #f3f4f6; color: #6b7280; }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .row-actions button {
+      height: 32px;
+      font-size: 0.75rem;
+      padding: 0 10px;
+    }
+
+    .hint {
+      margin: 8px 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      body { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>Usuários</h1>
+      <p class="sub">Cadastro de acesso ao dashboard</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="menu.html">← Menu</a>
+      <a href="#" id="btnLogout">Sair</a>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2 id="formTitle">Novo usuário</h2>
+      <div class="msg" id="formMsg"></div>
+      <form id="userForm">
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" type="email" required placeholder="nome@empresa.com" />
+        </div>
+        <div class="field">
+          <label for="name">Nome</label>
+          <input id="name" type="text" placeholder="Nome completo" />
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" type="password" placeholder="Mín. 6 caracteres" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label for="role">Perfil</label>
+          <select id="role">
+            <option value="user">Usuário</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="active">Status</label>
+          <select id="active">
+            <option value="1">Ativo</option>
+            <option value="0">Inativo</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn-primary" type="submit" id="btnSave">Salvar</button>
+          <button class="btn-ghost" type="button" id="btnReset">Limpar</button>
+        </div>
+        <p class="hint" id="pwdHint">Para editar, deixe a senha em branco para manter a atual.</p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Usuários cadastrados</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>E-mail</th>
+              <th>Nome</th>
+              <th>Perfil</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+      <p class="hint">
+        Perfis no Supabase (<code>skyline_profiles</code>). Senha/login: Authentication → Users.
+        Rode o SQL em <code>supabase-setup-auth.sql</code> se ainda não criou a tabela.
+      </p>
+    </section>
+  </div>
+
+  <script>
+    (async function () {
+      await SkylineAuth.ready();
+      const session = SkylineAuth.requireAdmin();
+      if (!session) return;
+
+      const form = document.getElementById("userForm");
+      const formMsg = document.getElementById("formMsg");
+      const formTitle = document.getElementById("formTitle");
+      const pwdHint = document.getElementById("pwdHint");
+      let editing = false;
+      let cachedUsers = [];
+
+      document.getElementById("btnLogout").addEventListener("click", (e) => {
+        e.preventDefault();
+        SkylineAuth.logout();
+      });
+
+      function showMsg(text, ok) {
+        formMsg.textContent = text;
+        formMsg.className = `msg show ${ok ? "ok" : "err"}`;
+      }
+
+      function clearMsg() {
+        formMsg.className = "msg";
+        formMsg.textContent = "";
+      }
+
+      function resetForm() {
+        editing = false;
+        form.reset();
+        document.getElementById("email").readOnly = false;
+        document.getElementById("role").value = "user";
+        document.getElementById("active").value = "1";
+        document.getElementById("password").required = false;
+        formTitle.textContent = "Novo usuário";
+        pwdHint.textContent = "Senha: crie o usuário em Supabase → Authentication → Users (mesmo e-mail).";
+        clearMsg();
+      }
+
+      function fillEdit(user) {
+        editing = true;
+        document.getElementById("email").value = user.email;
+        document.getElementById("email").readOnly = true;
+        document.getElementById("name").value = user.name || "";
+        document.getElementById("password").value = "";
+        document.getElementById("password").required = false;
+        document.getElementById("role").value = user.role;
+        document.getElementById("active").value = user.active ? "1" : "0";
+        formTitle.textContent = "Editar usuário";
+        pwdHint.textContent = "Senha só no painel Supabase (Authentication → Users).";
+        clearMsg();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function render() {
+        const body = document.getElementById("usersBody");
+        try {
+          cachedUsers = await SkylineAuth.listUsers();
+        } catch (err) {
+          body.innerHTML = `<tr><td colspan="5">Erro ao carregar: ${escapeHtml(err.message || err)}</td></tr>`;
+          return;
+        }
+        if (!cachedUsers.length) {
+          body.innerHTML = `<tr><td colspan="5">Nenhum usuário. Rode o SQL de setup e crie logins no Auth.</td></tr>`;
+          return;
+        }
+        body.innerHTML = cachedUsers.map((u) => `
+          <tr>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.name)}</td>
+            <td><span class="pill ${u.role}">${u.role === "admin" ? "Admin" : "Usuário"}</span></td>
+            <td><span class="pill ${u.active ? "on" : "off"}">${u.active ? "Ativo" : "Inativo"}</span></td>
+            <td>
+              <div class="row-actions">
+                <button type="button" class="btn-ghost" data-edit="${escapeHtml(u.email)}">Editar</button>
+                <button type="button" class="btn-danger" data-del="${escapeHtml(u.email)}">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+
+        body.querySelectorAll("[data-edit]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const email = btn.getAttribute("data-edit");
+            const user = cachedUsers.find((x) => x.email === email);
+            if (user) fillEdit(user);
+          });
+        });
+        body.querySelectorAll("[data-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const email = btn.getAttribute("data-del");
+            if (!confirm(`Excluir perfil ${email}?`)) return;
+            const res = await SkylineAuth.removeUser(email);
+            if (!res.ok) {
+              alert(res.error || "Não foi possível excluir.");
+              return;
+            }
+            if (res.warning) alert(res.warning);
+            await render();
+            resetForm();
+          });
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearMsg();
+        const payload = {
+          email: document.getElementById("email").value,
+          name: document.getElementById("name").value,
+          password: document.getElementById("password").value,
+          role: document.getElementById("role").value,
+          active: document.getElementById("active").value === "1"
+        };
+        const res = await SkylineAuth.upsertUser(payload);
+        if (!res.ok) {
+          showMsg(res.error || "Falha ao salvar.", false);
+          return;
+        }
+        showMsg(
+          res.warning || (editing ? "Usuário atualizado." : "Perfil criado."),
+          true
+        );
+        await render();
+        resetForm();
+      });
+
+      document.getElementById("btnReset").addEventListener("click", resetForm);
+      resetForm();
+      await render();
+    })();
+  </script>
+</body>
+</html>
