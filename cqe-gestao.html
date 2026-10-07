@@ -10,6 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
   <script src="skyline-dash.js?v=79"></script>
+  <script src="skyline-fluxo-tecnico.js?v=8"></script>
+  <script src="skyline-producao.js?v=25"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -684,8 +686,8 @@
     }
 
     .gm-topbar-actions button.primary {
-      background: var(--gm-bg);
-      border-color: var(--gm-bg);
+      background: var(--gm-primary);
+      border-color: var(--gm-primary);
       color: #fff;
     }
 
@@ -784,6 +786,228 @@
       clip-path: none;
       border-radius: 6px;
     }
+
+    /* ── Abas de visão + presets de período ── */
+    .gm-tabs,
+    .gm-presets {
+      display: flex;
+      gap: 0;
+      align-items: flex-end;
+    }
+
+    .gm-tabs button,
+    .gm-presets button {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--gm-border);
+      background: #fff;
+      color: var(--gm-text);
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .gm-tabs button + button,
+    .gm-presets button + button { border-left: none; }
+    .gm-tabs button:first-child,
+    .gm-presets button:first-child { border-radius: 6px 0 0 6px; }
+    .gm-tabs button:last-child,
+    .gm-presets button:last-child { border-radius: 0 6px 6px 0; }
+
+    .gm-filter-group.mode-custom .period-ref,
+    .gm-filter-group:not(.mode-custom) .period-custom { display: none; }
+
+    .gm-tabs button.active,
+    .gm-presets button.active {
+      background: var(--gm-primary);
+      border-color: var(--gm-primary);
+      color: #fff;
+    }
+
+    .gm-view {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gm-gap);
+      flex: 1 1 0;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .gm-view[hidden] { display: none !important; }
+
+    body.view-fluxo .only-qualidade { display: none; }
+    body.view-fluxo #fTecnico option[data-fora-equipe] { display: none; }
+
+    /* ── Visão Fluxo técnicos ── */
+    .fx-hero {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: var(--gm-gap);
+      flex: 0 0 auto;
+      min-width: 0;
+    }
+
+    .fx-hero .gm-kpi .kpi-value { color: var(--gm-slate); }
+    .fx-hero .gm-kpi.fx-acum { border-top: 3px solid var(--gm-primary); }
+    .fx-hero .kpi-formula {
+      font-size: 0.58rem;
+      color: var(--gm-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fx-swatch {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    .fx-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: var(--gm-gap);
+      flex: 1 1 0;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .fx-charts {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--gm-gap);
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .fx-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 0.6rem;
+      color: var(--gm-muted);
+      margin: -4px 0 4px;
+      flex-shrink: 0;
+    }
+
+    .fx-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .fx-panel-head h2 { margin-bottom: 4px; }
+
+    .fx-panel-head button {
+      height: 24px;
+      padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid var(--gm-border);
+      background: #fff;
+      font-size: 0.64rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--gm-text);
+    }
+
+    .fx-table-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--gm-border);
+      border-radius: 8px;
+    }
+
+    .fx-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fx-table th,
+    .fx-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(105, 73, 146, 0.1);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .fx-table th:first-child,
+    .fx-table td:first-child { text-align: left; }
+    .fx-table th:nth-child(2),
+    .fx-table td:nth-child(2) { text-align: left; }
+
+    .fx-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--gm-surface);
+      color: var(--gm-muted);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .fx-table thead th { white-space: normal; line-height: 1.25; vertical-align: bottom; }
+    .fx-table tbody tr { cursor: pointer; }
+    .fx-table tbody tr.fx-vaga td { color: var(--gm-muted); font-style: italic; cursor: default; }
+    .fx-table tbody tr:hover { background: var(--gm-surface); }
+
+    .fx-table tfoot td {
+      position: sticky;
+      bottom: 0;
+      background: #f3eef9;
+      font-weight: 800;
+      border-top: 2px solid var(--gm-border);
+    }
+
+    .fx-table td.fx-acum-cell { font-weight: 800; color: var(--gm-text); }
+    .fx-table .fx-delta { font-size: 0.62rem; font-weight: 700; margin-left: 4px; }
+    .fx-delta.up { color: var(--gm-red); }
+    .fx-delta.down { color: var(--gm-green); }
+    .fx-delta.neutral { color: var(--gm-muted); }
+
+    .fx-pct {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+      min-width: 92px;
+    }
+
+    .fx-pct-bar {
+      width: 46px;
+      height: 6px;
+      border-radius: 999px;
+      background: #ece6f3;
+      overflow: hidden;
+    }
+
+    .fx-pct-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: #1f9e89;
+    }
+
+    .fx-note {
+      font-size: 0.58rem;
+      color: var(--gm-muted);
+      margin: 6px 0 0;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 1100px) {
+      .fx-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .fx-body { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body class="dash-page cqe-gestao-page">
@@ -795,9 +1019,23 @@
         <p class="subtitle" id="periodLabel">Carregando…</p>
       </div>
       <div class="gm-filters">
+        <div class="gm-filter-group" data-label="Visão">
+          <div class="gm-tabs" role="tablist">
+            <button type="button" role="tab" class="gm-tab" data-view="qualidade" id="tabQualidade">Qualidade</button>
+            <button type="button" role="tab" class="gm-tab" data-view="fluxo" id="tabFluxo">Fluxo técnicos</button>
+          </div>
+        </div>
         <div class="gm-filter-group" data-label="Período">
-          <label>Início <input type="date" id="dateStart" /></label>
-          <label>Fim <input type="date" id="dateEnd" /></label>
+          <div class="gm-presets" role="group" aria-label="Tipo de período">
+            <button type="button" data-mode="dia">Dia</button>
+            <button type="button" data-mode="semana">Semana</button>
+            <button type="button" data-mode="mes">Mês</button>
+            <button type="button" data-mode="personalizado">Personalizado</button>
+          </div>
+          <label class="period-ref">Data <input type="date" id="fDataRef" /></label>
+          <button type="button" class="period-ref" id="btnToday">Hoje</button>
+          <label class="period-custom">Início <input type="date" id="dateStart" /></label>
+          <label class="period-custom">Fim <input type="date" id="dateEnd" /></label>
         </div>
         <div class="gm-filter-group" data-label="Produto / equipe">
           <label>Modelo <select id="fModelo"><option value="">Todos</option></select></label>
@@ -805,19 +1043,19 @@
           <label>Marca <select id="fMarca"><option value="">Todas</option></select></label>
           <label>Tipo <select id="fTipo"><option value="">Todos</option></select></label>
           <label>Linha <select id="fLinha"><option value="">Todas</option></select></label>
-          <label>Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
-          <label>OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
+          <label class="only-qualidade">Qualidade <select id="fQualidade"><option value="">Todos</option></select></label>
+          <label class="only-qualidade">OS/NR <select id="fCliente"><option value="">Todas</option></select></label>
         </div>
       </div>
       <div class="gm-topbar-actions">
         <button type="button" class="primary" id="btnApply">Atualizar</button>
-        <button type="button" id="btnToday">Hoje</button>
         <button type="button" id="btnReload" title="Recarregar dados">↻</button>
       </div>
     </header>
 
     <div id="statusMsg" class="status" hidden></div>
 
+    <div class="gm-view" id="viewQualidade">
     <div class="gm-upper">
     <section class="gm-hero">
       <div class="gm-kpi aprov">
@@ -878,6 +1116,89 @@
         <div class="chart-box"><canvas id="chartMarca"></canvas></div>
       </div>
     </section>
+    </div>
+
+    <div class="gm-view" id="viewFluxo" hidden>
+      <section class="fx-hero">
+        <div class="gm-kpi">
+          <div class="kpi-head"><span class="kpi-label">Acumulado anterior</span><span class="kpi-icon">⧗</span></div>
+          <div class="kpi-value" id="fxAnterior">0</div>
+          <div class="kpi-hint" id="fxAnteriorHint">Iniciados antes e ainda não finalizados</div>
+        </div>
+        <div class="gm-kpi">
+          <div class="kpi-head"><span class="kpi-label"><span class="fx-swatch" style="background:#694992"></span>Iniciados</span><span class="kpi-icon">▶</span></div>
+          <div class="kpi-value" id="fxIniciados">0</div>
+          <div class="kpi-hint">Reparos iniciados no período</div>
+        </div>
+        <div class="gm-kpi">
+          <div class="kpi-head"><span class="kpi-label"><span class="fx-swatch" style="background:#1f9e89"></span>Finalizados</span><span class="kpi-icon">✓</span></div>
+          <div class="kpi-value" id="fxFinalizados">0</div>
+          <div class="kpi-hint">Reparos finalizados no período</div>
+        </div>
+        <div class="gm-kpi">
+          <div class="kpi-head"><span class="kpi-label">Inspecionados CQE</span><span class="kpi-icon">📋</span></div>
+          <div class="kpi-value" id="fxInspecionados">0</div>
+          <div class="kpi-hint" id="fxInspecionadosHint">Aprovados + reprovados</div>
+        </div>
+        <div class="gm-kpi fx-acum">
+          <div class="kpi-head"><span class="kpi-label">Acumulado atual</span><span class="kpi-icon">Σ</span></div>
+          <div class="kpi-value" id="fxAcumulado">0</div>
+          <div class="kpi-formula" id="fxFormula">—</div>
+        </div>
+        <div class="gm-kpi">
+          <div class="kpi-head"><span class="kpi-label">% Finalização do dia</span><span class="kpi-icon">%</span></div>
+          <div class="kpi-value" id="fxPct">—</div>
+          <div class="kpi-hint" id="fxPctHint">Iniciados e finalizados no mesmo dia</div>
+        </div>
+      </section>
+
+      <section class="fx-body">
+        <div class="fx-charts">
+          <div class="gm-panel">
+            <h2 id="fxSerieTitle">Iniciados x Finalizados</h2>
+            <div class="fx-legend">
+              <span><span class="fx-swatch" style="background:#694992"></span>Iniciados</span>
+              <span><span class="fx-swatch" style="background:#1f9e89"></span>Finalizados</span>
+            </div>
+            <div class="chart-box"><canvas id="chartFxSerie"></canvas></div>
+          </div>
+          <div class="gm-panel">
+            <h2 id="fxAcumTitle">Evolução do acumulado</h2>
+            <p class="panel-note">Acumulado atual = anterior + iniciados − finalizados (fim de cada intervalo)</p>
+            <div class="chart-box"><canvas id="chartFxAcum"></canvas></div>
+          </div>
+        </div>
+
+        <div class="gm-panel">
+          <div class="fx-panel-head">
+            <h2>Produtividade por técnico</h2>
+            <button type="button" id="fxExport">Exportar CSV</button>
+          </div>
+          <div class="fx-table-wrap">
+            <table class="fx-table">
+              <thead>
+                <tr>
+                  <th>PROD</th>
+                  <th>Técnico</th>
+                  <th title="Aparelhos que o técnico já tinha em aberto antes do período">Acumulado</th>
+                  <th title="Reparos iniciados no período (somam ao que ele tem pendente)">+ Iniciados</th>
+                  <th title="Reparos finalizados no período (saem do pendente)">− Finalizados</th>
+                  <th title="Aparelhos reprovados no CQE que voltaram ao técnico (em reparo ou pausados). Não entram no Acumulado nem nos Iniciados.">+ Retrabalho</th>
+                  <th title="Pendentes que estão em reparo agora">Em reparo</th>
+                  <th title="Pendentes que estão pausados (ex.: aguardando peça)">Pausados</th>
+                  <th title="Em reparo + Pausados (= Acumulado + Iniciados − Finalizados + Retrabalho)">= Pendentes</th>
+                  <th title="Tempo trabalhado no período (expediente)">Trabalhado</th>
+                  <th title="Iniciados e finalizados no mesmo dia ÷ iniciados">% Fin. do dia</th>
+                </tr>
+              </thead>
+              <tbody id="fxTableBody"></tbody>
+              <tfoot id="fxTableFoot"></tfoot>
+            </table>
+          </div>
+          <p class="fx-note">Somente os técnicos designados da produção. Conta de cada técnico: Acumulado + Iniciados − Finalizados + Retrabalho = Pendentes, e Pendentes = Em reparo + Pausados (situação ao fim do período). Retrabalho = reprovado no CQE que voltou ao técnico; não é contado de novo no Acumulado. Clique em um técnico para ver os aparelhos pendentes.</p>
+        </div>
+      </section>
+    </div>
   </div>
 
   <div class="gm-tooltip" id="richTooltip"></div>
@@ -890,7 +1211,7 @@
       </div>
       <div class="gm-modal-body">
         <table>
-          <thead>
+          <thead id="drillHead">
             <tr>
               <th>IMEI</th>
               <th>OS (NR)</th>
@@ -1420,7 +1741,19 @@
         if (cur && slice.includes(cur)) el.value = cur;
       };
       fill("fModelo", rows.map((r) => r.modelo));
-      fill("fTecnico", rows.map((r) => r.tecnico));
+      fill(
+        "fTecnico",
+        rows.map((r) => r.tecnico)
+          .concat(
+            flowRows.map((r) => r.tecnico).filter(fxInTeam)
+          )
+          .filter((n) => n && n !== "—"),
+        200
+      );
+      // Na aba Fluxo técnicos, o filtro mostra só os técnicos designados (PROD1–PROD18)
+      document.querySelectorAll("#fTecnico option").forEach((opt) => {
+        if (opt.value && !fxInTeam(opt.value)) opt.dataset.foraEquipe = "1";
+      });
       fill("fMarca", rows.map((r) => r.marca));
       fill("fTipo", rows.map((r) => r.tipo_reparo));
       fill("fLinha", rows.map((r) => r.linha));
@@ -1487,6 +1820,7 @@
 
     function openDrill(title, rows) {
       document.getElementById("drillTitle").textContent = title;
+      document.getElementById("drillHead").innerHTML = drillHeadCqe;
       const tbody = document.getElementById("drillBody");
       if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="9" class="empty-gm">Nenhum registro.</td></tr>`;
@@ -1849,13 +2183,24 @@
 
       document.getElementById("periodLabel").textContent = SkylineDash.formatPeriodBR(start, end);
       SkylineDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
+
+      renderFluxo(start, end, metrics);
+      syncPresetButtons();
     }
 
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await SkylineDash.fetchWebhook(API_URL);
-        const mapped = SkylineDash.normalizeRows(json)
+        const rawRows = SkylineDash.normalizeRows(json);
+        fxProducaoRows = typeof ProducaoDash !== "undefined" ? ProducaoDash.loadRows(json) : [];
+        flowRows = typeof SkylineFluxoTecnico !== "undefined"
+          ? SkylineFluxoTecnico.buildRows(rawRows, {
+              normUser: (n) => SkylineDash.normalizeUserName(n),
+              describe: fxDescribe
+            })
+          : [];
+        const mapped = rawRows
           .map(mapRow)
           .filter(Boolean)
           .filter((r) => r.data_qualidade);
@@ -1867,6 +2212,488 @@
         SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
       }
     }
+
+
+    /* ══════════ Visão Fluxo técnicos (Iniciados x Finalizados x Acumulado) ══════════ */
+    const FX_COLORS = { iniciados: "#694992", finalizados: "#1f9e89", acumulado: "#2d1f42" };
+    let flowRows = [];
+    let fxLast = null;
+    /** Registros de reparo no formato das telas de Produção (status + usuário responsável). */
+    let fxProducaoRows = [];
+    const drillHeadCqe = document.getElementById("drillHead").innerHTML;
+
+    function fxDescribe(raw) {
+      const descricao = String(raw.descricao || "—").trim() || "—";
+      return {
+        modelo: descricao,
+        marca: SkylineDash.normalizeBrandName(descricao),
+        linha: resolveLinha(descricao),
+        tipo: String(raw.operação || raw.operacao || "—").trim() || "—"
+      };
+    }
+
+    /* Equipe = técnicos designados por posição (PROD1–PROD18), lista em skyline-fluxo-tecnico.js */
+    function fxPanelOf(nome) {
+      return SkylineFluxoTecnico.equipeDe(nome);
+    }
+
+    const fxPanelCache = new Map();
+    function fxInTeam(nome) {
+      if (!fxPanelCache.has(nome)) fxPanelCache.set(nome, fxPanelOf(nome));
+      return fxPanelCache.get(nome) != null;
+    }
+
+    function fxApplyFilters(rows) {
+      const modelo = document.getElementById("fModelo").value;
+      const marca = document.getElementById("fMarca").value;
+      const tipo = document.getElementById("fTipo").value;
+      const linha = document.getElementById("fLinha").value;
+      return rows.filter((r) => {
+        if (modelo && r.modelo !== modelo) return false;
+        if (marca && r.marca !== marca) return false;
+        if (tipo && r.tipo !== tipo) return false;
+        if (linha && r.linha !== linha) return false;
+        return true;
+      });
+    }
+
+    function fxNum(n) {
+      return Number(n || 0).toLocaleString("pt-BR");
+    }
+
+    function fxPctText(p) {
+      return p == null ? "—" : `${p.toFixed(1).replace(".", ",")}%`;
+    }
+
+    function fxDelta(v) {
+      if (!v) return `<span class="fx-delta neutral">= 0</span>`;
+      // Acumulado subindo é ruim (vermelho); caindo é bom (verde)
+      return v > 0
+        ? `<span class="fx-delta up">▲ ${fxNum(v)}</span>`
+        : `<span class="fx-delta down">▼ ${fxNum(Math.abs(v))}</span>`;
+    }
+
+    function fxPctCell(p) {
+      const w = p == null ? 0 : Math.min(100, Math.round(p));
+      return `<span class="fx-pct">${fxPctText(p)}<span class="fx-pct-bar"><span style="width:${w}%"></span></span></span>`;
+    }
+
+    function fxAge(ms) {
+      const h = ms / 3600000;
+      if (h < 48) return SkylineDash.formatDuration(ms);
+      return `${Math.floor(h / 24)} dias`;
+    }
+
+    function openFluxoDrill(title, rows) {
+      document.getElementById("drillTitle").textContent = title;
+      document.getElementById("drillHead").innerHTML = `
+        <tr>
+          <th>IMEI</th><th>OS (NR)</th><th>Modelo</th><th>Técnico</th><th>Iniciado por</th>
+          <th>Iniciado em</th><th>Finalizado em</th><th>Em aberto há</th>
+        </tr>`;
+      const tbody = document.getElementById("drillBody");
+      const fmt = (ts) => (ts == null ? "—" : new Date(ts).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }));
+      const now = Date.now();
+      const sorted = rows.slice().sort((a, b) => a.iniciadoTs - b.iniciadoTs);
+      tbody.innerHTML = sorted.length
+        ? sorted.slice(0, 300).map((r) => `
+          <tr>
+            <td>${escapeHtml(r.serial)}</td>
+            <td>${escapeHtml(r.nr)}</td>
+            <td class="col-modelo">${escapeHtml(r.modelo)}</td>
+            <td>${escapeHtml(r.tecnico)}</td>
+            <td>${escapeHtml(r.tecnicoInicio || "—")}</td>
+            <td>${fmt(r.iniciadoTs)}</td>
+            <td>${fmt(r.finalizadoTs)}</td>
+            <td>${r.finalizadoTs == null ? fxAge(now - r.iniciadoTs) : "—"}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="8" class="empty-gm">Nenhum registro.</td></tr>`;
+      document.getElementById("drillModal").classList.add("open");
+    }
+
+    function renderFluxoCharts(res) {
+      const labels = res.serie.map((b) => b.label);
+      const tick = { font: { size: 8 } };
+      const manyBuckets = res.serie.length > 16;
+
+      destroyChart("fxSerie");
+      charts.fxSerie = new Chart(document.getElementById("chartFxSerie"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Iniciados", data: res.serie.map((b) => b.iniciados), backgroundColor: FX_COLORS.iniciados, borderRadius: 4, borderSkipped: "bottom", categoryPercentage: 0.7, barPercentage: 0.9 },
+            { label: "Finalizados", data: res.serie.map((b) => b.finalizados), backgroundColor: FX_COLORS.finalizados, borderRadius: 4, borderSkipped: "bottom", categoryPercentage: 0.7, barPercentage: 0.9 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 14, right: 4 } },
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                footer: (items) => {
+                  const b = res.serie[items[0]?.dataIndex];
+                  return b ? `Saldo: ${b.iniciados - b.finalizados >= 0 ? "+" : ""}${b.iniciados - b.finalizados} · Acumulado: ${b.acumulado}` : "";
+                }
+              }
+            },
+            datalabels: {
+              display: (ctx) => !manyBuckets && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+              anchor: "end",
+              align: "end",
+              offset: 1,
+              clip: false,
+              color: "#2d1f42",
+              font: { size: 8, weight: "700" }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { ...tick, maxRotation: 0, autoSkip: true } },
+            y: { beginAtZero: true, grace: "10%", grid: { color: "rgba(105,73,146,0.08)" }, ticks: { ...tick, precision: 0, maxTicksLimit: 5 } }
+          },
+          onClick: (_, elems) => {
+            if (!elems.length) return;
+            const b = res.serie[elems[0].index];
+            const isRec = elems[0].datasetIndex === 0;
+            const src = isRec ? res.iniciadosNoPeriodo : res.finalizadosNoPeriodo;
+            const matches = src.filter((r) => {
+              const ts = isRec ? r.iniciadoTs : r.finalizadoTs;
+              const day = isRec ? r.iniciadoDia : r.finalizadoDia;
+              if (!res.singleDay) return day === b.key;
+              const h = Math.min(18, Math.max(7, new Date(ts).getHours()));
+              return h === b.key;
+            });
+            openFluxoDrill(`${isRec ? "Iniciados" : "Finalizados"} — ${b.label}`, matches);
+          }
+        }
+      });
+
+      destroyChart("fxAcum");
+      const acumData = res.serie.map((b) => b.acumulado);
+      const hoje = SkylineDash.todayISO();
+      const nowH = new Date().getHours();
+      // Não desenha o futuro (horas que ainda não chegaram / dias após hoje)
+      const masked = res.serie.map((b, i) => {
+        if (res.singleDay) {
+          const { start } = SkylineDash.getDateRange();
+          if (start === hoje && b.key > nowH) return null;
+        } else if (b.key > hoje) return null;
+        return acumData[i];
+      });
+      charts.fxAcum = new Chart(document.getElementById("chartFxAcum"), {
+        type: "line",
+        data: {
+          labels: ["Início", ...labels],
+          datasets: [{
+            label: "Acumulado",
+            data: [res.total.anterior + (res.retrabalhoInicio || 0), ...masked],
+            borderColor: FX_COLORS.acumulado,
+            backgroundColor: "rgba(45,31,66,0.06)",
+            borderWidth: 2,
+            fill: true,
+            cubicInterpolationMode: "monotone",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            spanGaps: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 16, right: 10 } },
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              // Só primeiro e último ponto com valor — evita número em todos os pontos
+              display: (ctx) => {
+                const d = ctx.dataset.data;
+                let last = -1;
+                d.forEach((v, i) => { if (v != null) last = i; });
+                return ctx.dataIndex === 0 || ctx.dataIndex === last;
+              },
+              align: "top",
+              offset: 2,
+              clip: false,
+              color: "#2d1f42",
+              font: { size: 9, weight: "800" }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { ...tick, maxRotation: 0, autoSkip: true } },
+            y: { grace: "15%", grid: { color: "rgba(105,73,146,0.08)" }, ticks: { ...tick, precision: 0, maxTicksLimit: 5 } }
+          }
+        }
+      });
+    }
+
+    function renderFluxo(start, end, cqeMetrics) {
+      if (typeof SkylineFluxoTecnico === "undefined") return;
+      const tecnico = document.getElementById("fTecnico").value;
+      const rows = fxApplyFilters(flowRows);
+      const res = SkylineFluxoTecnico.compute(rows, start, end, { tecnico, inTeam: fxInTeam, hourFrom: 7, hourTo: 18 });
+      fxLast = { res, start, end, tecnico };
+      const t = res.total;
+
+      document.getElementById("fxAnterior").textContent = fxNum(t.anterior);
+      document.getElementById("fxAnteriorHint").textContent = `Iniciados antes de ${start.split("-").reverse().join("/")} e ainda abertos`;
+      document.getElementById("fxIniciados").textContent = fxNum(t.iniciados);
+      document.getElementById("fxFinalizados").textContent = fxNum(t.finalizados);
+      document.getElementById("fxInspecionados").textContent = fxNum(cqeMetrics?.total || 0);
+      document.getElementById("fxInspecionadosHint").textContent = cqeMetrics
+        ? `${fxNum(cqeMetrics.aprovado)} aprov. · ${fxNum(cqeMetrics.reprovado)} reprov.`
+        : "Aprovados + reprovados";
+      document.getElementById("fxAcumulado").innerHTML = `${fxNum(t.acumulado)} ${fxDelta(t.variacao)}`;
+      document.getElementById("fxFormula").textContent =
+        `${fxNum(t.anterior)} anterior + ${fxNum(t.iniciados)} iniciados − ${fxNum(t.finalizados)} finalizados` +
+        (t.retrabalho ? ` + ${fxNum(t.retrabalho)} retrabalho` : "");
+      document.getElementById("fxPct").textContent = fxPctText(t.pctDia);
+      document.getElementById("fxPctHint").textContent = t.pctDia == null
+        ? "Nenhum reparo iniciado no período"
+        : `${fxNum(t.finalizadosMesmoDia)} de ${fxNum(t.iniciados)} iniciados finalizados no mesmo dia`;
+
+      document.getElementById("fxSerieTitle").textContent = res.singleDay
+        ? "Iniciados x Finalizados — por hora"
+        : "Iniciados x Finalizados — por dia";
+      document.getElementById("fxAcumTitle").textContent = res.singleDay
+        ? "Evolução do acumulado — por hora"
+        : "Evolução do acumulado — por dia";
+
+      // Produtividade por técnico: SEMPRE PROD 1 → PROD 18 (ProducaoDash.POSICOES)
+      const prodStats = fxProducaoPorPosicao(start, end, tecnico, res);
+      fxLast.prodStats = prodStats;
+      const tbody = document.getElementById("fxTableBody");
+      tbody.innerHTML = prodStats.linhas.map((r, i) => `
+          <tr data-idx="${i}" class="${r.match ? "" : "fx-vaga"}">
+            <td>PROD ${r.prod}</td>
+            <td>${escapeHtml(r.nome)}</td>
+            <td>${fxNum(r.anterior)}</td>
+            <td>${fxNum(r.iniciados)}</td>
+            <td>${fxNum(r.finalizado)}</td>
+            <td>${fxNum(r.retrabalho)}</td>
+            <td>${fxNum(r.andamento)}</td>
+            <td>${fxNum(r.pausado)}</td>
+            <td class="fx-acum-cell" title="${fxNum(r.andamento)} em reparo + ${fxNum(r.pausado)} pausados">${fxNum(r.pendentes)}</td>
+            <td>${r.workMs ? SkylineDash.formatDuration(r.workMs) : "—"}</td>
+            <td>${fxPctCell(r.pctDia)}</td>
+          </tr>`).join("") ||
+        `<tr><td colspan="11" class="empty-gm">Técnico fora das posições PROD 1–18.</td></tr>`;
+      const tt = prodStats.total;
+      document.getElementById("fxTableFoot").innerHTML = `
+        <tr>
+          <td colspan="2">Total${tecnico ? ` (${escapeHtml(tecnico)})` : " PROD 1–18"}</td>
+          <td>${fxNum(tt.anterior)}</td>
+          <td>${fxNum(tt.iniciados)}</td>
+          <td>${fxNum(tt.finalizado)}</td>
+          <td>${fxNum(tt.retrabalho)}</td>
+          <td>${fxNum(tt.andamento)}</td>
+          <td>${fxNum(tt.pausado)}</td>
+          <td>${fxNum(tt.pendentes)}</td>
+          <td>${tt.workMs ? SkylineDash.formatDuration(tt.workMs) : "—"}</td>
+          <td>${fxPctCell(tt.pctDia)}</td>
+        </tr>`;
+      tbody.querySelectorAll("tr[data-idx]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const r = prodStats.linhas[Number(tr.dataset.idx)];
+          if (!r || !r.match) return;
+          openFluxoDrill(
+            `PROD ${r.prod} — ${r.nome} · pendentes em ${end.split("-").reverse().join("/")}`,
+            res.pendentesFim.filter((x) => ProducaoDash.matchesUserFilter(x.tecnico, [r.match]))
+          );
+        });
+      });
+
+      if (!document.getElementById("viewFluxo").hidden) {
+        renderFluxoCharts(res);
+        requestAnimationFrame(() => requestAnimationFrame(resizeAllCharts));
+      }
+    }
+
+    /**
+     * PROD → técnico → dados de produção.
+     * Fonte: API de reparo (mesma das telas de Produção). Cada registro é classificado por
+     * ProducaoDash (finalizado / em reparo / pausado + usuário responsável) e ligado à
+     * posição PROD pelo nome do usuário no sistema. Só entram as posições PROD 1–18.
+     */
+    function fxProducaoPorPosicao(start, end, tecnico, res) {
+      let posicoes = ProducaoDash.POSICOES.slice().sort((a, b) => a.prod - b.prod);
+      if (tecnico) posicoes = posicoes.filter((p) => p.match && ProducaoDash.matchesUserFilter(tecnico, [p.match]));
+      const filtro = posicoes.map((p) => p.match).filter(Boolean);
+      const linhas = posicoes.map((p) => ({
+        prod: p.prod, nome: p.nome || "Sem técnico definido", match: p.match,
+        anterior: 0, iniciados: 0, total: 0, finalizado: 0, retrabalho: 0, andamento: 0, pausado: 0,
+        pendentes: 0, workMs: 0, mesmoDia: 0, pctDia: null
+      }));
+      const linhaDe = (nome) => linhas.find((l) => l.match && ProducaoDash.matchesUserFilter(nome, [l.match]));
+
+      // Fluxo do período (mesma base dos cards): anterior, iniciados, finalizados, pendentes
+      (res?.porTecnico || []).forEach((t) => {
+        const l = linhaDe(t.nome);
+        if (!l) return;
+        l.anterior += t.anterior;
+        l.iniciados += t.iniciados;
+        l.finalizado += t.finalizados;
+        l.retrabalho += t.retrabalho || 0;
+        l.mesmoDia += t.finalizadosMesmoDia;
+        l.pendentes += t.acumulado;
+      });
+      // Pendentes ao fim do período, separados em Reparo x Pausa (soma = Pendentes)
+      const ateTs = new Date(`${end}T23:59:59.999`).getTime();
+      (res?.pendentesFim || []).forEach((r) => {
+        const l = linhaDe(r.tecnico);
+        if (!l) return;
+        if (SkylineFluxoTecnico.situacaoEm(r.raw, ateTs) === "pausado") l.pausado += 1;
+        else l.andamento += 1;
+      });
+      // Tempo trabalhado no período (mesma regra das telas de Produção)
+      if (filtro.length) {
+        ProducaoDash.filterRows(fxProducaoRows, start, end, "android", filtro).forEach((r) => {
+          const l = linhaDe(r.user);
+          if (l) l.workMs += ProducaoDash.calcShiftWorkMsInPeriod(r._workRaw, start, end);
+        });
+      }
+      const total = { anterior: 0, iniciados: 0, total: 0, finalizado: 0, retrabalho: 0, andamento: 0, pausado: 0, pendentes: 0, workMs: 0, mesmoDia: 0 };
+      linhas.forEach((l) => {
+        l.total = l.anterior + l.iniciados;
+        l.pctDia = l.iniciados ? (l.mesmoDia / l.iniciados) * 100 : null;
+        Object.keys(total).forEach((k) => { total[k] += l[k]; });
+      });
+      total.pctDia = total.iniciados ? (total.mesmoDia / total.iniciados) * 100 : null;
+      return { linhas, total };
+    }
+
+    function fxExportCsv() {
+      if (!fxLast) return;
+      const { res, start, end, tecnico } = fxLast;
+      const sep = ";";
+      const lines = [
+        ["Período", `${start} a ${end}`, tecnico ? `Técnico: ${tecnico}` : ""].join(sep),
+        ["PROD", "Técnico", "Acumulado", "Iniciados", "Finalizados", "Retrabalho", "Em reparo", "Pausados", "Pendentes", "Trabalhado (min)", "% Fin. do dia"].join(sep),
+        ...(fxLast.prodStats ? fxLast.prodStats.linhas.concat([{ prod: "", nome: "Total", ...fxLast.prodStats.total }]) : []).map((r) => [
+          r.prod === "" ? "" : `PROD ${r.prod}`,
+          `"${String(r.nome).replace(/"/g, '""')}"`,
+          r.anterior,
+          r.iniciados,
+          r.finalizado,
+          r.retrabalho,
+          r.andamento,
+          r.pausado,
+          r.pendentes,
+          Math.round((r.workMs || 0) / 60000),
+          r.pctDia == null ? "" : r.pctDia.toFixed(1).replace(".", ",")
+        ].join(sep))
+      ];
+      const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `fluxo-tecnicos_${start}_${end}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    }
+
+    /* ── Abas e presets de período ── */
+    function setView(view) {
+      const fluxo = view === "fluxo";
+      document.getElementById("viewQualidade").hidden = fluxo;
+      document.getElementById("viewFluxo").hidden = !fluxo;
+      document.body.classList.toggle("view-fluxo", fluxo);
+      document.querySelectorAll(".gm-tab").forEach((b) => {
+        const on = b.dataset.view === (fluxo ? "fluxo" : "qualidade");
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      try {
+        const url = new URL(location.href);
+        if (fluxo) url.searchParams.set("view", "fluxo");
+        else url.searchParams.delete("view");
+        history.replaceState(null, "", url);
+      } catch (_) { /* ignore */ }
+      if (allRows.length || flowRows.length) renderDashboard();
+    }
+
+    /* Período: Dia / Semana (seg–dom) / Mês / Personalizado, a partir da data de referência */
+    let periodMode = "dia";
+
+    function periodRange(mode, ref) {
+      if (mode === "semana") {
+        const d = new Date(`${ref}T12:00:00`);
+        const dow = (d.getDay() + 6) % 7; // segunda = 0
+        const start = addDays(ref, -dow);
+        return { start, end: addDays(start, 6) };
+      }
+      if (mode === "mes") {
+        const [y, m] = ref.split("-").map(Number);
+        const last = new Date(y, m, 0).getDate();
+        return { start: `${ref.slice(0, 8)}01`, end: `${ref.slice(0, 8)}${String(last).padStart(2, "0")}` };
+      }
+      return { start: ref, end: ref };
+    }
+
+    function syncPeriodUi() {
+      document.querySelectorAll(".gm-presets button").forEach((btn) => {
+        const on = btn.dataset.mode === periodMode;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      document.getElementById("fDataRef").closest(".gm-filter-group")
+        .classList.toggle("mode-custom", periodMode === "personalizado");
+    }
+
+    function applyPeriod() {
+      const refEl = document.getElementById("fDataRef");
+      if (!refEl.value) refEl.value = document.getElementById("dateStart").value || SkylineDash.todayISO();
+      if (periodMode !== "personalizado") {
+        const r = periodRange(periodMode, refEl.value);
+        document.getElementById("dateStart").value = r.start;
+        document.getElementById("dateEnd").value = r.end;
+      }
+      syncPeriodUi();
+      renderDashboard();
+    }
+
+    /* Chamado a cada render: mantém a UI coerente quando o sistema troca as datas (virada do dia, Hoje) */
+    function syncPresetButtons() {
+      const refEl = document.getElementById("fDataRef");
+      const { start, end } = SkylineDash.getDateRange();
+      if (periodMode !== "personalizado") {
+        const r = periodRange(periodMode, refEl.value || start);
+        if (r.start !== start || r.end !== end) {
+          if (start === end) { periodMode = "dia"; refEl.value = start; }
+          else periodMode = "personalizado";
+        }
+      }
+      if (!refEl.value) refEl.value = start;
+      syncPeriodUi();
+    }
+
+    document.querySelectorAll(".gm-presets button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        periodMode = btn.dataset.mode;
+        applyPeriod();
+      });
+    });
+    document.getElementById("fDataRef").addEventListener("change", applyPeriod);
+    // "Hoje": modo Dia na data atual (bindDateFilters ajusta Início/Fim e renderiza em seguida)
+    document.getElementById("btnToday").addEventListener("click", () => {
+      periodMode = "dia";
+      document.getElementById("fDataRef").value = SkylineDash.todayISO();
+      syncPeriodUi();
+    });
+    ["dateStart", "dateEnd"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        periodMode = "personalizado";
+        syncPeriodUi();
+      });
+    });
+    document.querySelectorAll(".gm-tab").forEach((b) => {
+      b.addEventListener("click", () => setView(b.dataset.view));
+    });
+    document.getElementById("fxExport").addEventListener("click", fxExportCsv);
 
     document.getElementById("drillClose").addEventListener("click", () => {
       document.getElementById("drillModal").classList.remove("open");
@@ -1887,6 +2714,7 @@
       }, 60 * 1000);
     }
     window.addEventListener("resize", () => requestAnimationFrame(resizeAllCharts));
+    setView(new URLSearchParams(location.search).get("view") === "fluxo" ? "fluxo" : "qualidade");
   </script>
 </body>
 </html>

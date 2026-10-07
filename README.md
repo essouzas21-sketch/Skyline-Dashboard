@@ -13,6 +13,7 @@ Dashboards web para exibição em **TVs e monitores** da operação: Recebimento
 | Produção iPhone | `producao-iphone.html` | Mesma lógica (filtro de usuários em breve) |
 | Gestão de Produto | `gestao-produto.html` | Em construção |
 | CQE | `cqe.html` | Aprovado / Reprovado por qualidade |
+| CQE Gestão — Fluxo técnicos | `cqe-gestao.html?view=fluxo` | Recebidos x Finalizados x Acumulado por técnico (`skyline-fluxo-tecnico.js`) |
 
 ## Requisitos
 
@@ -121,3 +122,22 @@ USER_FILTERS: {
 ```
 
 `null` = exibe todos os colaboradores.
+
+## CQE Gestão — Fluxo técnicos
+
+Aba **Fluxo técnicos** em `cqe-gestao.html` (link direto: `cqe-gestao.html?view=fluxo`). Lógica em `skyline-fluxo-tecnico.js`.
+
+| Indicador | Regra |
+|-----------|-------|
+| Iniciados | Reparos com `Iniciado_Reparo` no período |
+| Finalizados | Reparos com `Fim do Reparo` no período (qualquer data de início) |
+| Acumulado anterior | Reparos iniciados antes do período e ainda não finalizados no início dele |
+| Acumulado atual | Acumulado anterior + Iniciados − Finalizados |
+| % Finalização do dia | Iniciados e finalizados no mesmo dia ÷ Iniciados × 100 (0% a 100%) |
+| Com o técnico agora | Reparos em aberto neste momento com o técnico (independe do período) |
+
+Cada aparelho conta para um técnico só: quem está com ele agora (última pausa/retorno ou início) ou, se finalizado, quem finalizou.
+
+Só entram os técnicos designados por posição de produção (PROD1 a PROD18), definidos em `SkylineFluxoTecnico.EQUIPE` no arquivo `skyline-fluxo-tecnico.js`. Para trocar alguém de posição, edite essa lista.
+
+Filtros: Dia / Semana / Mês / Personalizado (a partir de uma data de referência, com atalho Hoje), técnico, modelo, marca, tipo e linha. A lógica fica em `skyline-fluxo-tecnico.js` (funções puras, sem DOM).

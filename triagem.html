@@ -279,6 +279,50 @@
       min-height: 0;
     }
 
+    .tr-users-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: auto;
+    }
+    .tr-users {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .tr-users th {
+      position: sticky;
+      top: 0;
+      background: var(--tr-surface);
+      color: var(--tr-muted);
+      font-size: 0.6rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: right;
+      padding: 5px 8px;
+    }
+    .tr-users th:first-child,
+    .tr-users td:first-child { text-align: left; }
+    .tr-users td {
+      padding: 5px 8px;
+      border-bottom: 1px solid var(--tr-border);
+      text-align: right;
+      color: var(--tr-text);
+    }
+    .tr-users td.qtd { font-weight: 800; font-size: 0.9rem; }
+    .tr-users tbody tr { cursor: pointer; }
+    .tr-users tbody tr:hover { background: var(--tr-surface); }
+    .tr-users .bar {
+      display: inline-block;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--tr-accent);
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .tr-users .sem-nome { color: var(--tr-muted); font-style: italic; }
+
     .tr-panel {
       background: var(--tr-card);
       border: 1px solid var(--tr-border);
@@ -524,8 +568,15 @@
 
     <section class="tr-mid">
       <div class="tr-panel">
-        <h2>Top colaboradores</h2>
-        <div class="chart-box"><canvas id="chartUsers"></canvas></div>
+        <h2>Top colaboradores · triagens no período</h2>
+        <div class="tr-users-wrap">
+          <table class="tr-users">
+            <thead>
+              <tr><th>Colaborador</th><th>Aparelhos triados</th><th>% do período</th></tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
       </div>
       <div class="tr-panel">
         <h2>Principais marcas</h2>
@@ -559,6 +610,7 @@
               <th>OS</th>
               <th>Modelo</th>
               <th>Data triagem</th>
+              <th>Triado por</th>
               <th>HU</th>
             </tr>
           </thead>
@@ -908,10 +960,10 @@
 
     function openImeiDrill(userName, rows) {
       document.getElementById("drillTitle").textContent =
-        `${userName} · ${rows.length} IMEI(s)`;
+        `${userName} · ${new Set(rows.map(chaveAparelho)).size} aparelho(s) triado(s)`;
       const tbody = document.getElementById("drillBody");
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="tr-modal-empty">Nenhum IMEI neste período.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="tr-modal-empty">Nenhum IMEI neste período.</td></tr>`;
       } else {
         const sorted = [...rows].sort((a, b) => String(b.data_triagem).localeCompare(String(a.data_triagem)));
         tbody.innerHTML = sorted.map((r) => `
@@ -920,6 +972,7 @@
             <td class="mono">${escapeHtml(r.id ?? "—")}</td>
             <td>${escapeHtml(r.descricao || "—")}</td>
             <td>${escapeHtml(fmtDateTime(r.data_triagem))}</td>
+            <td>${escapeHtml(r.usuario || "—")}</td>
             <td class="mono">${escapeHtml(r.hu && r.hu !== "—" ? r.hu : "—")}</td>
           </tr>
         `).join("");
@@ -955,18 +1008,49 @@
       return { text: `${sign}${d}`, cls: d > 0 ? "up" : "down" };
     }
 
+    /** Valor parece IMEI/serial/código (só dígitos, ou igual ao serial do aparelho)? */
+    function pareceCodigo(valor, raw) {
+      const v = String(valor ?? "").trim();
+      if (!v) return true;
+      const soDigitos = v.replace(/[\s.\-/]/g, "");
+      if (/^\d{6,}$/.test(soDigitos)) return true;
+      const serial = String(raw.serial ?? "").trim();
+      const hu = String(raw.hu ?? "").trim();
+      return (serial && v === serial) || (hu && v === hu) || !/[a-zA-ZÀ-ÿ]/.test(v);
+    }
+
+    /**
+     * Colaborador que bipou na Triagem. Na API de reparo esse usuário vem em
+     * "Usuário reparo" (é o papel "Triagem" na tela Por Técnico); "Usuário triagem"
+     * é usado quando existir. Valores que são IMEI/serial são ignorados.
+     */
+    function usuarioTriagem(raw) {
+      const campos = [
+        "Usuário triagem", "Usuario triagem", "Usuário Triagem", "Usuario Triagem",
+        "usuario_triagem", "triado_por", "Usuário reparo", "Usuario reparo"
+      ];
+      for (const c of campos) {
+        const v = raw[c];
+        if (v != null && !pareceCodigo(v, raw)) return String(v).trim();
+      }
+      const u = raw.u?.name;
+      if (u && !pareceCodigo(u, raw)) return String(u).trim();
+      return "—";
+    }
+
+    /** Aparelho = IMEI/serial (ou a OS quando não houver serial). */
+    function chaveAparelho(r) {
+      const s = String(r.serial ?? "").trim();
+      return s && s !== "—" ? `s:${s}` : `i:${r.id ?? ""}`;
+    }
+
     function mapRow(raw) {
       return {
         id: raw.id ?? null,
         data_triagem: raw["Data Triagem"] || raw.data_triagem || null,
         operacao: SkylineDash.resolveOperacao(raw),
-        usuario: SkylineDash.normalizeUserName(
-          raw["Usuário triagem"] ||
-          raw["Usuário reparo"] ||
-          raw.usuario_triagem ||
-          raw.u?.name ||
-          "—"
-        ),
+        // Quem bipou o aparelho na etapa de Triagem (nunca o IMEI/serial)
+        usuario: SkylineDash.normalizeUserName(usuarioTriagem(raw)),
         descricao: raw.descricao || "—",
         serial: raw.serial || "—",
         hu: raw.hu || "—"
@@ -998,52 +1082,36 @@
       } else {
         byUser = SkylineDash.aggregateCount(rows, (r) => r.usuario).slice(0, TOP_N);
       }
-      lastUserKeys = byUser.map(([n]) => n);
+      // Todos os colaboradores do período (não só o top): Colaborador | Triagens | %
+      // Colaborador → quantidade de aparelhos (IMEI distintos) que ele bipou na Triagem
+      const porUsuario = new Map();
+      rows.forEach((r) => {
+        if (!porUsuario.has(r.usuario)) porUsuario.set(r.usuario, new Set());
+        porUsuario.get(r.usuario).add(chaveAparelho(r));
+      });
+      const allUsers = APPLY_MASK
+        ? byUser
+        : [...porUsuario.entries()].map(([u, set]) => [u, set.size]).sort((a, b) => b[1] - a[1]);
+      lastUserKeys = allUsers.map(([n]) => n);
       lastPeriodRows = rows;
       chartUsers = destroyChart(chartUsers);
-      chartUsers = new Chart(document.getElementById("chartUsers"), {
-        type: "bar",
-        data: {
-          labels: byUser.map(([n]) => (n.length > 18 ? `${n.slice(0, 17)}…` : n)),
-          datasets: [{
-            data: byUser.map(([, v]) => v),
-            backgroundColor: SKY.accent,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          layout: { padding: { right: 28 } },
-          plugins: {
-            legend: { display: false },
-            datalabels: dataLabelCount,
-            tooltip: {
-              callbacks: {
-                title: (items) => lastUserKeys[items[0]?.dataIndex] || "",
-                afterBody: () => "Clique para ver IMEIs"
-              }
-            }
-          },
-          scales: {
-            x: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: tickFont() } },
-            y: { ticks: { font: tickFont() } }
-          },
-          onHover: (ev, elems) => {
-            const canvas = ev?.native?.target;
-            if (canvas) canvas.style.cursor = elems.length ? "pointer" : "default";
-          },
-          onClick: (_, elems) => {
-            if (!elems.length) return;
-            const user = lastUserKeys[elems[0].index];
-            if (!user) return;
-            openImeiDrill(
-              user,
-              lastPeriodRows.filter((r) => r.usuario === user)
-            );
-          }
-        }
+      const total = allUsers.reduce((acc, [, q]) => acc + q, 0) || 1;
+      const max = allUsers.length ? allUsers[0][1] : 1;
+      const tbody = document.getElementById("usersBody");
+      tbody.innerHTML = allUsers.length
+        ? allUsers.map(([nome, qtd], i) => `
+          <tr data-idx="${i}" title="Clique para ver os aparelhos triados">
+            <td class="${nome === "—" ? "sem-nome" : ""}">${escapeHtml(nome === "—" ? "Sem colaborador informado" : nome)}</td>
+            <td class="qtd">${qtd}<span class="bar" style="width:${Math.max(4, Math.round((qtd / max) * 60))}px"></span></td>
+            <td>${((qtd / total) * 100).toFixed(1).replace(".", ",")}%</td>
+          </tr>`).join("")
+        : `<tr><td colspan="3" class="sem-nome">Nenhuma triagem no período.</td></tr>`;
+      tbody.querySelectorAll("tr[data-idx]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const user = lastUserKeys[Number(tr.dataset.idx)];
+          if (!user) return;
+          openImeiDrill(user === "—" ? "Sem colaborador informado" : user, lastPeriodRows.filter((r) => r.usuario === user));
+        });
       });
       return byUser;
     }

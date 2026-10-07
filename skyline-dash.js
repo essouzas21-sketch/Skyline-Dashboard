@@ -4,8 +4,17 @@
 const SkylineDash = {
   /** Reparo / triagem / gestão / CQE / produção (campos id, Iniciado_Reparo, decisao…) */
   API_REPARO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/relatorio-reparo",
-  /** Recebimento (campos hu_id, data_recebimento, grupo, descricao…) */
-  API_RECEBIMENTO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
+  /**
+   * Recebimento — função Supabase consulta-recebimentos (GET ?de=AAAA-MM-DD&ate=AAAA-MM-DD&pagina=N).
+   * Exige a chave no cabeçalho x-api-key; a chave fica em skyline-chaves.js (fora do Git).
+   */
+  API_RECEBIMENTO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos",
+  /** Webhook antigo do n8n (parou de atualizar) — mantido só como referência. */
+  API_RECEBIMENTO_LEGADO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
+  /** Quando a tela não informa o período, busca os últimos N dias. */
+  RECEBIMENTO_DIAS_PADRAO: 120,
+  /** Limite de segurança de páginas por consulta. */
+  RECEBIMENTO_MAX_PAGINAS: 400,
   /** Movimentações de endereço (hu_id, endereco, serial, created_at) — trilha completa + último local */
   API_MOVIMENTACOES: "https://automacao.skylinemobile.com.br/webhook/480761e2-45b0-45d4-a849-82a991ebe7a9",
   /** Peças solicitadas (serial, descricoes, valor_total) */
@@ -16,6 +25,7 @@ const SkylineDash = {
   HOMOLOG_FIXTURES: {
     "webhook/fi": "data/homolog/reparo.json",
     "functions/v1/relatorio-reparo": "data/homolog/reparo.json",
+    "functions/v1/consulta-recebimentos": "data/homolog/recebimento.json",
     "8d085005-6279-410a-882c-051ad2a189cf": "data/homolog/reparo.json",
     "8407c7c4-ba6d-49f9-b31f-d6d2ebddfeaf": "data/homolog/reparo.json",
     "f16be280-a545-440c-80f4-9481b1dd06f6": "data/homolog/recebimento.json",
@@ -51,7 +61,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "65",
+  CACHE_VERSION: "66",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
@@ -869,7 +879,10 @@ const SkylineDash = {
 
   isRecebimentoWebhook(url) {
     const u = String(url);
-    return u.includes("f16be280") || u.includes("661802e8") || u.includes("78441d8b");
+    return (
+      u.includes("/functions/v1/consulta-recebimentos") ||
+      u.includes("f16be280") || u.includes("661802e8") || u.includes("78441d8b")
+    );
   },
 
   getFetchCacheTtl(url) {
@@ -1172,8 +1185,290 @@ const SkylineDash = {
     return { start, end };
   },
 
+  /* ═════ Recebimento — API consulta-recebimentos (Supabase) ═════ */
+
+  _chavesPromise: null,
+
+  /** Carrega skyline-chaves.js (não versionado) uma vez e devolve a chave do recebimento. */
+  async getRecebimentoApiKey() {
+    if (typeof window !== "undefined" && window.SKYLINE_RECEBIMENTO_API_KEY) {
+      return window.SKYLINE_RECEBIMENTO_API_KEY;
+    }
+    if (!this._chavesPromise) {
+      this._chavesPromise = new Promise((resolve) => {
+        const s = document.createElement("script");
+        s.src = `skyline-chaves.js?_t=${Date.now()}`;
+        s.onload = () => resolve();
+        s.onerror = () => resolve();
+        document.head.appendChild(s);
+      });
+    }
+    await this._chavesPromise;
+    const key = typeof window !== "undefined" ? window.SKYLINE_RECEBIMENTO_API_KEY : null;
+    if (!key) {
+      throw new Error("Chave da API de recebimento não configurada (arquivo skyline-chaves.js).");
+    }
+    return key;
+  },
+
+  _isoAddDays(iso, delta) {
+    const d = new Date(`${iso}T12:00:00`);
+    d.setDate(d.getDate() + delta);
+    return this.toLocalDateStr(d.toISOString());
+  },
+
+  /** Total de páginas informado pela API (se houver). */
+  _recebimentoTotalPaginas(payload) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    const keys = ["total_paginas", "totalPaginas", "paginas", "total_pages", "totalPages", "last_page", "lastPage"];
+    for (const k of keys) {
+      const v = Number(payload[k] ?? payload.meta?.[k] ?? payload.paginacao?.[k]);
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+    return null;
+  },
+
+  /** A API indica que não há próxima página? (true/false/null = não informa) */
+  _recebimentoTemProxima(payload) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    const src = { ...payload, ...(payload.meta || {}), ...(payload.paginacao || {}) };
+    for (const k of ["tem_proxima", "temProxima", "has_more", "hasMore", "has_next", "hasNext"]) {
+      if (typeof src[k] === "boolean") return src[k];
+    }
+    for (const k of ["proxima_pagina", "proximaPagina", "next_page", "nextPage", "next"]) {
+      if (k in src) return src[k] != null && src[k] !== false && src[k] !== "";
+    }
+    return null;
+  },
+
+  /**
+   * Normaliza nomes de campos da API nova para os que as telas já usam
+   * (data_recebimento, grupo, hu_id, descricao, usuario_recebimento, prod_cprod).
+   * Só preenche quando o campo esperado não veio.
+   */
+  adaptRecebimentoRow(raw) {
+    if (!raw || typeof raw !== "object") return raw;
+    const r = { ...raw };
+    const first = (...keys) => {
+      for (const k of keys) {
+        const v = raw[k];
+        if (v != null && String(v).trim() !== "") return v;
+      }
+      return undefined;
+    };
+    if (r.data_recebimento == null) {
+      const v = first("data_entrada", "dataRecebimento", "DATA_RECEBIMENTO", "data_recebido", "recebido_em", "dt_recebimento", "data");
+      if (v !== undefined) r.data_recebimento = v;
+    }
+    if (r.grupo == null && r.Grupo == null) {
+      const v = first("GRUPO", "grupo_id", "id_grupo", "codigo_grupo", "cod_grupo");
+      if (v !== undefined) r.grupo = v;
+    }
+    if (r.hu_id == null) {
+      const v = first("hu", "HU", "huId", "hunit", "id_hu");
+      if (v !== undefined) r.hu_id = v;
+    }
+    if (r.descricao == null) {
+      const v = first("DESCRICAO", "descricao_produto", "produto", "Produto", "modelo");
+      if (v !== undefined) r.descricao = v;
+    }
+    if (r.usuario_recebimento == null) {
+      const v = first("usuario", "USUARIO", "usuarioRecebimento", "recebido_por", "operador");
+      if (v !== undefined) r.usuario_recebimento = v;
+    }
+    if (r.prod_cprod == null) {
+      const v = first("cprod", "codigo_produto", "sku", "SKU");
+      if (v !== undefined) r.prod_cprod = v;
+    }
+    return r;
+  },
+
+  /**
+   * A API consulta-recebimentos devolve NOTAS FISCAIS:
+   *   { numero_nf, chave_nfe, status, data_entrada: "AAAA-MM-DD", fornecedor: {nome},
+   *     itens: [{ sku, marca, quantidade }] }
+   * Cada unidade de item vira 1 registro (1 aparelho recebido), no formato que as telas usam.
+   * A API não informa horário, HU, grupo nem usuário do recebimento.
+   */
+  expandRecebimentoNF(nf) {
+    const itens = Array.isArray(nf.itens) ? nf.itens : [];
+    const data = nf.data_entrada || nf.data_recebimento || null;
+    // Só data (sem hora): fixa 12:00 local para não "voltar" um dia no fuso de Brasília
+    const dataLocal = data && /^\d{4}-\d{2}-\d{2}$/.test(String(data)) ? `${data}T12:00:00` : data;
+    const fornecedor = String(nf.fornecedor?.nome || nf.fornecedor || "—").trim() || "—";
+    const nfId = nf.chave_nfe || `${nf.numero_nf || "nf"}-${nf.serie || ""}`;
+    const out = [];
+    itens.forEach((item, idx) => {
+      const qtd = Math.max(1, Math.round(Number(item.quantidade) || 1));
+      const marca = String(item.marca || "").trim() || "SEM MARCA";
+      for (let u = 0; u < qtd; u++) {
+        out.push({
+          hu_id: `${nfId}|${idx}|${u}`,
+          data_recebimento: dataLocal,
+          descricao: marca,
+          marca,
+          prod_cprod: item.sku || "—",
+          usuario_recebimento: fornecedor,
+          numero_nf: nf.numero_nf ?? null,
+          chave_nfe: nf.chave_nfe ?? null,
+          status_nf: nf.status ?? null,
+          data_emissao: nf.data_emissao ?? null,
+          _origem: "nf",
+          _semHora: true
+        });
+      }
+    });
+    return out;
+  },
+
+  /** Algum registro traz o grupo? (se a API não enviar, o filtro 6151 não pode ser aplicado) */
+  recebimentoTemGrupo(rows) {
+    return (rows || []).some((r) => {
+      const g = r && (r.grupo ?? r.Grupo ?? r.p?.grupo);
+      return g != null && String(g).trim() !== "";
+    });
+  },
+
+  async _fetchRecebimentoPagina(de, ate, pagina, key, timeoutMs, headerName) {
+    const url = `${this.API_RECEBIMENTO}?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}&pagina=${pagina}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        cache: "no-store",
+        mode: "cors",
+        signal: controller.signal,
+        headers: { [headerName]: key }
+      });
+      if (!res.ok) {
+        const err = new Error(`HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      const text = await res.text();
+      try {
+        return await this.parseJsonAsync(text);
+      } catch {
+        throw new Error("Resposta inválida da API de recebimento (não é JSON)");
+      }
+    } catch (err) {
+      if (err.name === "AbortError") throw new Error(`Timeout na API de recebimento (${Math.round(timeoutMs / 1000)}s)`);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
+  _recebimentoHeader: "x-api-key",
+
+  /**
+   * Busca todos os recebimentos entre de e ate (AAAA-MM-DD), percorrendo as páginas.
+   * Devolve uma lista de registros já com os nomes de campos usados pelas telas.
+   */
+  async fetchRecebimentos(de, ate, opts = {}) {
+    const hoje = this.todayISO();
+    const fim = ate || hoje;
+    const ini = de || this._isoAddDays(fim, -this.RECEBIMENTO_DIAS_PADRAO);
+    const timeoutMs = opts.timeoutMs || this.DEFAULT_FETCH_TIMEOUT_MS;
+    const key = `recebimentos|${ini}|${fim}`;
+    // Período que inclui hoje muda a todo momento; períodos passados podem ficar mais tempo no cache
+    const ttl = fim >= hoje ? this.FETCH_CACHE_TTL_MS : this.FETCH_IDB_TTL_MS;
+
+    if (!opts.force) {
+      const cached = await this._readFetchCache(key, ttl);
+      if (cached && Date.now() - cached.at < ttl) return cached.data;
+    }
+    if (this._fetchInflight[key]) return this._fetchInflight[key];
+
+    const run = async () => {
+      const apiKey = await this.getRecebimentoApiKey();
+      const getPage = async (pagina) => {
+        try {
+          return await this._fetchRecebimentoPagina(ini, fim, pagina, apiKey, timeoutMs, this._recebimentoHeader);
+        } catch (err) {
+          // A chave pode ser esperada em x-token; tenta uma vez com o outro cabeçalho
+          const authOuRede = err.status === 401 || err.status === 403 || err instanceof TypeError;
+          if (pagina === 1 && authOuRede) {
+            const alt = this._recebimentoHeader === "x-api-key" ? "x-token" : "x-api-key";
+            const out = await this._fetchRecebimentoPagina(ini, fim, pagina, apiKey, timeoutMs, alt);
+            this._recebimentoHeader = alt;
+            return out;
+          }
+          if (err.status === 401 || err.status === 403) {
+            throw new Error(`API de recebimento recusou a chave (HTTP ${err.status}). Confira skyline-chaves.js.`);
+          }
+          throw err;
+        }
+      };
+
+      const all = [];
+      const first = await getPage(1);
+      const firstRows = this.normalizeRows(first);
+      all.push(...firstRows);
+      const totalPaginas = this._recebimentoTotalPaginas(first);
+      const pageSize = firstRows.length;
+      const firstId = firstRows.length ? JSON.stringify(firstRows[0]) : null;
+
+      let pagina = 1;
+      let last = first;
+      let lastRows = firstRows;
+      while (pagina < this.RECEBIMENTO_MAX_PAGINAS) {
+        if (totalPaginas != null) {
+          if (pagina >= totalPaginas) break;
+        } else {
+          const temProxima = this._recebimentoTemProxima(last);
+          if (temProxima === false) break;
+          if (temProxima == null && (!lastRows.length || lastRows.length < pageSize)) break;
+        }
+        pagina += 1;
+        last = await getPage(pagina);
+        lastRows = this.normalizeRows(last);
+        if (!lastRows.length) break;
+        // API que ignora "pagina" devolve a mesma página: para para não duplicar
+        if (firstId && JSON.stringify(lastRows[0]) === firstId) break;
+        all.push(...lastRows);
+      }
+
+      // Formato NF (com itens): expande para 1 registro por aparelho
+      const isNF = all.some((r) => r && Array.isArray(r.itens));
+      const rows = isNF
+        ? all.flatMap((nf) => this.expandRecebimentoNF(nf))
+        : all.map((r) => this.adaptRecebimentoRow(r));
+      rows._nfs = isNF ? all.length : null;
+      rows._paginas = pagina;
+      rows._periodo = { de: ini, ate: fim };
+      return rows;
+    };
+
+    const promise = run()
+      .then(async (data) => {
+        const at = Date.now();
+        this._fetchCache[key] = { data, at };
+        this._lastFetchAt = at;
+        await this._idbSetFetch(key, data, at);
+        return data;
+      })
+      .catch(async (err) => {
+        const stale = await this._readFetchCache(key, this.FETCH_IDB_TTL_MS);
+        if (stale) {
+          console.warn("[SkylineDash] recebimento: usando cache após falha:", err.message);
+          return stale.data;
+        }
+        throw err;
+      })
+      .finally(() => {
+        delete this._fetchInflight[key];
+      });
+    this._fetchInflight[key] = promise;
+    return promise;
+  },
+
   async fetchWebhook(url, timeoutMs = this.DEFAULT_FETCH_TIMEOUT_MS, options = {}) {
     await this.ensureCacheVersion();
+    // Recebimento (Supabase): consulta paginada por período, com chave
+    if (String(url).includes("/functions/v1/consulta-recebimentos") && !this.useHomologData()) {
+      return this.fetchRecebimentos(options.de, options.ate, { force: !!options.force, timeoutMs });
+    }
     const force = !!options.force;
     if (this.useHomologData()) {
       return this._fetchWebhookRaw(url, timeoutMs, true);

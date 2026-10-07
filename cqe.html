@@ -9,7 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=79"></script>
+  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-producao.js?v=25"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -1110,7 +1111,7 @@
       </div>
       <div class="gm-panel gm-panel--ranking">
         <h2>Reprovação por técnico</h2>
-        <p class="panel-note">Usuario A–Z · barras: taxa % · rótulo: reprov / total</p>
+        <p class="panel-note">Técnico que fez o reparo · % reprovado no CQE · reprovados/inspecionados</p>
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
       <div class="gm-panel">
@@ -1202,8 +1203,15 @@
         });
     }
 
+    /** TV mostra o nome real do técnico (antes era "Usuario A–Z"). false = volta a anonimizar. */
+    const MOSTRAR_NOME_TECNICO = true;
+
     function aliasReprov(name) {
       if (!name || name === "—") return "—";
+      if (MOSTRAR_NOME_TECNICO) {
+        const bucket = SkylineDash.bucketCqeUsuarioReprov(name);
+        return bucket === "Usuario X" ? "Usuario X" : SkylineDash.normalizeUserName(bucket);
+      }
       const bucket = SkylineDash.bucketCqeUsuarioReprov(name);
       if (bucket === "Usuario X") return "Usuario X";
       return reprovAlias.get(bucket) ?? reprovAlias.get(name) ?? "—";
@@ -2050,13 +2058,33 @@
         ...metrics.filtered.map((r) => SkylineDash.bucketCqeUsuarioReprov(r.usuario_final || r.tecnico))
       ]);
       logReprovAliasMap();
-      const ranking = rankingAll.filter((x) => x.reprov > 0).slice(0, 5);
+      // Técnico RESPONSÁVEL PELO REPARO (PROD 1–18) → aparelhos dele reprovados no CQE.
+      // Nunca o usuário do CQE que bipou/reprovou ("Usuario qualidade").
+      const porPosicao = new Map();
+      metrics.filtered.forEach((r) => {
+        const pos = tecnicoResponsavel(r);
+        if (!pos) return;
+        if (!porPosicao.has(pos.prod)) {
+          porPosicao.set(pos.prod, { prod: pos.prod, nome: pos.nome || ProducaoDash.rotuloPosicao(pos), reprov: 0, total: 0, rows: [] });
+        }
+        const acc = porPosicao.get(pos.prod);
+        acc.total += 1;
+        if (r.decisao === "reprovado") {
+          acc.reprov += 1;
+          acc.rows.push(r);
+        }
+      });
+      const ranking = [...porPosicao.values()]
+        .map((x) => ({ ...x, pct: x.total ? (x.reprov / x.total) * 100 : 0 }))
+        .filter((x) => x.reprov > 0)
+        .sort((a, b) => b.pct - a.pct || b.reprov - a.reprov || a.prod - b.prod)
+        .slice(0, 5);
       destroyChart("ranking");
       if (ranking.length) {
         charts.ranking = new Chart(document.getElementById("chartRanking"), {
           type: "bar",
           data: {
-            labels: ranking.map((x) => aliasReprov(x.nome)),
+            labels: ranking.map((x) => x.nome),
             datasets: [{
               label: "Taxa reprovação %",
               data: ranking.map((x) => x.pct),
@@ -2105,18 +2133,13 @@
             },
             onClick: (_, elems) => {
               if (!elems.length) return;
-              const nome = ranking[elems[0].index].nome;
-              openDrill(
-                `${aliasReprov(nome)} — reprovações`,
-                reprovContaveis.filter((r) => SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, nome))
-              );
+              const item = ranking[elems[0].index];
+              openDrill(`${item.nome} — aparelhos reprovados no CQE`, item.rows);
             }
           }
         });
         bindRichTooltip(document.getElementById("chartRanking"), (idx) =>
-          reprovContaveis.filter((r) =>
-            SkylineDash.matchesCqeUsuarioReprovBucket(r.usuario_final, ranking[idx]?.nome || "")
-          )
+          ranking[idx] ? ranking[idx].rows : []
         );
       }
 
@@ -2208,10 +2231,73 @@
       SkylineDash.showStatus(statusEl, `${metrics.total} inspeções`, false);
     }
 
+    /* ── Técnico responsável pelo reparo (PROD 1–18) ──────────────────────────
+       Para cada aparelho inspecionado, procura o técnico PROD nos campos de reparo
+       do próprio registro (fim, início, retornos, pausas). Se não houver, usa o
+       último reparo do mesmo IMEI/serial feito por um técnico PROD antes da inspeção.
+       "Usuario qualidade" (quem inspecionou/reprovou no CQE) nunca é usado. */
+    const CAMPOS_TECNICO_REPARO = [
+      "Usuario final", "Usuario inicio",
+      "Usuario 3 retorno", "Usuario 2 retorno", "Usuario 1 retorno",
+      "Usuario 3 pausa", "Usuario 2 pausa", "Usuario 1 pausa"
+    ];
+    let historicoReparo = new Map();
+
+    function posicaoDe(nome) {
+      if (!nome) return null;
+      return ProducaoDash.POSICOES.find(
+        (p) => p.match && ProducaoDash.matchesUserFilter(nome, [p.match])
+      ) || null;
+    }
+
+    function posicaoNoRegistro(raw) {
+      if (!raw) return null;
+      for (const campo of CAMPOS_TECNICO_REPARO) {
+        const pos = posicaoDe(raw[campo]);
+        if (pos) return pos;
+      }
+      return null;
+    }
+
+    function tsDe(v) {
+      const t = v ? new Date(v).getTime() : NaN;
+      return Number.isNaN(t) ? null : t;
+    }
+
+    function montarHistoricoReparo(raws) {
+      const hist = new Map();
+      raws.forEach((raw) => {
+        const serial = String(raw?.serial ?? "").trim();
+        if (!serial) return;
+        const pos = posicaoNoRegistro(raw);
+        if (!pos) return;
+        const ts = tsDe(raw["Fim do Reparo"]) ?? tsDe(raw["Iniciado_Reparo"]);
+        if (ts == null) return;
+        if (!hist.has(serial)) hist.set(serial, []);
+        hist.get(serial).push({ ts, pos });
+      });
+      hist.forEach((list) => list.sort((a, b) => a.ts - b.ts));
+      return hist;
+    }
+
+    function tecnicoResponsavel(row) {
+      const direto = posicaoNoRegistro(row.raw);
+      if (direto) return direto;
+      const list = historicoReparo.get(String(row.serial ?? "").trim());
+      if (!list || !list.length) return null;
+      const t = tsDe(row.data_qualidade);
+      let escolhido = null;
+      for (const ev of list) {
+        if (t == null || ev.ts <= t) escolhido = ev;
+      }
+      return (escolhido || list[list.length - 1]).pos;
+    }
+
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await SkylineDash.fetchWebhook(API_URL);
+        historicoReparo = montarHistoricoReparo(SkylineDash.normalizeRows(json));
         const mapped = SkylineDash.normalizeRows(json)
           .map(mapRow)
           .filter(Boolean)

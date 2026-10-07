@@ -12,3 +12,6 @@ __pycache__/
 .idea/
 .vscode/
 DOCUMENTACAO-ISO-AUDIT.html
+
+# Chaves de API (não publicar)
+skyline-chaves.js

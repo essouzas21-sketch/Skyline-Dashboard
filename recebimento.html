@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=79"></script>
+  <script src="skyline-dash.js?v=82"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -213,8 +213,8 @@
 
       <div class="panel">
         <div class="panel-head">
-          <h2>Marca × colaborador</h2>
-          <p class="section-note" id="noteHeatmap">Top marcas e colaboradores · mês</p>
+          <h2>Marca × fornecedor</h2>
+          <p class="section-note" id="noteHeatmap">Top marcas e fornecedores (NF) · mês</p>
         </div>
         <div class="rec-heatmap-wrap">
           <table class="rec-heatmap" id="heatmapTable"></table>
@@ -223,7 +223,7 @@
       </div>
     </div>
 
-    <p class="rec-footer" id="footerMeta">Fonte: WMS Log Smart · grupo 6151</p>
+    <p class="rec-footer" id="footerMeta">Fonte: consulta-recebimentos (notas fiscais de entrada)</p>
   </div>
 
   <script>
@@ -248,6 +248,11 @@
     const statusEl = document.getElementById("statusMsg");
     let allRows = [];
     let totalFromApi = 0;
+    /** Período carregado da API (consulta-recebimentos é por data). */
+    let loadedRange = null;
+    let grupoAviso = "";
+    /** API nova informa só a data de entrada (sem horário). */
+    let semHora = false;
     let charts = { marcaLinha: null, hora: null, marcaBar: null };
     let renderQueued = false;
 
@@ -343,7 +348,7 @@
       const noteHeat = document.getElementById("noteHeatmap");
       const noteHora = document.getElementById("noteHora");
       if (noteBar) noteBar.textContent = "Total · período";
-      if (noteHeat) noteHeat.textContent = "Top marcas e colaboradores · período";
+      if (noteHeat) noteHeat.textContent = "Top marcas e fornecedores (NF) · período";
       if (noteHora) noteHora.textContent = "07h–17h · horário local";
     }
 
@@ -370,6 +375,7 @@
 
     function resolveMarca(descricao) {
       if (!descricao) return "Outros";
+      if (String(descricao).trim().toUpperCase() === "SEM MARCA") return "SEM MARCA";
       const words = String(descricao).trim().split(/\s+/).filter(Boolean);
       if (!words.length) return "Outros";
       const strip = (w) =>
@@ -573,7 +579,7 @@
         if (next > max) max = next;
       }
 
-      const header = `<tr><th>Marca \\ Colab.</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
+      const header = `<tr><th>Marca \\ Fornecedor</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
       const body = topBrands.map((brand) => {
         const cells = topUsers.map((user) => {
           const val = matrix.get(`${brand}|${user}`) || 0;
@@ -634,7 +640,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${SkylineDash.formatPeriodBR(start, end)} · data_recebimento · grupo ${GRUPO_FILTRO}`;
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · data de entrada da NF · aparelhos por item`;
 
       if (!APPLY_MASK) {
         const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
@@ -643,7 +649,13 @@
         destroyChart("marcaLinha");
       }
 
-      const byHourRaw = SkylineDash.aggregateHourBuckets(inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
+      const noteHoraEl = document.getElementById("noteHora");
+      if (noteHoraEl && !APPLY_MASK) {
+        noteHoraEl.textContent = semHora
+          ? "A API de recebimento informa só a data de entrada (sem horário)"
+          : "07h–17h · horário local";
+      }
+      const byHourRaw = SkylineDash.aggregateHourBuckets(semHora ? [] : inPeriod, DATE_FIELD, HOUR_FROM, HOUR_TO, {
         useLocal: true
       });
       const byHour = applyHomologHourBoost(byHourRaw, end);
@@ -667,18 +679,33 @@
       renderHeatmap(brandScope);
 
       document.getElementById("footerMeta").textContent =
-        `Fonte: WMS Log Smart · grupo ${GRUPO_FILTRO} · ${displayPeriod} no período · carregado ${allRows.length} únicos`;
+        `Fonte: consulta-recebimentos (NF de entrada) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`;
 
       SkylineDash.showStatus(
         statusEl,
         APPLY_MASK
           ? `${displayPeriod} no período · ${displayToday} hoje · API bruta: ${totalFromApi}.`
-          : `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API bruta: ${totalFromApi}.`,
+          : `${inPeriod.length} no período · ${inToday} hoje · ${inMonth.length} no mês · API: ${totalFromApi} registro(s) de ${loadedRange ? `${SkylineDash.formatDateBR(loadedRange.de + "T12:00:00")} a ${SkylineDash.formatDateBR(loadedRange.ate + "T12:00:00")}` : "—"}${grupoAviso}.`,
         false
       );
     }
 
+    /** Período que a tela precisa: o filtro escolhido + o mês atual (cards "hoje" e "no mês"). */
+    function neededRange() {
+      const { start, end } = SkylineDash.getDateRange();
+      const today = SkylineDash.todayISO();
+      const month = getMonthRange(today);
+      const de = [start, month.start].filter(Boolean).sort()[0];
+      const ate = [end, today].filter(Boolean).sort().reverse()[0];
+      return { de, ate };
+    }
+
     function renderDashboard() {
+      const need = neededRange();
+      if (loadedRange && (need.de < loadedRange.de || need.ate > loadedRange.ate)) {
+        loadData();
+        return;
+      }
       if (renderQueued) return;
       renderQueued = true;
       requestAnimationFrame(() => {
@@ -690,16 +717,26 @@
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await SkylineDash.fetchWebhook(API_URL);
+        const need = neededRange();
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { de: need.de, ate: need.ate });
         const rawRows = SkylineDash.normalizeRows(json);
         totalFromApi = rawRows.length;
+        // Se a API não enviar o campo grupo, não dá para filtrar o 6151: mostra tudo e avisa
+        const filtraGrupo = SkylineDash.recebimentoTemGrupo(rawRows);
+        const formatoNF = rawRows.some((r) => r && r._origem === "nf");
+        semHora = rawRows.some((r) => r && r._semHora);
+        grupoAviso = formatoNF
+          ? ` · ${new Set(rawRows.map((r) => r.chave_nfe || r.numero_nf)).size} nota(s) fiscal(is)`
+          : filtraGrupo || !rawRows.length ? "" : " · API sem campo grupo (filtro 6151 não aplicado)";
         const mapped = [];
         for (let i = 0; i < rawRows.length; i++) {
-          if (SkylineDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)) {
-            mapped.push(mapRow(rawRows[i]));
-          }
+          const ok = filtraGrupo
+            ? SkylineDash.passesRecebimentoRaw(rawRows[i], GRUPO_FILTRO)
+            : !!SkylineDash.resolveRecebimentoDate(rawRows[i]);
+          if (ok) mapped.push(mapRow(rawRows[i]));
         }
         allRows = SkylineDash.distinctById(mapped, "id");
+        loadedRange = need;
         renderDashboardNow();
       } catch (err) {
         SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);

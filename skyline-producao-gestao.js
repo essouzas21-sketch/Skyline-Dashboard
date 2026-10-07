@@ -2,69 +2,24 @@
  * Painel gerencial de produção (Produção 1–6) — layout one-page.
  */
 const ProducaoGestao = {
-  /** Painéis de gestão: Produção 1–6 com equipes atuais. */
-  GESTAO_PANELS: {
-    1: {
-      id: "p1",
-      title: "Produção 1",
-      subtitle: "Karoline · Thais · Renato",
-      users: [
-        { match: "Karoline", label: "Karoline" },
-        { match: "thais", label: "Thais" },
-        { match: "Renato", label: "Renato" }
-      ]
-    },
-    2: {
-      id: "p2",
-      title: "Produção 2",
-      subtitle: "André · Rafael · Vidal",
-      users: [
-        { match: "Andre Guilherme", label: "André" },
-        { match: "Rafael", label: "Rafael" },
-        { match: "Vidal", label: "Vidal" }
-      ]
-    },
-    3: {
-      id: "p3",
-      title: "Produção 3",
-      subtitle: "Jorge · Keytman · Fernanda",
-      users: [
-        { match: "Jorge", label: "Jorge" },
-        { match: "keytman", label: "Keytman" },
-        { match: "fernanda", label: "Fernanda" }
-      ]
-    },
-    4: {
-      id: "p4",
-      title: "Produção 4",
-      subtitle: "Fran · Noemi · Diego",
-      users: [
-        { match: "fran dias", label: "Fran" },
-        { match: "noemi", label: "Noemi" },
-        { match: "Diego", label: "Diego" }
-      ]
-    },
-    5: {
-      id: "p5",
-      title: "Produção 5",
-      subtitle: "Vinicius · Hewerton · Claudia",
-      users: [
-        { match: "Vinicius", label: "Vinicius" },
-        { match: "Heverton", label: "Hewerton" },
-        { match: "claudia", label: "Claudia" }
-      ]
-    },
-    6: {
-      id: "p6",
-      title: "Produção 6",
-      subtitle: "Marcos · Almir · Kauan",
-      users: [
-        { match: "Marcos Silva", label: "Marcos" },
-        { match: "Almir", label: "Almir" },
-        { match: "Kauan", label: "Kauan" }
-      ]
+  /**
+   * Painéis de gestão: Produção 1–6, cada um com 3 posições da Operação Skyline
+   * (Produção 1 = PROD 1–3, Produção 2 = PROD 4–6 … Produção 6 = PROD 16–18).
+   * Os técnicos vêm de ProducaoDash.POSICOES (skyline-producao.js).
+   */
+  GESTAO_PANELS: (() => {
+    const panels = {};
+    for (let n = 1; n <= 6; n++) {
+      const posicoes = ProducaoDash.POSICOES.filter((p) => p.prod > (n - 1) * 3 && p.prod <= n * 3);
+      panels[n] = {
+        id: `p${n}`,
+        title: `Produção ${n}`,
+        subtitle: posicoes.map((p) => ProducaoDash.rotuloPosicao(p)).join(" · "),
+        users: posicoes.map((p) => ({ match: p.match, label: ProducaoDash.rotuloPosicao(p), prod: p.prod }))
+      };
     }
-  },
+    return panels;
+  })(),
 
   resolvePanel(config) {
     if (config.panel) return config.panel;
@@ -84,7 +39,21 @@ const ProducaoGestao = {
     const PANEL = this.resolvePanel(config);
     if (!PANEL) return;
 
-    const USER_FILTER = PANEL.users.map((u) => u.match);
+    const USER_FILTER = PANEL.users.map((u) => u.match).filter(Boolean);
+    /**
+     * "Produção por técnico" usa as 3 posições PROD desta Gestão (Gestão 1 = PROD 1–3 …
+     * Gestão 6 = PROD 16–18), na ordem da lista. Os dados vêm da API de reparo e cada registro é
+     * ligado à posição pelo usuário responsável no sistema (Usuario final / pausa / retorno /
+     * início), comparado com ProducaoDash.POSICOES[].match.
+     */
+    const PRODS_DESTA_TELA = new Set(PANEL.users.map((u) => u.prod).filter((n) => n != null));
+    // Só as 3 posições desta Gestão (ex.: Gestão 1 = PROD 1–3), na ordem da lista
+    const POSICOES = ProducaoDash.POSICOES
+      .filter((p) => PRODS_DESTA_TELA.has(p.prod))
+      .sort((a, b) => a.prod - b.prod);
+    const FILTRO_TODAS_POSICOES = POSICOES.map((p) => p.match).filter(Boolean);
+    const posicaoDoUsuario = (user) =>
+      POSICOES.find((p) => p.match && ProducaoDash.matchesUserFilter(user, [p.match])) || null;
     const META_TEMPO_MIN = 45;
     const MAO_OBRA_MIN = 0.35;
     const API_URL = SkylineDash.API_REPARO;
@@ -419,6 +388,36 @@ const ProducaoGestao = {
       return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
     }
 
+    /** Registros do período de TODAS as posições PROD 1–18 (para "Produção por técnico"). */
+    function getStatusRowsTodasPosicoes() {
+      const { start, end } = SkylineDash.getDateRange();
+      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, FILTRO_TODAS_POSICOES);
+      return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
+    }
+
+    /** Uma linha por posição, na ordem PROD 1 → PROD 18 (nunca reordena). */
+    function aggregateStatusPorPosicao(rows, start, end) {
+      const stats = POSICOES.map((p) => ({
+        prod: p.prod,
+        nome: p.nome || "Sem técnico definido",
+        match: p.match,
+        finalizado: 0,
+        andamento: 0,
+        pausado: 0,
+        total: 0,
+        workMs: 0
+      }));
+      rows.forEach((r) => {
+        const pos = posicaoDoUsuario(r.user);
+        if (!pos) return;
+        const s = stats[POSICOES.indexOf(pos)];
+        if (s[r.status] != null) s[r.status]++;
+        s.total++;
+        s.workMs += rowWorkMs(r, start, end);
+      });
+      return stats;
+    }
+
     function getPeriodRows() {
       const { start, end } = SkylineDash.getDateRange();
       const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
@@ -485,15 +484,10 @@ const ProducaoGestao = {
 
     function renderStatusBoard() {
       const { start, end } = SkylineDash.getDateRange();
-      const statusRows = getStatusRows();
+      const statusRows = getStatusRowsTodasPosicoes();
       const tbody = document.getElementById("statusByTecBody");
 
-      if (!PANEL.users.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#6b5b7a;padding:1rem">Sem colaboradores definidos neste quadro.</td></tr>`;
-        return;
-      }
-
-      const list = aggregateStatusByTecnico(statusRows, start, end);
+      const list = aggregateStatusPorPosicao(statusRows, start, end);
       const totals = list.reduce(
         (acc, s) => {
           acc.finalizado += s.finalizado;
@@ -507,37 +501,38 @@ const ProducaoGestao = {
       );
 
       tbody.innerHTML = list.map((s) => `
-        <tr>
-          <td class="tec-name">${escapeHtml(s.tecnico)}</td>
-          <td class="v-fin" data-drill data-tech="${escapeHtml(s.tecnico)}" data-status="finalizado">${s.finalizado}</td>
-          <td class="v-rep" data-drill data-tech="${escapeHtml(s.tecnico)}" data-status="andamento">${s.andamento}</td>
-          <td class="v-pau" data-drill data-tech="${escapeHtml(s.tecnico)}" data-status="pausado">${s.pausado}</td>
-          <td class="v-tot" data-drill data-tech="${escapeHtml(s.tecnico)}" data-status="all">${s.total}</td>
+        <tr class="${s.match ? "" : "vaga"}">
+          <td class="prod">PROD ${s.prod}</td>
+          <td class="tec-name">${escapeHtml(s.nome)}</td>
+          <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
+          <td class="v-rep" data-drill data-prod="${s.prod}" data-status="andamento">${s.andamento}</td>
+          <td class="v-pau" data-drill data-prod="${s.prod}" data-status="pausado">${s.pausado}</td>
+          <td class="v-tot" data-drill data-prod="${s.prod}" data-status="all">${s.total}</td>
           <td class="v-work">${fmtWorkTotal(s.workMs)}</td>
         </tr>
       `).join("") + `
         <tr class="total">
-          <td>Total</td>
-          <td class="v-fin" data-drill data-tech="" data-status="finalizado">${totals.finalizado}</td>
-          <td class="v-rep" data-drill data-tech="" data-status="andamento">${totals.andamento}</td>
-          <td class="v-pau" data-drill data-tech="" data-status="pausado">${totals.pausado}</td>
-          <td class="v-tot" data-drill data-tech="" data-status="all">${totals.total}</td>
+          <td colspan="2">Total ${POSICOES.length ? `PROD ${POSICOES[0].prod}–${POSICOES[POSICOES.length - 1].prod}` : ""}</td>
+          <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
+          <td class="v-rep" data-drill data-prod="" data-status="andamento">${totals.andamento}</td>
+          <td class="v-pau" data-drill data-prod="" data-status="pausado">${totals.pausado}</td>
+          <td class="v-tot" data-drill data-prod="" data-status="all">${totals.total}</td>
           <td class="v-work">${fmtWorkTotal(totals.workMs)}</td>
         </tr>`;
 
       tbody.querySelectorAll("[data-drill]").forEach((cell) => {
         cell.addEventListener("click", () => {
-          const tech = cell.dataset.tech;
+          const prod = cell.dataset.prod ? Number(cell.dataset.prod) : null;
+          const pos = prod ? POSICOES.find((p) => p.prod === prod) : null;
           const st = cell.dataset.status;
           const rows = statusRows.filter((r) => {
             if (st !== "all" && r.status !== st) return false;
-            if (!tech) return true;
-            const pu = PANEL.users.find((u) => u.label === tech);
-            return pu && ProducaoDash.matchesUserFilter(r.user, [pu.match]);
+            if (!pos) return true;
+            return !!pos.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
           });
-          const title = tech
-            ? `${tech} · ${statusLabel(st)}`
-            : `${statusLabel(st)} · equipe`;
+          const title = pos
+            ? `${ProducaoDash.rotuloPosicao(pos)} · ${statusLabel(st)}`
+            : `${statusLabel(st)} · ${PANEL.title}`;
           openDrill(title, rows);
         });
       });

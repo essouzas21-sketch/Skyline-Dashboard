@@ -285,7 +285,7 @@
     <h1>Imprimir Recebimento</h1>
 
     <div class="row">
-      <input id="endpoint" type="text" value="https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6" />
+      <input id="endpoint" type="text" value="https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos" />
       <button id="btnLoadData" type="button">Atualizar dados</button>
     </div>
 
@@ -351,13 +351,13 @@
   </div>
 
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=71"></script>
+  <script src="skyline-dash.js?v=82"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
   (function () {
     "use strict";
 
-    const ENDPOINT_DEFAULT = "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6";
+    const ENDPOINT_DEFAULT = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos";
 
     const state = { rows: [], current: null, loading: false };
     let loadPromise = null;

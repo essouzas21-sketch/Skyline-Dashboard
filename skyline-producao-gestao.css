@@ -510,3 +510,17 @@
       font-size: 0.55rem;
       color: var(--text-on-bg);
     }
+
+    /* Produção por técnico: 18 posições PROD (rola dentro do painel) */
+    .rg-status-wrap { overflow: auto; }
+    .rg-status-table.todas-prod { height: auto; }
+    .rg-status-table.todas-prod th:first-child,
+    .rg-status-table.todas-prod td:first-child { width: 13%; }
+    .rg-status-table.todas-prod th:nth-child(2),
+    .rg-status-table.todas-prod td:nth-child(2) { width: 22%; text-align: left; }
+    .rg-status-table.todas-prod thead th { position: sticky; top: 0; z-index: 1; }
+    .rg-status-table.todas-prod td.prod { color: var(--rg-muted); font-weight: 700; font-size: 0.7rem; white-space: nowrap; }
+    .rg-status-table.todas-prod td.tec-name { font-size: 0.78rem; }
+    .rg-status-table.todas-prod td { padding: 4px 2px; }
+    .rg-status-table.todas-prod tr.atual td { background: rgba(105, 73, 146, 0.08); }
+    .rg-status-table.todas-prod tr.vaga td.tec-name { color: var(--rg-muted); font-style: italic; font-weight: 600; }

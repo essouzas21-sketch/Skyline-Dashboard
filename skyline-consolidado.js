@@ -27,8 +27,13 @@ const ConsolidadoDash = {
   },
 
   loadRecebimentoRows(json) {
-    const mapped = SkylineDash.normalizeRows(json)
-      .filter((raw) => SkylineDash.passesRecebimentoRaw(raw, this.GRUPO_FILTRO))
+    const raws = SkylineDash.normalizeRows(json);
+    // API nova sem campo grupo: não filtra o 6151 (igual à tela de Recebimento)
+    const filtraGrupo = SkylineDash.recebimentoTemGrupo(raws);
+    const mapped = raws
+      .filter((raw) => filtraGrupo
+        ? SkylineDash.passesRecebimentoRaw(raw, this.GRUPO_FILTRO)
+        : !!SkylineDash.resolveRecebimentoDate(raw))
       .map((raw) => this.mapRecebimento(raw));
     return SkylineDash.distinctById(mapped, "id");
   },

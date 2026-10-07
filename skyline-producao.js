@@ -2,75 +2,63 @@
  * Dashboard de produção (Android / iPhone).
  */
 const ProducaoDash = {
-  USER_FILTERS: {
-    android: [
-      "claudia paz",
-      "thaís mazoline",
-      "fernanda maria",
-      "Karoline Alexandre",
-      "keytman janaína",
-      "Michelle Alves",
-      "Viviane Ferreira"
-    ],
-    iphone: [
-      "noemi firmo",
-      "fran dias"
-    ]
-  },
-
-  /** TVs Produção Android — consolidado soma USER_FILTERS.android. */
-  ANDROID_PANELS: [
-    {
-      id: "q1",
-      title: "Quadro 1",
-      subtitle: "Karoline · Thaís",
-      users: [
-        { match: "Karoline Alexandre", label: "Karoline" },
-        { match: "thaís mazoline", label: "Thaís" }
-      ]
-    },
-    {
-      id: "q2",
-      title: "Quadro 2",
-      subtitle: "Viviane · Michele",
-      users: [
-        { match: "Viviane Ferreira", label: "Viviane" },
-        { match: "Michelle Alves", label: "Michele" }
-      ]
-    },
-    {
-      id: "q3",
-      title: "Quadro 3",
-      subtitle: "Keytman · Fernanda",
-      users: [
-        { match: "keytman janaína", label: "Keytman" },
-        { match: "fernanda maria", label: "Fernanda" }
-      ]
-    },
-    {
-      id: "q4",
-      title: "Quadro 4",
-      subtitle: "Reservado",
-      users: []
-    },
-    {
-      id: "q5",
-      title: "Quadro 5",
-      subtitle: "Claudia",
-      users: [
-        { match: "claudia paz", label: "Claudia" }
-      ]
-    }
+  /**
+   * Posições da Operação Skyline (PROD 1–18) → técnico.
+   * match = início do nome no sistema (sem acento); use "|" para grafias alternativas.
+   * Para trocar alguém de posição, altere só esta lista.
+   */
+  POSICOES: [
+    { prod: 1, nome: "Victor", match: "victor" },
+    { prod: 2, nome: "Noemi", match: "noemi" },
+    { prod: 3, nome: "André", match: "andre" },
+    { prod: 4, nome: "Fernanda", match: "fernanda" },
+    { prod: 5, nome: "Fran", match: "fran dias" },
+    { prod: 6, nome: "Jorge", match: "jorge" },
+    { prod: 7, nome: "Karol", match: "karol" },
+    { prod: 8, nome: "Felipe", match: "felipe|fellipe" },
+    { prod: 9, nome: "Diego", match: "diego" },
+    { prod: 10, nome: "João", match: "joao" },
+    { prod: 11, nome: "Moisés", match: "moises" },
+    { prod: 12, nome: "Claudia", match: "claudia" },
+    { prod: 13, nome: null, match: null },
+    { prod: 14, nome: "Rafael", match: "rafael pereira|rafael.pereira" },
+    { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
+    { prod: 16, nome: "Tais", match: "thais|tais" },
+    { prod: 17, nome: "Almir", match: "almir" },
+    { prod: 18, nome: "Kauá", match: "kaua" }
   ],
 
-  IPHONE_PANEL: {
-    id: "iphone",
-    title: "iPhone",
-    subtitle: "Noemi · Fran",
-    users: [
-      { match: "noemi firmo", label: "Noemi" },
-      { match: "fran dias", label: "Fran" }
-    ]
+  /** "PROD 7 — Karol" (ou "PROD 13 — Sem técnico definido"). */
+  rotuloPosicao(p) {
+    return `PROD ${p.prod} — ${p.nome || "Sem técnico definido"}`;
+  },
+
+  /**
+   * Telas de TV (producao-diversas-1…5 e producao-iphone): mesmas equipes das telas de
+   * Gestão — Produção 1 = PROD 1–3 … Produção 6 = PROD 16–18. Tudo vem de POSICOES.
+   */
+  _grupoPosicoes(n) {
+    const posicoes = this.POSICOES.filter((p) => p.prod > (n - 1) * 3 && p.prod <= n * 3);
+    return {
+      id: `p${n}`,
+      title: `Produção ${n}`,
+      subtitle: posicoes.map((p) => this.rotuloPosicao(p)).join(" · "),
+      users: posicoes.map((p) => ({ match: p.match, label: this.rotuloPosicao(p) }))
+    };
+  },
+
+  get ANDROID_PANELS() {
+    return [1, 2, 3, 4, 5].map((n) => this._grupoPosicoes(n));
+  },
+
+  get IPHONE_PANEL() {
+    return this._grupoPosicoes(6);
+  },
+
+  /** Filtro de técnicos por módulo (só os designados em POSICOES). */
+  get USER_FILTERS() {
+    const matches = (grupos) => grupos.flatMap((n) => this._grupoPosicoes(n).users.map((u) => u.match)).filter(Boolean);
+    return { android: matches([1, 2, 3, 4, 5]), iphone: matches([6]) };
   },
 
   DATE_FIELDS: ["iniciado_reparo", "retorno_1", "retorno_2", "retorno_3"],
@@ -358,15 +346,27 @@ const ProducaoDash = {
     return SkylineDash.distinctById(mapped, "id");
   },
 
+  /**
+   * O técnico bate com algum item do filtro? Compara pelo INÍCIO de cada palavra do nome
+   * (ex.: "andre" bate com "André Guilherme", mas não com "Karoline Alexandre").
+   * Um item pode ter alternativas separadas por "|" (ex.: "thais|tais").
+   */
   matchesUserFilter(user, userFilter) {
     if (!userFilter || !userFilter.length) return true;
-    const fold = (s) => String(s)
+    const fold = (s) => String(s ?? "")
       .trim()
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    const norm = fold(user);
-    return userFilter.some((u) => norm.includes(fold(u)));
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+    const norm = ` ${fold(user)}`;
+    const tokens = userFilter
+      .filter(Boolean)
+      .flatMap((u) => String(u).split("|"))
+      .map((t) => fold(t))
+      .filter(Boolean);
+    if (!tokens.length) return false;
+    return tokens.some((t) => norm.includes(` ${t}`));
   },
 
   /** Consolidado: iPhone = descrição contém "Apple"; restante = Android.
@@ -460,7 +460,8 @@ const ProducaoDash = {
   },
 
   initAndroidPage(panelIndex) {
-    const panel = this.ANDROID_PANELS[panelIndex];
+    // 0–4 = Produção 1–5; 5 = Produção 6 (tela producao-iphone.html)
+    const panel = panelIndex === 5 ? this.IPHONE_PANEL : this.ANDROID_PANELS[panelIndex];
     if (!panel) return;
 
     const API_URL = SkylineDash.API_REPARO;
