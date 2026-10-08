@@ -485,21 +485,82 @@
       }
     }
 
-    /* TV com resolução menor (ex.: 1024px): mantém Alertas à direita e os gráficos cabem no painel */
     @media (max-width: 1099px) {
-      .gp-mid { grid-template-columns: 1fr 1fr minmax(180px, 200px); min-height: 0; }
-      .gp-mid .gp-panel .chart-box { min-height: 0; }
-    }
-
-    @media (max-width: 899px) {
-      .gp-mid { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-      .gp-mid .gp-alerts { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; max-height: 34%; }
-      .gp-mid .gp-alerts .gp-alert { flex: 1 1 200px; }
+      .gp-mid { grid-template-columns: 1fr 1fr; }
+      .gp-mid .gp-alerts { grid-column: 1 / -1; }
     }
 
     @media (max-width: 720px) {
       .gp-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .gp-mid { grid-template-columns: 1fr; }
+    }
+
+    /* ── TV: tudo em uma tela, sem rolagem e com fonte compacta (mesmo padrão da Triagem) ── */
+    html, body.gestao-pecas-page.dash-page { height: 100%; }
+    body.gestao-pecas-page.dash-page {
+      height: 100vh;
+      max-height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+      padding: 6px 8px 8px;
+      margin: 0;
+    }
+    .gestao-pecas-page .page { height: 100%; min-height: 0; gap: 6px; overflow: hidden; }
+    .gp-topbar { padding: 6px 10px; flex: 0 0 auto; }
+    .gp-topbar .back { font-size: 0.68rem; }
+    .gp-topbar h1 { font-size: 1.05rem; margin-top: 1px; }
+    .gp-topbar .subtitle { font-size: 0.7rem; margin-top: 1px; }
+    .gp-actions button { height: 30px; padding: 0 12px; font-size: 0.74rem; }
+    .gp-kpi-row { gap: 6px; }
+    .gp-kpi { padding: 6px 10px; }
+    .gp-kpi .value { font-size: 1.1rem; }
+    .gp-mid {
+      flex: 1 1 0;
+      min-height: 0;
+      gap: 6px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 20%);
+    }
+    .gp-panel { padding: 8px 10px; }
+    .gp-panel h2 { font-size: 0.72rem; margin-bottom: 4px; }
+    .gp-panel .chart-box { min-height: 0; }
+    .gp-alerts { overflow: auto; }
+    .gp-alert { padding: 6px 10px; }
+    .gp-alert .title { font-size: 0.74rem; }
+    .gp-alert .body { font-size: 0.68rem; }
+
+    /* TV 50" / Full HD: fonte um pouco maior para leitura à distância (mesmo padrão da Triagem) */
+    @media (min-width: 1400px) and (min-height: 800px) {
+      body.gestao-pecas-page.dash-page { padding: 8px 10px 10px; }
+      .gestao-pecas-page .page { gap: 8px; }
+      .gp-topbar { padding: 8px 12px; }
+      .gp-topbar .back { display: none; }
+      .gp-topbar h1 { font-size: 1.2rem; }
+      .gp-topbar .subtitle { font-size: 0.82rem; font-weight: 700; }
+      .gp-actions button { height: 36px; font-size: 0.88rem; font-weight: 800; padding: 0 14px; }
+      .gp-kpi-row { gap: 8px; }
+      .gp-kpi { padding: 8px 12px; }
+      .gp-kpi .label { font-size: 0.62rem; }
+      .gp-kpi .value { font-size: 1.7rem; }
+      .gp-kpi .hint { font-size: 0.7rem; }
+      .gp-mid { gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 20%); }
+      .gp-panel { padding: 10px 12px; }
+      .gp-panel h2 { font-size: 0.78rem; margin-bottom: 6px; }
+      .gp-alert .title { font-size: 0.82rem; }
+      .gp-alert .body { font-size: 0.74rem; }
+    }
+
+    /* TV com resolução menor: mantém as 3 colunas (Alertas à direita), nada sobrepõe */
+    @media (max-width: 1099px) {
+      .gp-mid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(170px, 22%); }
+      .gp-mid .gp-alerts { grid-column: auto; }
+    }
+
+    /* Celular: volta a rolar */
+    @media (max-width: 720px) {
+      body.gestao-pecas-page.dash-page { height: auto; max-height: none; overflow: auto; }
+      .gestao-pecas-page .page { height: auto; overflow: visible; }
+      .gp-mid { grid-template-columns: 1fr; }
+      .gp-panel .chart-box { min-height: 240px; }
     }
   </style>
 </head>
@@ -1083,7 +1144,7 @@
       }
     }
 
-    /** Corta o nome conforme a largura do gráfico (TV com resolução menor não corta o texto pela metade). */
+    /** Corta o nome conforme a largura do gráfico (não corta o texto pela metade na TV). */
     function rotuloCurto(value) {
       const label = String(this.getLabelForValue(value) || "");
       const max = Math.max(12, Math.min(28, Math.floor((this.chart?.width || 400) / 16)));
