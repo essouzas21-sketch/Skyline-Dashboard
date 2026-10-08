@@ -15,7 +15,7 @@ const ProducaoDash = {
     { prod: 5, nome: "Fran", match: "fran dias" },
     { prod: 6, nome: "Jorge", match: "jorge" },
     { prod: 7, nome: "Karol", match: "karol" },
-    { prod: 8, nome: "Felipe", match: "felipe|fellipe" },
+    { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
     { prod: 9, nome: "Diego", match: "diego" },
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "Moisés", match: "moises" },
@@ -24,7 +24,7 @@ const ProducaoDash = {
     { prod: 14, nome: "Rafael", match: "rafael pereira|rafael.pereira" },
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: 16, nome: "Almir", match: "almir" },
-    { prod: 17, nome: "Tais", match: "thais mazoline|thais.mazoline|tais mazoline" },
+    { prod: 17, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" },
     { prod: 18, nome: "Kauá", match: "kaua" }
   ],
 
