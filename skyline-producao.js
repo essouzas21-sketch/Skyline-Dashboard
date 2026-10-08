@@ -23,8 +23,8 @@ const ProducaoDash = {
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Rafael", match: "rafael pereira|rafael.pereira" },
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
-    { prod: 16, nome: "Tais", match: "thais|tais" },
-    { prod: 17, nome: "Almir", match: "almir" },
+    { prod: 16, nome: "Almir", match: "almir" },
+    { prod: 17, nome: "Tais", match: "thais mazoline|thais.mazoline|tais mazoline" },
     { prod: 18, nome: "Kauá", match: "kaua" }
   ],
 
