@@ -382,17 +382,51 @@ const ProducaoGestao = {
       return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     }
 
+    /**
+     * Registros do período: iniciados/retomados no período (regra das telas de Produção)
+     * + FINALIZADOS no período ("Fim do Reparo" = quando o técnico clicou em finalizar),
+     * mesmo que o reparo tenha começado em outro dia.
+     */
+    function filtrarPeriodo(rows, start, end, userFilter) {
+      const noPeriodo = (v) => {
+        if (!v) return false;
+        const d = SkylineDash.toLocalDateStr(v);
+        return d >= start && d <= end;
+      };
+      let out = rows.filter((r) =>
+        ProducaoDash.DATE_FIELDS.some((f) => noPeriodo(r[f])) || noPeriodo(r._workRaw?.["Fim do Reparo"])
+      );
+      if (userFilter?.length) out = out.filter((r) => ProducaoDash.matchesUserFilter(r.user, userFilter));
+      return out;
+    }
+
+    /**
+     * "Finalizados" = só o que teve "Fim do Reparo" dentro do período.
+     * - fim depois do período: naquele período ainda estava em reparo;
+     * - fim antes do período (retrabalho que voltou ao técnico): usa a situação atual do sistema.
+     */
+    function statusNoPeriodo(r, start, end) {
+      if (r.status !== "finalizado" || !r.fim) return r;
+      const fimDia = SkylineDash.toLocalDateStr(r.fim);
+      if (fimDia > end) return { ...r, status: "andamento", times: null };
+      if (fimDia < start) {
+        const st = String(r.raw?.status || "").toLowerCase();
+        return { ...r, status: st === "pausado" ? "pausado" : "andamento", times: null };
+      }
+      return r;
+    }
+
     function getStatusRows() {
       const { start, end } = SkylineDash.getDateRange();
-      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
-      return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
+      const periodRaw = filtrarPeriodo(getMaskedAllRows(), start, end, USER_FILTER);
+      return applyUiFilters(periodRaw.map((r) => statusNoPeriodo(mapExecRow(r._workRaw), start, end)));
     }
 
     /** Registros do período de TODAS as posições PROD 1–18 (para "Produção por técnico"). */
     function getStatusRowsTodasPosicoes() {
       const { start, end } = SkylineDash.getDateRange();
-      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, FILTRO_TODAS_POSICOES);
-      return applyUiFilters(periodRaw.map((r) => mapExecRow(r._workRaw)));
+      const periodRaw = filtrarPeriodo(getMaskedAllRows(), start, end, FILTRO_TODAS_POSICOES);
+      return applyUiFilters(periodRaw.map((r) => statusNoPeriodo(mapExecRow(r._workRaw), start, end)));
     }
 
     /** Uma linha por posição, na ordem PROD 1 → PROD 18 (nunca reordena). */
@@ -420,9 +454,9 @@ const ProducaoGestao = {
 
     function getPeriodRows() {
       const { start, end } = SkylineDash.getDateRange();
-      const periodRaw = ProducaoDash.filterRows(getMaskedAllRows(), start, end, moduleKey, USER_FILTER);
+      const periodRaw = filtrarPeriodo(getMaskedAllRows(), start, end, USER_FILTER);
       return applyUiFilters(
-        periodRaw.map((r) => mapExecRow(r._workRaw)).filter((r) => inPanelUser(r.tecnico))
+        periodRaw.map((r) => statusNoPeriodo(mapExecRow(r._workRaw), start, end)).filter((r) => inPanelUser(r.tecnico))
       );
     }
 
