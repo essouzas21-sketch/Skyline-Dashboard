@@ -431,7 +431,7 @@ const ProducaoDash = {
       const target = rows[idx];
       target[row.status]++;
       target.total++;
-      target.workMs += this.calcWorkMs(row._workRaw, Date.now(), start, end);
+      target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
 
     return rows;
@@ -453,10 +453,38 @@ const ProducaoDash = {
       const target = rows[idx];
       target[row.status]++;
       target.total++;
-      target.workMs += this.calcWorkMs(row._workRaw, Date.now(), start, end);
+      target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
 
     return rows;
+  },
+
+  /**
+   * Mesma regra das telas de Gestão (Produção 1–6):
+   * entra quem foi iniciado/retomado no período OU finalizado no período ("Fim do Reparo");
+   * "Finalizados" = só o que teve fim dentro do período.
+   */
+  filterRowsPeriodo(allRows, start, end, userFilter) {
+    const noPeriodo = (v) => {
+      if (!v) return false;
+      const d = SkylineDash.toLocalDateStr(v);
+      return d >= start && d <= end;
+    };
+    let out = allRows.filter((r) =>
+      this.DATE_FIELDS.some((f) => noPeriodo(r[f])) || noPeriodo(r._workRaw?.["Fim do Reparo"])
+    );
+    if (userFilter?.length) out = out.filter((r) => this.matchesUserFilter(r.user, userFilter));
+    return out.map((r) => {
+      const fim = r._workRaw?.["Fim do Reparo"];
+      if (r.status !== "finalizado" || !fim) return r;
+      const fimDia = SkylineDash.toLocalDateStr(fim);
+      if (fimDia > end) return { ...r, status: "andamento" };
+      if (fimDia < start) {
+        const st = String(r._workRaw?.status || "").toLowerCase();
+        return { ...r, status: st === "pausado" ? "pausado" : "andamento" };
+      }
+      return r;
+    });
   },
 
   initAndroidPage(panelIndex) {
@@ -507,7 +535,7 @@ const ProducaoDash = {
         return;
       }
 
-      const filtered = this.filterRows(allRows, start, end, "android", userFilter);
+      const filtered = this.filterRowsPeriodo(allRows, start, end, userFilter);
       const totals = this.computeTotals(filtered);
 
       document.getElementById("kpiFinalizado").textContent = totals.finalizado;
