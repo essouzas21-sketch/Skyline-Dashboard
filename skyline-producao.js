@@ -25,7 +25,7 @@ const ProducaoDash = {
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: 16, nome: "Almir", match: "almir" },
     { prod: 17, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" },
-    { prod: 18, nome: "Kauá", match: "kaua" }
+    { prod: 18, nome: "Kauan", match: "kaua" }
   ],
 
   /** "PROD 7 — Karol" (ou "PROD 13 — Sem técnico definido"). */
@@ -415,9 +415,10 @@ const ProducaoDash = {
     return filtered;
   },
 
-  aggregatePanelUsers(filtered, panelUsers, start, end) {
+  aggregatePanelUsers(filtered, panelUsers, start, end, recebidos = []) {
     const rows = panelUsers.map((u) => ({
       user: u.label,
+      recebido: 0,
       finalizado: 0,
       pronto: 0,
       andamento: 0,
@@ -435,13 +436,18 @@ const ProducaoDash = {
       target.total++;
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
+    recebidos.forEach((row) => {
+      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      if (idx >= 0) rows[idx].recebido++;
+    });
 
     return rows;
   },
 
-  aggregatePanelUsers(filtered, panelUsers, start, end) {
+  aggregatePanelUsers(filtered, panelUsers, start, end, recebidos = []) {
     const rows = panelUsers.map((u) => ({
       user: u.label,
+      recebido: 0,
       finalizado: 0,
       pronto: 0,
       andamento: 0,
@@ -458,6 +464,10 @@ const ProducaoDash = {
       if (row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
       target.total++;
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
+    });
+    recebidos.forEach((row) => {
+      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      if (idx >= 0) rows[idx].recebido++;
     });
 
     return rows;
@@ -495,6 +505,21 @@ const ProducaoDash = {
    * PRONTO = reparo finalizado que foi para a qualidade (caixa "PRONTO" do técnico) e ainda
    * não passou pelo CQE depois dessa finalização. Sai da conta quando o CQE inspeciona.
    */
+  /**
+   * RECEBIDOS = aparelhos que saíram do processo anterior (triagem / gestão de peças) e foram
+   * pegos pelo técnico para reparo no período: data "Iniciado_Reparo", técnico "Usuario inicio".
+   */
+  recebidosNoPeriodo(allRows, start, end, userFilter) {
+    let out = allRows.filter((r) => {
+      const ini = r._workRaw?.["Iniciado_Reparo"];
+      if (!ini) return false;
+      const d = SkylineDash.toLocalDateStr(ini);
+      return d >= start && d <= end;
+    }).map((r) => ({ ...r, user: SkylineDash.normalizeUserName(r._workRaw["Usuario inicio"] || r.user || "—") }));
+    if (userFilter?.length) out = out.filter((r) => this.matchesUserFilter(r.user, userFilter));
+    return out;
+  },
+
   ehPronto(raw) {
     if (!raw || !raw["Fim do Reparo"]) return false;
     const fim = new Date(raw["Fim do Reparo"]).getTime();
@@ -512,7 +537,7 @@ const ProducaoDash = {
     const userFilter = panel.users.map((u) => u.match);
     let allRows = [];
 
-    const renderTable = (filtered, start, end) => {
+    const renderTable = (filtered, start, end, recebidos = []) => {
       const tbody = document.getElementById("tableBody");
       const empty = document.getElementById("tableEmpty");
       if (!tbody || !empty) return;
@@ -524,13 +549,14 @@ const ProducaoDash = {
         return;
       }
 
-      const list = this.aggregatePanelUsers(filtered, panel.users, start, end);
+      const list = this.aggregatePanelUsers(filtered, panel.users, start, end, recebidos);
       empty.hidden = true;
       tbody.innerHTML = list
         .map(
           (u) => `
         <tr>
           <td>${u.user}</td>
+          <td style="color:#694992;font-weight:700">${u.recebido}</td>
           <td>${u.finalizado}</td>
           <td style="color:#0f766e;font-weight:700">${u.pronto}</td>
           <td>${u.andamento}</td>
@@ -561,7 +587,7 @@ const ProducaoDash = {
       document.getElementById("periodLabel").textContent =
         `Período: ${SkylineDash.formatPeriodBR(start, end)} · ${panel.subtitle} · tempo só no período filtrado`;
 
-      renderTable(filtered, start, end);
+      renderTable(filtered, start, end, this.recebidosNoPeriodo(allRows, start, end, userFilter));
 
       SkylineDash.showStatus(
         statusEl,

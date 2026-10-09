@@ -435,6 +435,7 @@ const ProducaoGestao = {
         prod: p.prod,
         nome: p.nome || "Sem técnico definido",
         match: p.match,
+        recebido: 0,
         finalizado: 0,
         pronto: 0,
         andamento: 0,
@@ -465,8 +466,17 @@ const ProducaoGestao = {
     /** Pronto = finalizado no período e na qualidade, ainda não inspecionado pelo CQE (ProducaoDash.ehPronto). */
     const ehPronto = (r) => r.status === "finalizado" && ProducaoDash.ehPronto(r.raw);
 
+ /** Recebidos = pegos para reparo no período (Iniciado_Reparo), pelo técnico que iniciou. */
+    function getRecebidosRows() {
+      const { start, end } = SkylineDash.getDateRange();
+      return applyUiFilters(
+        ProducaoDash.recebidosNoPeriodo(getMaskedAllRows(), start, end, FILTRO_TODAS_POSICOES)
+          .map((r) => ({ ...mapExecRow(r._workRaw), user: r.user }))
+      );
+    }
+
     function statusLabel(st) {
-      return { pronto: "Prontos (na qualidade, aguardando CQE)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
+      return { recebido: "Recebidos (pegos para reparo)", pronto: "Prontos (na qualidade, aguardando CQE)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
     }
 
     function rowWorkMs(r, start, end) {
@@ -527,8 +537,14 @@ const ProducaoGestao = {
       const tbody = document.getElementById("statusByTecBody");
 
       const list = aggregateStatusPorPosicao(statusRows, start, end);
+      const recebidosRows = getRecebidosRows();
+      recebidosRows.forEach((r) => {
+        const pos = posicaoDoUsuario(r.user);
+        if (pos) list[POSICOES.indexOf(pos)].recebido++;
+      });
       const totals = list.reduce(
         (acc, s) => {
+          acc.recebido += s.recebido;
           acc.finalizado += s.finalizado;
           acc.pronto += s.pronto || 0;
           acc.andamento += s.andamento;
@@ -537,13 +553,14 @@ const ProducaoGestao = {
           acc.workMs += s.workMs;
           return acc;
         },
-        { finalizado: 0, pronto: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
+        { recebido: 0, finalizado: 0, pronto: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
       );
 
       tbody.innerHTML = list.map((s) => `
         <tr class="${s.match ? "" : "vaga"}">
           <td class="prod">PROD ${s.prod}</td>
           <td class="tec-name">${escapeHtml(s.nome)}</td>
+          <td class="v-rec" data-drill data-prod="${s.prod}" data-status="recebido">${s.recebido}</td>
           <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
           <td class="v-pronto" data-drill data-prod="${s.prod}" data-status="pronto">${s.pronto}</td>
           <td class="v-rep" data-drill data-prod="${s.prod}" data-status="andamento">${s.andamento}</td>
@@ -554,6 +571,7 @@ const ProducaoGestao = {
       `).join("") + `
         <tr class="total">
           <td colspan="2">Total ${POSICOES.length ? `PROD ${POSICOES[0].prod}–${POSICOES[POSICOES.length - 1].prod}` : ""}</td>
+          <td class="v-rec" data-drill data-prod="" data-status="recebido">${totals.recebido}</td>
           <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
           <td class="v-pronto" data-drill data-prod="" data-status="pronto">${totals.pronto}</td>
           <td class="v-rep" data-drill data-prod="" data-status="andamento">${totals.andamento}</td>
@@ -567,8 +585,9 @@ const ProducaoGestao = {
           const prod = cell.dataset.prod ? Number(cell.dataset.prod) : null;
           const pos = prod ? POSICOES.find((p) => p.prod === prod) : null;
           const st = cell.dataset.status;
-          const rows = statusRows.filter((r) => {
-            if (st === "pronto") { if (!ehPronto(r)) return false; }
+          const rows = (st === "recebido" ? recebidosRows : statusRows).filter((r) => {
+            if (st === "recebido") { /* já filtrado */ }
+            else if (st === "pronto") { if (!ehPronto(r)) return false; }
             else if (st !== "all" && r.status !== st) return false;
             if (!pos) return true;
             return !!pos.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
