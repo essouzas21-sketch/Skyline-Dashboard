@@ -316,6 +316,7 @@
     }
 
     .rg-status-table .v-fin { color: var(--rg-green); }
+    .rg-status-table .v-pronto { color: #0f766e; }
     .rg-status-table .v-rep { color: #1d4ed8; }
     .rg-status-table .v-pau { color: var(--rg-amber); }
     .rg-status-table .v-tot { color: var(--rg-bg); }

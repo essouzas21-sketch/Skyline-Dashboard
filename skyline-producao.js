@@ -43,7 +43,7 @@ const ProducaoDash = {
       id: `p${n}`,
       title: `Produção ${n}`,
       subtitle: posicoes.map((p) => this.rotuloPosicao(p)).join(" · "),
-      users: posicoes.map((p) => ({ match: p.match, label: this.rotuloPosicao(p) }))
+      users: posicoes.map((p) => ({ match: p.match, label: this.rotuloPosicao(p), prod: p.prod }))
     };
   },
 
@@ -419,6 +419,7 @@ const ProducaoDash = {
     const rows = panelUsers.map((u) => ({
       user: u.label,
       finalizado: 0,
+      pronto: 0,
       andamento: 0,
       pausado: 0,
       total: 0,
@@ -430,6 +431,7 @@ const ProducaoDash = {
       if (idx < 0) return;
       const target = rows[idx];
       target[row.status]++;
+      if (row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
       target.total++;
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
@@ -441,6 +443,7 @@ const ProducaoDash = {
     const rows = panelUsers.map((u) => ({
       user: u.label,
       finalizado: 0,
+      pronto: 0,
       andamento: 0,
       pausado: 0,
       total: 0,
@@ -452,6 +455,7 @@ const ProducaoDash = {
       if (idx < 0) return;
       const target = rows[idx];
       target[row.status]++;
+      if (row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
       target.total++;
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
@@ -487,6 +491,17 @@ const ProducaoDash = {
     });
   },
 
+  /**
+   * PRONTO = reparo finalizado que foi para a qualidade (caixa "PRONTO" do técnico) e ainda
+   * não passou pelo CQE depois dessa finalização. Sai da conta quando o CQE inspeciona.
+   */
+  ehPronto(raw) {
+    if (!raw || !raw["Fim do Reparo"]) return false;
+    const fim = new Date(raw["Fim do Reparo"]).getTime();
+    const q = raw.Data_qualidade ? new Date(raw.Data_qualidade).getTime() : null;
+    return q == null || Number.isNaN(q) || q < fim;
+  },
+
   initAndroidPage(panelIndex) {
     // 0–4 = Produção 1–5; 5 = Produção 6 (tela producao-iphone.html)
     const panel = panelIndex === 5 ? this.IPHONE_PANEL : this.ANDROID_PANELS[panelIndex];
@@ -517,6 +532,7 @@ const ProducaoDash = {
         <tr>
           <td>${u.user}</td>
           <td>${u.finalizado}</td>
+          <td style="color:#0f766e;font-weight:700">${u.pronto}</td>
           <td>${u.andamento}</td>
           <td>${u.pausado}</td>
           <td style="font-weight:700">${u.total}</td>

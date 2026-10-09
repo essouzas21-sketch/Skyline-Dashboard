@@ -436,6 +436,7 @@ const ProducaoGestao = {
         nome: p.nome || "Sem técnico definido",
         match: p.match,
         finalizado: 0,
+        pronto: 0,
         andamento: 0,
         pausado: 0,
         total: 0,
@@ -446,6 +447,7 @@ const ProducaoGestao = {
         if (!pos) return;
         const s = stats[POSICOES.indexOf(pos)];
         if (s[r.status] != null) s[r.status]++;
+        if (ehPronto(r)) s.pronto++;
         s.total++;
         s.workMs += rowWorkMs(r, start, end);
       });
@@ -460,8 +462,11 @@ const ProducaoGestao = {
       );
     }
 
+    /** Pronto = finalizado no período e na qualidade, ainda não inspecionado pelo CQE (ProducaoDash.ehPronto). */
+    const ehPronto = (r) => r.status === "finalizado" && ProducaoDash.ehPronto(r.raw);
+
     function statusLabel(st) {
-      return { finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
+      return { pronto: "Prontos (na qualidade, aguardando CQE)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
     }
 
     function rowWorkMs(r, start, end) {
@@ -525,13 +530,14 @@ const ProducaoGestao = {
       const totals = list.reduce(
         (acc, s) => {
           acc.finalizado += s.finalizado;
+          acc.pronto += s.pronto || 0;
           acc.andamento += s.andamento;
           acc.pausado += s.pausado;
           acc.total += s.total;
           acc.workMs += s.workMs;
           return acc;
         },
-        { finalizado: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
+        { finalizado: 0, pronto: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
       );
 
       tbody.innerHTML = list.map((s) => `
@@ -539,6 +545,7 @@ const ProducaoGestao = {
           <td class="prod">PROD ${s.prod}</td>
           <td class="tec-name">${escapeHtml(s.nome)}</td>
           <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
+          <td class="v-pronto" data-drill data-prod="${s.prod}" data-status="pronto">${s.pronto}</td>
           <td class="v-rep" data-drill data-prod="${s.prod}" data-status="andamento">${s.andamento}</td>
           <td class="v-pau" data-drill data-prod="${s.prod}" data-status="pausado">${s.pausado}</td>
           <td class="v-tot" data-drill data-prod="${s.prod}" data-status="all">${s.total}</td>
@@ -548,6 +555,7 @@ const ProducaoGestao = {
         <tr class="total">
           <td colspan="2">Total ${POSICOES.length ? `PROD ${POSICOES[0].prod}–${POSICOES[POSICOES.length - 1].prod}` : ""}</td>
           <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
+          <td class="v-pronto" data-drill data-prod="" data-status="pronto">${totals.pronto}</td>
           <td class="v-rep" data-drill data-prod="" data-status="andamento">${totals.andamento}</td>
           <td class="v-pau" data-drill data-prod="" data-status="pausado">${totals.pausado}</td>
           <td class="v-tot" data-drill data-prod="" data-status="all">${totals.total}</td>
@@ -560,7 +568,8 @@ const ProducaoGestao = {
           const pos = prod ? POSICOES.find((p) => p.prod === prod) : null;
           const st = cell.dataset.status;
           const rows = statusRows.filter((r) => {
-            if (st !== "all" && r.status !== st) return false;
+            if (st === "pronto") { if (!ehPronto(r)) return false; }
+            else if (st !== "all" && r.status !== st) return false;
             if (!pos) return true;
             return !!pos.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
           });
