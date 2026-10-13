@@ -645,7 +645,12 @@
 
     const API_URL = SkylineDash.API_REPARO;
     const API_PECAS = SkylineDash.API_PECAS;
-    const ETAPAS = SkylineDash.ETAPAS_OPERACAO;
+    /**
+     * Pedido de peça conta pela DATA, qualquer que seja a etapa ATUAL do aparelho ("operação").
+     * A API devolve a etapa de agora (reparo, limpeza ou vazia); filtrar por ela tirava da
+     * conta aparelhos que já seguiram para a próxima etapa no mesmo dia.
+     */
+    const ETAPAS = Object.assign(new Set(["todas"]), { has: () => true });
     const statusEl = document.getElementById("statusMsg");
     const SESSION_KEY = "skyline_gestao_rows_v6";
     const SESSION_TTL_MS = 3600000;

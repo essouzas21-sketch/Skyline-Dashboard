@@ -437,36 +437,11 @@ const ProducaoDash = {
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
     recebidos.forEach((row) => {
-      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
-      if (idx >= 0) rows[idx].recebido++;
-    });
-
-    return rows;
-  },
-
-  aggregatePanelUsers(filtered, panelUsers, start, end, recebidos = []) {
-    const rows = panelUsers.map((u) => ({
-      user: u.label,
-      recebido: 0,
-      finalizado: 0,
-      pronto: 0,
-      andamento: 0,
-      pausado: 0,
-      total: 0,
-      workMs: 0
-    }));
-
-    filtered.forEach((row) => {
-      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
-      if (idx < 0) return;
-      const target = rows[idx];
-      target[row.status]++;
-      if (row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
-      target.total++;
-      target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
-    });
-    recebidos.forEach((row) => {
-      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      // Alocação por endereço (PROD n) conta pela posição; início de reparo conta pelo técnico
+      const idx =
+        row.prod != null
+          ? panelUsers.findIndex((u) => u.prod === row.prod)
+          : panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
       if (idx >= 0) rows[idx].recebido++;
     });
 
@@ -520,6 +495,139 @@ const ProducaoDash = {
     return out;
   },
 
+  /**
+   * RECEB. DIA por ENDEREÇO: tudo que foi alocado no endereço "PROD1" … "PROD18" no dia.
+   * Fonte: API de movimentações de endereço (Supabase api-movimentacao-enderecos, GET
+   * ?de&ate&limite&offset, header x-api-key = window.SKYLINE_MOVIMENTACAO_API_KEY em
+   * skyline-chaves.js). Só LEITURA (GET) — o POST dessa API grava movimentações.
+   * Só o endereço exato conta — "PROD12 PRONTO" é a caixa de pronto, não recebimento.
+   * Sem chave, erro ou nenhuma alocação PROD no período → regra anterior (Iniciado_Reparo).
+   */
+  API_MOV_ENDERECOS: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-movimentacao-enderecos",
+  MOV_LIMITE: 1000,
+  MOV_MAX_PAGINAS: 60,
+  MOV_MAX_DIAS: 93,
+  MOV_CACHE_MS: 120000,
+  _movCache: {},
+
+  prodDoEndereco(endereco) {
+    const m = /^\s*PROD\s*[-_ ]?\s*0*(\d{1,2})\s*$/i.exec(String(endereco ?? ""));
+    if (!m) return null;
+    const n = Number(m[1]);
+    return this.POSICOES.some((p) => p.prod === n) ? n : null;
+  },
+
+  _campo(raw, nomes) {
+    for (const n of nomes) {
+      const v = raw?.[n];
+      if (v != null && String(v).trim() !== "" && String(v).toLowerCase() !== "null") return v;
+    }
+    return null;
+  },
+
+  /** Linhas cruas da API → [{ prod, serial, hu, endereco, created_at, raw }] (só PROD n exato). */
+  loadMovimentosEndereco(payload) {
+    const lista = Array.isArray(payload) ? payload : SkylineDash.normalizeRows(payload);
+    return lista
+      .map((raw) => {
+        const endereco = this._campo(raw, ["endereco", "Endereco", "endereço", "endereco_destino", "destino"]);
+        const prod = this.prodDoEndereco(endereco);
+        if (prod == null) return null;
+        const created_at = this._campo(raw, ["created_at", "data_hora", "data_movimentacao", "criado_em", "data", "Data"]);
+        if (!created_at || Number.isNaN(new Date(created_at).getTime())) return null;
+        const serial = this._campo(raw, ["imei", "IMEI", "serial", "Serial"]);
+        const hu = this._campo(raw, ["hu_id", "hu", "HU", "os", "OS"]);
+        return { prod, serial: serial != null ? String(serial).trim() : null, hu: hu != null ? String(hu).trim() : null, endereco: String(endereco).trim(), created_at, raw };
+      })
+      .filter(Boolean);
+  },
+
+  /**
+   * Alocações em PROD n no período. Um aparelho conta 1 vez por PROD e por dia
+   * (bipado duas vezes no mesmo endereço no mesmo dia não duplica).
+   */
+  alocacoesEnderecoNoPeriodo(movs, start, end, prods = null) {
+    const vistos = new Set();
+    const out = [];
+    (movs || []).forEach((m) => {
+      if (prods && !prods.includes(m.prod)) return;
+      const dia = SkylineDash.toLocalDateStr(m.created_at);
+      if (dia < start || dia > end) return;
+      const id = m.serial || m.hu;
+      const chave = id ? `${m.prod}|${dia}|${id}` : null;
+      if (chave) {
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+      }
+      out.push({ ...m, dia, user: `PROD ${m.prod}` });
+    });
+    return out;
+  },
+
+  async _movApiKey() {
+    if (window.SKYLINE_MOVIMENTACAO_API_KEY) return window.SKYLINE_MOVIMENTACAO_API_KEY;
+    try {
+      await SkylineDash.getRecebimentoApiKey(); // carrega skyline-chaves.js se ainda não carregou
+    } catch (_) { /* sem chaves */ }
+    return window.SKYLINE_MOVIMENTACAO_API_KEY || null;
+  },
+
+  /** Busca (GET, paginado por limite/offset) as movimentações de start a end. null = indisponível. */
+  async fetchMovimentosEndereco(start, end) {
+    if (SkylineDash.useHomologData && SkylineDash.useHomologData()) return null;
+    const key = await this._movApiKey();
+    if (!key || !start || !end) return null;
+    let de = start;
+    const maxIni = SkylineDash._isoAddDays ? SkylineDash._isoAddDays(end, -(this.MOV_MAX_DIAS - 1)) : start;
+    if (de < maxIni) de = maxIni;
+    const linhas = [];
+    try {
+      for (let pag = 0; pag < this.MOV_MAX_PAGINAS; pag++) {
+        const qs = new URLSearchParams({ de, ate: end, limite: String(this.MOV_LIMITE), offset: String(pag * this.MOV_LIMITE) });
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 30000);
+        let res;
+        try {
+          res = await fetch(`${this.API_MOV_ENDERECOS}?${qs}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: { "x-api-key": key },
+            signal: ctrl.signal
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const page = Array.isArray(json) ? json : SkylineDash.normalizeRows(json);
+        linhas.push(...page);
+        if (page.length < this.MOV_LIMITE) break;
+      }
+      return this.loadMovimentosEndereco(linhas);
+    } catch (err) {
+      console.warn("[Produção] movimentações de endereço indisponíveis:", err?.message || err);
+      return null;
+    }
+  },
+
+  /**
+   * Movimentações do período em cache (2 min). Devolve o que já tem (ou null) e, se precisar,
+   * busca em segundo plano e chama onReady() quando chegar — a tela só re-renderiza.
+   */
+  movimentosEnderecoPeriodo(start, end, onReady) {
+    const k = `${start}|${end}`;
+    const c = this._movCache[k];
+    const fresco = c && Date.now() - c.at < this.MOV_CACHE_MS;
+    if (!fresco && !(c && c.loading)) {
+      this._movCache[k] = { at: c?.at || 0, data: c?.data ?? null, loading: true };
+      this.fetchMovimentosEndereco(start, end).then((data) => {
+        this._movCache[k] = { at: Date.now(), data, loading: false };
+        if (data?.length && typeof onReady === "function") onReady();
+      });
+    }
+    return this._movCache[k]?.data ?? null;
+  },
+
   ehPronto(raw) {
     if (!raw || !raw["Fim do Reparo"]) return false;
     const fim = new Date(raw["Fim do Reparo"]).getTime();
@@ -535,7 +643,19 @@ const ProducaoDash = {
     const API_URL = SkylineDash.API_REPARO;
     const statusEl = document.getElementById("statusMsg");
     const userFilter = panel.users.map((u) => u.match);
+    const panelProds = panel.users.map((u) => u.prod);
     let allRows = [];
+    /** Receb. Dia: alocações no endereço PROD n; sem dados de endereço no período → início do reparo. */
+    const recebidosDoPainel = (start, end) => {
+      const movsEndereco = this.movimentosEnderecoPeriodo(start, end, () => renderDashboard());
+      if (movsEndereco?.length) {
+        const todas = this.alocacoesEnderecoNoPeriodo(movsEndereco, start, end);
+        if (todas.length) {
+          return { fonte: "endereco", rows: todas.filter((r) => panelProds.includes(r.prod)) };
+        }
+      }
+      return { fonte: "inicio", rows: this.recebidosNoPeriodo(allRows, start, end, userFilter) };
+    };
 
     const renderTable = (filtered, start, end, recebidos = []) => {
       const tbody = document.getElementById("tableBody");
@@ -557,10 +677,10 @@ const ProducaoDash = {
         <tr>
           <td>${u.user}</td>
           <td style="color:#694992;font-weight:700">${u.recebido}</td>
-          <td>${u.finalizado}</td>
-          <td style="color:#0f766e;font-weight:700">${u.pronto}</td>
           <td>${u.andamento}</td>
           <td>${u.pausado}</td>
+          <td>${u.finalizado}</td>
+          <td style="color:#0f766e;font-weight:700">${u.pronto}</td>
           <td style="font-weight:700">${u.total}</td>
           <td style="font-weight:700;color:var(--bg)">${SkylineDash.formatDuration(u.workMs)}</td>
         </tr>
@@ -587,7 +707,15 @@ const ProducaoDash = {
       document.getElementById("periodLabel").textContent =
         `Período: ${SkylineDash.formatPeriodBR(start, end)} · ${panel.subtitle} · tempo só no período filtrado`;
 
-      renderTable(filtered, start, end, this.recebidosNoPeriodo(allRows, start, end, userFilter));
+      const rec = recebidosDoPainel(start, end);
+      renderTable(filtered, start, end, rec.rows);
+      const thRec = Array.from(document.querySelectorAll("th")).find((th) => /receb/i.test(th.textContent));
+      if (thRec) {
+        thRec.title =
+          rec.fonte === "endereco"
+            ? "Aparelhos alocados no endereço PROD do técnico no dia"
+            : "Aparelhos pegos para reparo no dia (início do reparo) — trilha de endereços PROD sem dados no período";
+      }
 
       SkylineDash.showStatus(
         statusEl,

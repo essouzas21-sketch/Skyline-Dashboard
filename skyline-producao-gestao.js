@@ -89,6 +89,7 @@ const ProducaoGestao = {
     const statusEl = document.getElementById("statusMsg");
     const tooltipEl = document.getElementById("richTooltip");
     let allRows = [];
+    let fonteRecebido = "inicio";
     const charts = {};
 
     document.getElementById("kpiRow").innerHTML = KPI_DEFS.map((k) => `
@@ -466,9 +467,36 @@ const ProducaoGestao = {
     /** Pronto = finalizado no período e na qualidade, ainda não inspecionado pelo CQE (ProducaoDash.ehPronto). */
     const ehPronto = (r) => r.status === "finalizado" && ProducaoDash.ehPronto(r.raw);
 
- /** Recebidos = pegos para reparo no período (Iniciado_Reparo), pelo técnico que iniciou. */
+    /**
+     * Receb. Dia = tudo que foi alocado no endereço PROD n no dia (trilha de endereços).
+     * Sem alocações PROD no período (fonte fora do ar/sem dados) → regra anterior:
+     * pegos para reparo no período (Iniciado_Reparo), pelo técnico que iniciou.
+     */
     function getRecebidosRows() {
       const { start, end } = SkylineDash.getDateRange();
+      const movsEndereco = homologOnly ? null : ProducaoDash.movimentosEnderecoPeriodo(start, end, () => renderDashboard());
+      const aloc = movsEndereco?.length ? ProducaoDash.alocacoesEnderecoNoPeriodo(movsEndereco, start, end) : [];
+      if (aloc.length) {
+        fonteRecebido = "endereco";
+        const porSerial = new Map();
+        const porHu = new Map();
+        allRows.forEach((r) => {
+          const raw = r._workRaw || {};
+          if (raw.serial) porSerial.set(String(raw.serial).trim(), raw);
+          if (raw.hu) porHu.set(String(raw.hu).trim(), raw);
+        });
+        return applyUiFilters(
+          aloc.map((a) => {
+            const raw = (a.serial && porSerial.get(a.serial)) || (a.hu && porHu.get(a.hu)) || null;
+            const base = raw
+              ? mapExecRow(raw)
+              : { hu: a.hu || "—", serial: a.serial || "—", tecnico: "—", triagem: null, iniciado_reparo: null, fim: null, times: null, peca: "—", modelo: String(a.raw?.descricao || "—"), sankhya: "—", custo: 0, raw: null };
+            const pos = POSICOES.find((p) => p.prod === a.prod);
+            return { ...base, prod: a.prod, alocadoEm: a.created_at, user: pos?.nome ? `PROD ${a.prod} ${pos.nome}` : `PROD ${a.prod}` };
+          })
+        );
+      }
+      fonteRecebido = "inicio";
       return applyUiFilters(
         ProducaoDash.recebidosNoPeriodo(getMaskedAllRows(), start, end, FILTRO_TODAS_POSICOES)
           .map((r) => ({ ...mapExecRow(r._workRaw), user: r.user }))
@@ -539,9 +567,16 @@ const ProducaoGestao = {
       const list = aggregateStatusPorPosicao(statusRows, start, end);
       const recebidosRows = getRecebidosRows();
       recebidosRows.forEach((r) => {
-        const pos = posicaoDoUsuario(r.user);
+        const pos = r.prod != null ? POSICOES.find((p) => p.prod === r.prod) : posicaoDoUsuario(r.user);
         if (pos) list[POSICOES.indexOf(pos)].recebido++;
       });
+      const thRec = Array.from(document.querySelectorAll("th")).find((th) => /receb/i.test(th.textContent));
+      if (thRec) {
+        thRec.title =
+          fonteRecebido === "endereco"
+            ? "Aparelhos alocados no endereço PROD do técnico no período"
+            : "Aparelhos pegos para reparo no período (início do reparo) — trilha de endereços PROD sem dados no período";
+      }
       const totals = list.reduce(
         (acc, s) => {
           acc.recebido += s.recebido;
@@ -561,10 +596,10 @@ const ProducaoGestao = {
           <td class="prod">PROD ${s.prod}</td>
           <td class="tec-name">${escapeHtml(s.nome)}</td>
           <td class="v-rec" data-drill data-prod="${s.prod}" data-status="recebido">${s.recebido}</td>
-          <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
-          <td class="v-pronto" data-drill data-prod="${s.prod}" data-status="pronto">${s.pronto}</td>
           <td class="v-rep" data-drill data-prod="${s.prod}" data-status="andamento">${s.andamento}</td>
           <td class="v-pau" data-drill data-prod="${s.prod}" data-status="pausado">${s.pausado}</td>
+          <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
+          <td class="v-pronto" data-drill data-prod="${s.prod}" data-status="pronto">${s.pronto}</td>
           <td class="v-tot" data-drill data-prod="${s.prod}" data-status="all">${s.total}</td>
           <td class="v-work">${fmtWorkTotal(s.workMs)}</td>
         </tr>
@@ -572,10 +607,10 @@ const ProducaoGestao = {
         <tr class="total">
           <td colspan="2">Total ${POSICOES.length ? `PROD ${POSICOES[0].prod}–${POSICOES[POSICOES.length - 1].prod}` : ""}</td>
           <td class="v-rec" data-drill data-prod="" data-status="recebido">${totals.recebido}</td>
-          <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
-          <td class="v-pronto" data-drill data-prod="" data-status="pronto">${totals.pronto}</td>
           <td class="v-rep" data-drill data-prod="" data-status="andamento">${totals.andamento}</td>
           <td class="v-pau" data-drill data-prod="" data-status="pausado">${totals.pausado}</td>
+          <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
+          <td class="v-pronto" data-drill data-prod="" data-status="pronto">${totals.pronto}</td>
           <td class="v-tot" data-drill data-prod="" data-status="all">${totals.total}</td>
           <td class="v-work">${fmtWorkTotal(totals.workMs)}</td>
         </tr>`;
@@ -590,6 +625,7 @@ const ProducaoGestao = {
             else if (st === "pronto") { if (!ehPronto(r)) return false; }
             else if (st !== "all" && r.status !== st) return false;
             if (!pos) return true;
+            if (st === "recebido" && r.prod != null) return r.prod === pos.prod;
             return !!pos.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
           });
           const title = pos

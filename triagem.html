@@ -626,7 +626,12 @@
     const API_URL = SkylineDash.API_REPARO;
     const DATE_FIELD = "data_triagem";
     /** Triagem completa: reparo + gestão peças + limpeza. */
-    const ETAPAS = SkylineDash.ETAPAS_TRIAGEM;
+    /**
+     * Triagem conta pela DATA, qualquer que seja a etapa ATUAL do aparelho ("operação").
+     * A API devolve a etapa de agora (reparo, limpeza ou vazia); filtrar por ela tirava da
+     * conta aparelhos que já seguiram para a próxima etapa no mesmo dia.
+     */
+    const ETAPAS = Object.assign(new Set(["todas"]), { has: () => true });
     /** Conta também Sankhya erro / outros (não exige sucesso). */
     const REQUIRE_SANKHYA_SUCESSO = false;
     const TOP_N = 8;
