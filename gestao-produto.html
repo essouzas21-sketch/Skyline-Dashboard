@@ -928,68 +928,71 @@
       return { rawList, rows: SkylineDash.dedupeGestaoRows(ok) };
     }
 
-    /** API_PECAS traz N peças por OS; reparo só traz a última. Expande 1→N. */
+    /**
+     * API_PECAS traz TODAS as peças pedidas para o aparelho (inclusive as pedidas de novo no
+     * retorno); a API de reparo só traz UM pedido por aparelho. Junta as duas pelo SERIAL
+     * (o "id" da API_PECAS é outra numeração — juntar por id misturava peças de aparelhos
+     * diferentes). Cada peça distinta do aparelho vira 1 linha; a do reparo também entra.
+     * A API_PECAS não informa a data de cada peça: todas ficam na data do pedido do reparo.
+     */
     function expandRowsWithPecasCatalog(gestaoRows, pecasPayload) {
       const base = Array.isArray(gestaoRows) ? gestaoRows : [];
       const pecasRows = SkylineDash.normalizeRows(pecasPayload);
       if (!pecasRows.length) return base;
 
-      const metaById = new Map();
-      base.forEach((row) => {
-        if (row?.id == null || String(row.id).trim() === "") return;
-        const id = String(row.id).trim();
-        if (!metaById.has(id)) metaById.set(id, row);
+      const normSerial = (v) => String(v ?? "").trim();
+      const normDesc = (v) => String(v ?? "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
+      const catalogoPorSerial = new Map();
+      pecasRows.forEach((p) => {
+        const serial = normSerial(p?.serial);
+        if (!serial) return;
+        if (!catalogoPorSerial.has(serial)) catalogoPorSerial.set(serial, []);
+        catalogoPorSerial.get(serial).push(p);
       });
 
       const expanded = [];
-      const expandedIds = new Set();
-      pecasRows.forEach((p) => {
-        if (!p || p.id == null || String(p.id).trim() === "") return;
-        const id = String(p.id).trim();
-        const meta = metaById.get(id);
-        if (!meta) return;
-
-        const codes = String(p.pecas || "")
-          .split(";")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const descs = String(p.descricoes || "")
-          .split(";")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const n = Math.max(codes.length, descs.length);
-        if (!n) return;
-
-        const seen = new Set();
-        let added = 0;
-        for (let i = 0; i < n; i++) {
-          const code = codes[i] || "";
-          const desc = descs[i] || code || "—";
-          const produto = code || `desc:${desc}`;
-          if (seen.has(produto)) continue;
-          seen.add(produto);
-          expanded.push({
-            id: meta.id,
-            nr: meta.nr,
-            serial: p.serial || meta.serial,
-            data_pedido_sankhya: meta.data_pedido_sankhya,
-            produto_requisitado_id: produto,
-            descricao: desc,
-            aparelho: meta.aparelho,
-            marca: meta.marca,
-            categoria: categorizePeca(desc),
-            solicitante: meta.solicitante,
-            status_sankhya: meta.status_sankhya || "sucesso"
-          });
-          added += 1;
-        }
-        if (added > 0) expandedIds.add(id);
+      const porAparelho = new Map();
+      base.forEach((row) => {
+        const serial = normSerial(row?.serial);
+        const chave = serial ? `s:${serial}` : `i:${row?.id ?? ""}`;
+        if (!porAparelho.has(chave)) porAparelho.set(chave, []);
+        porAparelho.get(chave).push(row);
       });
 
-      base.forEach((row) => {
-        const id = row?.id != null ? String(row.id).trim() : "";
-        if (id && expandedIds.has(id)) return;
-        expanded.push(row);
+      porAparelho.forEach((rows, chave) => {
+        const meta = rows[0];
+        const vistos = new Set();
+        rows.forEach((row) => {
+          vistos.add(normDesc(row.descricao));
+          expanded.push(row);
+        });
+        const catalogo = chave.startsWith("s:") ? catalogoPorSerial.get(chave.slice(2)) || [] : [];
+        catalogo.forEach((p) => {
+          const codes = String(p.pecas || "").split(";").map((x) => x.trim()).filter(Boolean);
+          const descs = String(p.descricoes || "").split(";").map((x) => x.trim()).filter(Boolean);
+          const n = Math.max(codes.length, descs.length);
+          for (let i = 0; i < n; i++) {
+            const code = codes[i] || "";
+            const desc = descs[i] || code || "—";
+            const k = normDesc(desc);
+            if (!k || vistos.has(k)) continue;
+            vistos.add(k);
+            expanded.push({
+              id: meta.id,
+              nr: meta.nr,
+              serial: meta.serial,
+              data_pedido_sankhya: meta.data_pedido_sankhya,
+              produto_requisitado_id: code || `desc:${desc}`,
+              descricao: desc,
+              aparelho: meta.aparelho,
+              marca: meta.marca,
+              categoria: categorizePeca(desc),
+              solicitante: meta.solicitante,
+              status_sankhya: meta.status_sankhya || "sucesso"
+            });
+          }
+        });
       });
 
       return SkylineDash.dedupeGestaoRows(expanded);

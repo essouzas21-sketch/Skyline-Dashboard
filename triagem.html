@@ -862,6 +862,7 @@
         operacao: "reparo",
         usuario,
         descricao: marca,
+        marca,
         serial: "—",
         hu: "—"
       };
@@ -1049,6 +1050,46 @@
       return s && s !== "—" ? `s:${s}` : `i:${r.id ?? ""}`;
     }
 
+    /**
+     * Marca do aparelho. A "descricao" às vezes vem com o SKU (ex.: BRZDEV13419, APANK00092…)
+     * em vez do nome. Procura a marca em qualquer parte do texto e pelo modelo
+     * (iPhone → APPLE, Galaxy/SM-xxxx → SAMSUNG, Redmi → XIAOMI, Moto → MOTOROLA…).
+     * Se o texto for só código, usa a marca de outro aparelho com o mesmo SKU (prod_cprod).
+     * Sem nenhuma informação de marca → "NÃO IDENTIFICADA" (nunca mostra o SKU no gráfico).
+     */
+    const MARCA_NAO_ID = "NÃO IDENTIFICADA";
+    const MARCAS = [
+      "APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "ASUS", "NOKIA", "REALME", "OPPO", "HUAWEI",
+      "LENOVO", "MULTILASER", "POSITIVO", "INFINIX", "TECNO", "ONEPLUS", "GOOGLE", "SONY", "TCL",
+      "ALCATEL", "ZTE", "HONOR", "VIVO", "JBL", "AMAZON", "PHILCO", "SEMP", "BLU", "NOTHING"
+    ];
+    const MARCA_POR_MODELO = [
+      [/\b(IPHONE|IPAD|MACBOOK|AIRPODS|APPLE\s*WATCH|IWATCH)\b/, "APPLE"],
+      [/\b(GALAXY|SM-?[A-Z]\d{3})/, "SAMSUNG"],
+      [/\b(REDMI|POCO|XIAOMI|XIAMO|MI\s*\d)/, "XIAOMI"],
+      [/\b(MOTO\s*[A-Z]?\d|MOTO\b|EDGE\s*\d|RAZR)/, "MOTOROLA"],
+      [/\bPIXEL\b/, "GOOGLE"],
+      [/\bZENFONE\b/, "ASUS"]
+    ];
+    function marcaDoTexto(texto) {
+      const t = String(texto ?? "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!t.trim()) return null;
+      const palavras = t.split(/[^A-Z0-9]+/).filter(Boolean);
+      const achou = MARCAS.find((m) => palavras.includes(m));
+      if (achou) return achou;
+      for (const [re, marca] of MARCA_POR_MODELO) if (re.test(t)) return marca;
+      return null;
+    }
+    const marcaPorSku = new Map();
+    function marcaDoAparelho(raw) {
+      return (
+        marcaDoTexto(raw.marca) ||
+        marcaDoTexto(raw.descricao) ||
+        marcaPorSku.get(String(raw.prod_cprod ?? "").trim()) ||
+        MARCA_NAO_ID
+      );
+    }
+
     function mapRow(raw) {
       return {
         id: raw.id ?? null,
@@ -1057,6 +1098,7 @@
         // Quem bipou o aparelho na etapa de Triagem (nunca o IMEI/serial)
         usuario: SkylineDash.normalizeUserName(usuarioTriagem(raw)),
         descricao: raw.descricao || "—",
+        marca: marcaDoAparelho(raw),
         serial: raw.serial || "—",
         hu: raw.hu || "—"
       };
@@ -1124,7 +1166,7 @@
     function renderMarcaChart(rows) {
       const aggregated = SkylineDash.aggregateCount(
         rows,
-        (r) => SkylineDash.extractFirstWord(r.descricao)
+        (r) => r.marca || MARCA_NAO_ID
       );
       let byBrand;
       if (APPLY_MASK) {
@@ -1343,6 +1385,12 @@
       try {
         const json = await SkylineDash.fetchWebhook(API_URL);
         lastRawPayload = SkylineDash.normalizeRows(json);
+        marcaPorSku.clear();
+        lastRawPayload.forEach((raw) => {
+          const m = marcaDoTexto(raw?.descricao);
+          const sku = String(raw?.prod_cprod ?? "").trim();
+          if (m && sku && !marcaPorSku.has(sku)) marcaPorSku.set(sku, m);
+        });
         allRows = lastRawPayload
           .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, {
             requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO
