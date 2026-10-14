@@ -1384,7 +1384,9 @@
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const json = await SkylineDash.fetchWebhook(API_URL);
-        lastRawPayload = SkylineDash.normalizeRows(json);
+        const novos = SkylineDash.normalizeRows(json);
+        if (!novos.length && allRows.length) throw new Error("API devolveu lista vazia");
+        lastRawPayload = novos;
         marcaPorSku.clear();
         lastRawPayload.forEach((raw) => {
           const m = marcaDoTexto(raw?.descricao);
@@ -1397,13 +1399,30 @@
           }))
           .map(mapRow)
           .filter((r) => r.data_triagem);
-        renderDashboard();
+        try {
+          renderDashboard();
+        } catch (errRender) {
+          console.error("[Triagem] erro ao desenhar:", errRender);
+          SkylineDash.showStatus(statusEl, `Erro ao desenhar a tela: ${errRender.message}`, true);
+          return;
+        }
         if (DEBUG_MODE) {
           renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
         }
         SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
       } catch (err) {
-        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        console.warn("[Triagem] falha ao atualizar:", err);
+        // Já tinha dados: NÃO zera a tela (TV). Mantém os últimos números e tenta de novo em 1 min.
+        if (allRows.length) {
+          const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          SkylineDash.showStatus(statusEl, `Atualização falhou às ${hora} (${err.message}) — mostrando os últimos dados; nova tentativa em 1 min.`, true);
+          clearTimeout(window.__triagemRetry);
+          window.__triagemRetry = setTimeout(loadData, 60000);
+          return;
+        }
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message} — nova tentativa em 1 min.`, true);
+        clearTimeout(window.__triagemRetry);
+        window.__triagemRetry = setTimeout(loadData, 60000);
         document.getElementById("kpiTotal").textContent = "0";
         document.getElementById("kpiHoje").textContent = "0";
         document.getElementById("kpiRitmo").textContent = "0";
