@@ -474,8 +474,7 @@ const ProducaoGestao = {
      */
     function getRecebidosRows() {
       const { start, end } = SkylineDash.getDateRange();
-      const movsEndereco = homologOnly ? null : ProducaoDash.movimentosEnderecoPeriodo(start, end, () => renderDashboard());
-      const aloc = movsEndereco?.length ? ProducaoDash.alocacoesEnderecoNoPeriodo(movsEndereco, start, end) : [];
+      const aloc = (homologOnly ? null : ProducaoDash.noEnderecoProdAgora(() => renderDashboard())) || [];
       if (aloc.length) {
         fonteRecebido = "endereco";
         const porSerial = new Map();
@@ -504,7 +503,7 @@ const ProducaoGestao = {
     }
 
     function statusLabel(st) {
-      return { recebido: "Recebidos (pegos para reparo)", pronto: "Prontos (na qualidade, aguardando CQE)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
+      return { recebido: "Recebidos (no PROD, aguardando reparo)", pronto: "Prontos no período (endereço PROD PRONTO)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
     }
 
     function rowWorkMs(r, start, end) {
@@ -565,16 +564,48 @@ const ProducaoGestao = {
       const tbody = document.getElementById("statusByTecBody");
 
       const list = aggregateStatusPorPosicao(statusRows, start, end);
-      const recebidosRows = getRecebidosRows();
+      let recebidosRows = getRecebidosRows();
       recebidosRows.forEach((r) => {
         const pos = r.prod != null ? POSICOES.find((p) => p.prod === r.prod) : posicaoDoUsuario(r.user);
         if (pos) list[POSICOES.indexOf(pos)].recebido++;
       });
+      // Foto de AGORA (período inclui hoje): Receb./Reparo/Pausa/Pronto = o que está com cada PROD neste momento
+      let fotoRows = null;
+      if (!homologOnly && end >= SkylineDash.todayISO()) {
+        const foto = ProducaoDash.fotoAgora(getMaskedAllRows(), () => renderDashboard());
+        const enderecoParaLinha = (a, rotulo) => {
+          const base = a._row
+            ? mapExecRow(a._row._workRaw)
+            : { hu: a.hu || "—", serial: a.serial || "—", tecnico: "—", triagem: null, iniciado_reparo: null, fim: null, times: null, peca: "—", modelo: String(a.raw?.descricao || "—"), sankhya: "—", custo: 0, raw: null };
+          return { ...base, prod: a.prod, alocadoEm: a.created_at, endereco: rotulo };
+        };
+        fotoRows = {
+          andamento: applyUiFilters(foto.reparo.filter((r) => r.status === "andamento").map((r) => ({ ...mapExecRow(r._workRaw), user: r.user, status: "andamento" }))),
+          pausado: applyUiFilters(foto.reparo.filter((r) => r.status === "pausado").map((r) => ({ ...mapExecRow(r._workRaw), user: r.user, status: "pausado" }))),
+          recebido: foto.recebidos ? applyUiFilters(foto.recebidos.map((a) => enderecoParaLinha(a, a.endereco))) : null,
+          pronto: foto.prontos
+            ? applyUiFilters(foto.prontos.filter((a) => a.diaPronto >= start && a.diaPronto <= end).map((a) => enderecoParaLinha(a, a.endereco)))
+            : null
+        };
+        if (fotoRows.recebido) {
+          fonteRecebido = "endereco";
+          recebidosRows = fotoRows.recebido;
+        }
+        list.forEach((s) => {
+          const pos = POSICOES.find((p) => p.prod === s.prod);
+          const doTec = (r) => !!pos?.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
+          if (fotoRows.recebido) s.recebido = fotoRows.recebido.filter((r) => r.prod === s.prod).length;
+          s.andamento = fotoRows.andamento.filter(doTec).length;
+          s.pausado = fotoRows.pausado.filter(doTec).length;
+          if (fotoRows.pronto) s.pronto = fotoRows.pronto.filter((r) => r.prod === s.prod).length;
+          s.total = s.recebido + s.andamento + s.pausado + s.pronto;
+        });
+      }
       const thRec = Array.from(document.querySelectorAll("th")).find((th) => /receb/i.test(th.textContent));
       if (thRec) {
         thRec.title =
           fonteRecebido === "endereco"
-            ? "Aparelhos alocados no endereço PROD do técnico no período"
+            ? "Aparelhos no endereço PROD do técnico que ainda não entraram em reparo (acumulado, de qualquer dia)"
             : "Aparelhos pegos para reparo no período (início do reparo) — trilha de endereços PROD sem dados no período";
       }
       const totals = list.reduce(
@@ -620,12 +651,19 @@ const ProducaoGestao = {
           const prod = cell.dataset.prod ? Number(cell.dataset.prod) : null;
           const pos = prod ? POSICOES.find((p) => p.prod === prod) : null;
           const st = cell.dataset.status;
-          const rows = (st === "recebido" ? recebidosRows : statusRows).filter((r) => {
-            if (st === "recebido") { /* já filtrado */ }
+          const daFoto = fotoRows && ["recebido", "andamento", "pausado", "pronto"].includes(st) && fotoRows[st];
+          const fonte = daFoto
+            ? fotoRows[st]
+            : fotoRows && st === "all"
+              ? [].concat(fotoRows.recebido || [], fotoRows.andamento, fotoRows.pausado, fotoRows.pronto || [])
+              : st === "recebido" ? recebidosRows : statusRows;
+          const rows = fonte.filter((r) => {
+            if (daFoto || (fotoRows && st === "all")) { /* já é a foto de agora */ }
+            else if (st === "recebido") { /* já filtrado */ }
             else if (st === "pronto") { if (!ehPronto(r)) return false; }
             else if (st !== "all" && r.status !== st) return false;
             if (!pos) return true;
-            if (st === "recebido" && r.prod != null) return r.prod === pos.prod;
+            if (r.prod != null) return r.prod === pos.prod;
             return !!pos.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
           });
           const title = pos

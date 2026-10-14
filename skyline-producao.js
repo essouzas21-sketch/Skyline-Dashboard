@@ -340,7 +340,9 @@ const ProducaoDash = {
   },
 
   loadRows(json) {
-    const mapped = SkylineDash.normalizeRows(json)
+    const rawList = SkylineDash.normalizeRows(json);
+    this._ultimoRawReparo = rawList;
+    const mapped = rawList
       .map((raw) => this.mapRow(raw))
       .filter((r) => this.DATE_FIELDS.some((f) => r[f]));
     return SkylineDash.distinctById(mapped, "id");
@@ -415,7 +417,7 @@ const ProducaoDash = {
     return filtered;
   },
 
-  aggregatePanelUsers(filtered, panelUsers, start, end, recebidos = []) {
+  aggregatePanelUsers(filtered, panelUsers, start, end, recebidos = [], prontos = null) {
     const rows = panelUsers.map((u) => ({
       user: u.label,
       recebido: 0,
@@ -432,7 +434,7 @@ const ProducaoDash = {
       if (idx < 0) return;
       const target = rows[idx];
       target[row.status]++;
-      if (row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
+      if (!prontos && row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
       target.total++;
       target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
     });
@@ -443,6 +445,10 @@ const ProducaoDash = {
           ? panelUsers.findIndex((u) => u.prod === row.prod)
           : panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
       if (idx >= 0) rows[idx].recebido++;
+    });
+    (prontos || []).forEach((row) => {
+      const idx = panelUsers.findIndex((u) => this.matchesUserFilter(row.user, [u.match]));
+      if (idx >= 0) rows[idx].pronto++;
     });
 
     return rows;
@@ -505,9 +511,9 @@ const ProducaoDash = {
    */
   API_MOV_ENDERECOS: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-movimentacao-enderecos",
   MOV_LIMITE: 1000,
-  MOV_MAX_PAGINAS: 60,
+  MOV_MAX_PAGINAS: 120,
   MOV_MAX_DIAS: 93,
-  MOV_CACHE_MS: 120000,
+  MOV_CACHE_MS: 300000,
   _movCache: {},
 
   prodDoEndereco(endereco) {
@@ -526,17 +532,22 @@ const ProducaoDash = {
   },
 
   /** Linhas cruas da API → [{ prod, serial, hu, endereco, created_at, raw }] (só PROD n exato). */
-  loadMovimentosEndereco(payload) {
+  loadMovimentosEndereco(payload, todos = false) {
     const lista = Array.isArray(payload) ? payload : SkylineDash.normalizeRows(payload);
     return lista
       .map((raw) => {
-        const endereco = this._campo(raw, ["endereco", "Endereco", "endereço", "endereco_destino", "destino"]);
+        // API nova: { imei, os, data, tipo, origem:{endereco}, destino:{endereco} } → vale o DESTINO
+        const destinoObj = raw?.destino && typeof raw.destino === "object" ? raw.destino : null;
+        const endereco = destinoObj
+          ? (destinoObj.endereco != null ? String(destinoObj.endereco) : "")
+          : this._campo(raw, ["endereco", "Endereco", "endereço", "endereco_destino", "destino"]);
         const prod = this.prodDoEndereco(endereco);
-        if (prod == null) return null;
+        if (prod == null && !todos) return null;
+        if (endereco == null) return null;
         const created_at = this._campo(raw, ["created_at", "data_hora", "data_movimentacao", "criado_em", "data", "Data"]);
         if (!created_at || Number.isNaN(new Date(created_at).getTime())) return null;
         const serial = this._campo(raw, ["imei", "IMEI", "serial", "Serial"]);
-        const hu = this._campo(raw, ["hu_id", "hu", "HU", "os", "OS"]);
+        const hu = this._campo(raw, ["os", "OS", "hu_id", "hu", "HU"]);
         return { prod, serial: serial != null ? String(serial).trim() : null, hu: hu != null ? String(hu).trim() : null, endereco: String(endereco).trim(), created_at, raw };
       })
       .filter(Boolean);
@@ -573,7 +584,7 @@ const ProducaoDash = {
   },
 
   /** Busca (GET, paginado por limite/offset) as movimentações de start a end. null = indisponível. */
-  async fetchMovimentosEndereco(start, end) {
+  async fetchMovimentosEndereco(start, end, todos = false) {
     if (SkylineDash.useHomologData && SkylineDash.useHomologData()) return null;
     const key = await this._movApiKey();
     if (!key || !start || !end) return null;
@@ -603,7 +614,7 @@ const ProducaoDash = {
         linhas.push(...page);
         if (page.length < this.MOV_LIMITE) break;
       }
-      return this.loadMovimentosEndereco(linhas);
+      return this.loadMovimentosEndereco(linhas, todos);
     } catch (err) {
       console.warn("[Produção] movimentações de endereço indisponíveis:", err?.message || err);
       return null;
@@ -614,18 +625,142 @@ const ProducaoDash = {
    * Movimentações do período em cache (2 min). Devolve o que já tem (ou null) e, se precisar,
    * busca em segundo plano e chama onReady() quando chegar — a tela só re-renderiza.
    */
-  movimentosEnderecoPeriodo(start, end, onReady) {
-    const k = `${start}|${end}`;
+  movimentosEnderecoPeriodo(start, end, onReady, todos = false) {
+    const k = `${start}|${end}|${todos ? "todos" : "prod"}`;
     const c = this._movCache[k];
     const fresco = c && Date.now() - c.at < this.MOV_CACHE_MS;
     if (!fresco && !(c && c.loading)) {
       this._movCache[k] = { at: c?.at || 0, data: c?.data ?? null, loading: true };
-      this.fetchMovimentosEndereco(start, end).then((data) => {
+      this.fetchMovimentosEndereco(start, end, todos).then((data) => {
         this._movCache[k] = { at: Date.now(), data, loading: false };
         if (data?.length && typeof onReady === "function") onReady();
       });
     }
     return this._movCache[k]?.data ?? null;
+  },
+
+  /**
+   * PRONTO acumulado (pós-finalização): todo aparelho com reparo finalizado — em qualquer dia —
+   * que está na caixa PRONTO do técnico esperando o CQE (ainda não inspecionado depois da
+   * finalização). Não depende do período filtrado: é o que está parado no PRONTO agora.
+   * Técnico = quem finalizou ("Usuario final").
+   */
+  prontosAcumulados(allRows, userFilter) {
+    let out = allRows
+      .filter((r) => {
+        const raw = r._workRaw || {};
+        return String(raw.status || "").toLowerCase() === "finalizado" && this.ehPronto(raw);
+      })
+      .map((r) => ({ ...r, user: SkylineDash.normalizeUserName(r._workRaw["Usuario final"] || r.user || "—") }));
+    if (userFilter?.length) out = out.filter((r) => this.matchesUserFilter(r.user, userFilter));
+    return out;
+  },
+
+  /**
+   * RECEB. DIA acumulado: aparelhos que ESTÃO AGORA no endereço PROD n (último endereço
+   * registrado do aparelho = "PROD1" … "PROD18"), não importa em que dia foram colocados lá.
+   * Usa as movimentações dos últimos MOV_JANELA_DIAS dias. null = sem dados de endereço.
+   */
+  MOV_JANELA_DIAS: 93,
+  noEnderecoProdAgora(onReady) {
+    const hoje = SkylineDash.todayISO();
+    const de = SkylineDash._isoAddDays(hoje, -(this.MOV_JANELA_DIAS - 1));
+    const movs = this.movimentosEnderecoPeriodo(de, hoje, onReady, true);
+    if (!movs?.length) return null;
+    const ultimo = new Map();
+    movs.forEach((m) => {
+      const id = m.serial || m.hu;
+      if (!id) return;
+      const t = new Date(m.created_at).getTime();
+      const atual = ultimo.get(id);
+      if (!atual || t >= atual.t) ultimo.set(id, { t, m });
+    });
+    const out = [];
+    ultimo.forEach(({ m }) => {
+      if (m.prod != null) out.push({ ...m, dia: SkylineDash.toLocalDateStr(m.created_at), user: `PROD ${m.prod}` });
+    });
+    return out;
+  },
+
+  /** "PROD12 PRONTO" → 12 (caixa de prontos do técnico). */
+  prodProntoDoEndereco(endereco) {
+    const m = /^\s*PROD\s*[-_ ]?\s*0*(\d{1,2})\s*[-_ ]?\s*PRONTO\s*$/i.exec(String(endereco ?? ""));
+    if (!m) return null;
+    const n = Number(m[1]);
+    return this.POSICOES.some((p) => p.prod === n) ? n : null;
+  },
+
+  /** Último endereço de cada aparelho (movimentações dos últimos MOV_JANELA_DIAS). null = sem dados. */
+  ultimoEnderecoPorAparelho(onReady) {
+    const hoje = SkylineDash.todayISO();
+    const de = SkylineDash._isoAddDays(hoje, -(this.MOV_JANELA_DIAS - 1));
+    const movs = this.movimentosEnderecoPeriodo(de, hoje, onReady, true);
+    if (!movs?.length) return null;
+    const ultimo = new Map();
+    movs.forEach((m) => {
+      const id = m.serial || m.hu;
+      if (!id) return;
+      const t = new Date(m.created_at).getTime();
+      const atual = ultimo.get(id);
+      if (!atual || t >= atual.t) ultimo.set(id, { t, m });
+    });
+    return [...ultimo.values()].map((x) => x.m);
+  },
+
+  /**
+   * FOTO DE AGORA por PROD (vale quando o período inclui hoje):
+   *  - Receb.: aparelho cujo último endereço é PROD n e que ainda NÃO entrou em reparo
+   *            (não está em execução, pausado nem finalizado no sistema de reparo).
+   *  - Reparo: aparelhos em execução agora (status em_execucao), pelo técnico.
+   *  - Pausa:  aparelhos pausados agora (status pausado), de qualquer dia, pelo técnico.
+   *  - Pronto: aparelho cujo último endereço é "PROD n PRONTO" (caixa de prontos) — e
+   *            finalizados que ainda estão parados no endereço PROD n. A tela mostra só os que
+   *            ficaram prontos no período (diaPronto = dia em que entrou no PRONTO / fim do reparo).
+   * recebidos/prontos = null quando a API de endereços não respondeu (a tela usa a regra antiga).
+   */
+  fotoAgora(allRows, onReady) {
+    const st = (r) => String(r?._workRaw?.status || "").toLowerCase();
+    const reparo = allRows
+      .filter((r) => st(r) === "em_execucao" || st(r) === "pausado")
+      .map((r) => ({
+        ...r,
+        status: st(r) === "em_execucao" ? "andamento" : "pausado",
+        user: SkylineDash.normalizeUserName(r._workRaw["Usuário reparo"] || r.user || "—")
+      }));
+    const ult = this.ultimoEnderecoPorAparelho(onReady);
+    if (!ult) return { reparo, recebidos: null, prontos: null };
+    const porSerial = new Map();
+    allRows.forEach((r) => {
+      const s = String(r._workRaw?.serial ?? "").trim();
+      if (s) porSerial.set(s, r);
+    });
+    const recebidos = [];
+    const prontos = [];
+    ult.forEach((m) => {
+      const row = (m.serial && porSerial.get(m.serial)) || null;
+      const status = st(row);
+      const nProd = this.prodDoEndereco(m.endereco);
+      if (nProd != null) {
+        if (status === "em_execucao" || status === "pausado") return; // já conta em Reparo/Pausa
+        if (status === "finalizado") {
+          const fim = row?._workRaw?.["Fim do Reparo"];
+          prontos.push({ ...m, prod: nProd, _row: row, user: `PROD ${nProd}`, diaPronto: SkylineDash.toLocalDateStr(fim || m.created_at) });
+        }
+        else recebidos.push({ ...m, prod: nProd, _row: row, user: `PROD ${nProd}` });
+        return;
+      }
+      const nPronto = this.prodProntoDoEndereco(m.endereco);
+      if (nPronto != null) {
+        if (status === "em_execucao" || status === "pausado") return; // voltou para reparo: já conta em Reparo/Pausa
+        if (status && status !== "finalizado") {
+          // reprovado no CQE e ainda na caixa PRONTO: aguarda novo reparo → Receb.
+          recebidos.push({ ...m, prod: nPronto, _row: row, user: `PROD ${nPronto}` });
+          return;
+        }
+        prontos.push({ ...m, prod: nPronto, _row: row, user: `PROD ${nPronto}`, diaPronto: SkylineDash.toLocalDateStr(m.created_at) });
+      }
+    });
+    return { reparo, recebidos, prontos };
   },
 
   ehPronto(raw) {
@@ -647,12 +782,9 @@ const ProducaoDash = {
     let allRows = [];
     /** Receb. Dia: alocações no endereço PROD n; sem dados de endereço no período → início do reparo. */
     const recebidosDoPainel = (start, end) => {
-      const movsEndereco = this.movimentosEnderecoPeriodo(start, end, () => renderDashboard());
-      if (movsEndereco?.length) {
-        const todas = this.alocacoesEnderecoNoPeriodo(movsEndereco, start, end);
-        if (todas.length) {
-          return { fonte: "endereco", rows: todas.filter((r) => panelProds.includes(r.prod)) };
-        }
+      const naProd = this.noEnderecoProdAgora(() => renderDashboard());
+      if (naProd?.length) {
+        return { fonte: "endereco", rows: naProd.filter((r) => panelProds.includes(r.prod)) };
       }
       return { fonte: "inicio", rows: this.recebidosNoPeriodo(allRows, start, end, userFilter) };
     };
@@ -670,6 +802,27 @@ const ProducaoDash = {
       }
 
       const list = this.aggregatePanelUsers(filtered, panel.users, start, end, recebidos);
+      const hoje = SkylineDash.todayISO();
+      if (end >= hoje) {
+        const foto = this.fotoAgora(allRows, () => renderDashboard());
+        list.forEach((u, i) => {
+          const pu = panel.users[i];
+          const doTec = (r) => !!pu.match && this.matchesUserFilter(r.user, [pu.match]);
+          if (foto.recebidos) u.recebido = foto.recebidos.filter((r) => r.prod === pu.prod).length;
+          u.andamento = foto.reparo.filter((r) => r.status === "andamento" && doTec(r)).length;
+          u.pausado = foto.reparo.filter((r) => r.status === "pausado" && doTec(r)).length;
+          if (foto.prontos) u.pronto = foto.prontos.filter((r) => r.prod === pu.prod && r.diaPronto >= start && r.diaPronto <= end).length;
+          u.total = u.recebido + u.andamento + u.pausado + u.pronto;
+        });
+        const soma = (k) => list.reduce((a, u) => a + u[k], 0);
+        const setKpi = (id, v) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = v;
+        };
+        setKpi("kpiAndamento", soma("andamento"));
+        setKpi("kpiPausado", soma("pausado"));
+        setKpi("kpiTotal", soma("total"));
+      }
       empty.hidden = true;
       tbody.innerHTML = list
         .map(
@@ -713,7 +866,7 @@ const ProducaoDash = {
       if (thRec) {
         thRec.title =
           rec.fonte === "endereco"
-            ? "Aparelhos alocados no endereço PROD do técnico no dia"
+            ? "Aparelhos que estão no endereço PROD do técnico (acumulado, de qualquer dia)"
             : "Aparelhos pegos para reparo no dia (início do reparo) — trilha de endereços PROD sem dados no período";
       }
 
