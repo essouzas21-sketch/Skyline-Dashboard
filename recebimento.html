@@ -579,7 +579,7 @@
         if (next > max) max = next;
       }
 
-      const header = `<tr><th>Marca \\ Fornecedor</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
+      const header = `<tr><th>Marca \\ ${fonteDados === "bipagem" ? "Recebido por" : "Fornecedor"}</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
       const body = topBrands.map((brand) => {
         const cells = topUsers.map((user) => {
           const val = matrix.get(`${brand}|${user}`) || 0;
@@ -640,7 +640,9 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        `Período: ${SkylineDash.formatPeriodBR(start, end)} · data de entrada da NF · aparelhos por item`;
+        fonteDados === "bipagem"
+          ? `Período: ${SkylineDash.formatPeriodBR(start, end)} · data e hora em que o aparelho foi bipado no RECEBIMENTO`
+          : `Período: ${SkylineDash.formatPeriodBR(start, end)} · data de entrada da NF (bipagens indisponíveis) · aparelhos por item`;
 
       if (!APPLY_MASK) {
         const { dayLabels, series } = buildBrandDaySeries(brandScope, brandStart, brandEnd);
@@ -677,9 +679,17 @@
       );
 
       renderHeatmap(brandScope);
+      const noteHeat = document.getElementById("noteHeatmap");
+      const tituloHeat = noteHeat?.closest(".panel")?.querySelector("h2");
+      if (!APPLY_MASK && noteHeat && tituloHeat) {
+        tituloHeat.textContent = fonteDados === "bipagem" ? "Marca × quem recebeu" : "Marca × fornecedor";
+        noteHeat.textContent = fonteDados === "bipagem" ? "Top marcas e responsáveis pela bipagem · mês" : "Top marcas e fornecedores (NF) · mês";
+      }
 
       document.getElementById("footerMeta").textContent =
-        `Fonte: consulta-recebimentos (NF de entrada) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`;
+        fonteDados === "bipagem"
+          ? `Fonte: bipagens no endereço RECEBIMENTO (status recebido) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`
+          : `Fonte: consulta-recebimentos (NF de entrada) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`;
 
       SkylineDash.showStatus(
         statusEl,
@@ -714,10 +724,135 @@
       });
     }
 
+    /**
+     * RECEBIDO = momento em que o aparelho foi BIPADO no recebimento e ficou com status
+     * RECEBIDO (movimentação com destino no endereço "RECEBIMENTO" na api-movimentacao-enderecos),
+     * e não a data em que a NF entrou no sistema. Um aparelho (IMEI) conta 1 vez por dia. Usuário = quem bipou.
+     * Marca: descrição do aparelho na API de reparo (pelo IMEI); se não achar, marca do SKU na NF.
+     * Se a API de movimentações não responder, a tela volta para a regra antiga (NF).
+     */
+    const API_MOV = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-movimentacao-enderecos";
+    let fonteDados = "bipagem";
+    const MARCAS_CONHECIDAS = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "ASUS", "NOKIA", "REALME", "OPPO", "HUAWEI", "LENOVO", "MULTILASER", "POSITIVO", "INFINIX", "TECNO", "ONEPLUS", "GOOGLE", "SONY", "TCL", "ALCATEL", "ZTE", "HONOR", "VIVO"];
+    function marcaDoTexto(texto) {
+      const t = String(texto ?? "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!t.trim()) return null;
+      const palavras = t.split(/[^A-Z0-9]+/).filter(Boolean);
+      const achou = MARCAS_CONHECIDAS.find((m) => palavras.includes(m));
+      if (achou) return achou;
+      if (/\b(IPHONE|IPAD|MACBOOK|AIRPODS|IWATCH)\b/.test(t)) return "APPLE";
+      if (/\b(GALAXY|SM-?[A-Z]\d{3})/.test(t)) return "SAMSUNG";
+      if (/\b(REDMI|POCO|XIAMO)\b/.test(t)) return "XIAOMI";
+      if (/\bMOTO\b|\bMOTO\s*[A-Z]?\d/.test(t)) return "MOTOROLA";
+      return null;
+    }
+
+    async function fetchEntradas(de, ate) {
+      if (!window.SKYLINE_MOVIMENTACAO_API_KEY) {
+        try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+      }
+      const key = window.SKYLINE_MOVIMENTACAO_API_KEY;
+      if (!key) throw new Error("chave da API de movimentações ausente");
+      const out = [];
+      for (let off = 0, i = 0; i < 100; i++) {
+        const qs = new URLSearchParams({ de, ate, endereco: "RECEBIMENTO", limite: "1000", offset: String(off) });
+        const res = await fetch(`${API_MOV}?${qs}`, { cache: "no-store", headers: { "x-api-key": key } });
+        if (!res.ok) throw new Error(`movimentações HTTP ${res.status}`);
+        const j = await res.json();
+        const itens = Array.isArray(j.itens) ? j.itens : SkylineDash.normalizeRows(j);
+        // Status RECEBIDO = aparelho que CHEGOU no endereço "RECEBIMENTO" (o filtro da API também traz as saídas de lá)
+        itens.forEach((m) => {
+          const destino = String(m?.destino?.endereco ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+          if (destino === "RECEBIMENTO") out.push(m);
+        });
+        if (!j.proximo_offset || itens.length < 1000) break;
+        off = j.proximo_offset;
+      }
+      return out;
+    }
+
+    async function marcasPorImei() {
+      const mapa = new Map();
+      try {
+        const json = await SkylineDash.fetchWebhook(SkylineDash.API_REPARO);
+        SkylineDash.normalizeRows(json).forEach((r) => {
+          const s = String(r?.serial ?? "").trim();
+          if (s && r.descricao) mapa.set(s, r.descricao);
+        });
+      } catch (err) {
+        console.warn("[Recebimento] reparo indisponível para marcas:", err?.message || err);
+      }
+      return mapa;
+    }
+
+    async function marcasPorSkuNF(de, ate) {
+      const mapa = new Map();
+      try {
+        const ini = de < SkylineDash._isoAddDays(ate, -30) ? SkylineDash._isoAddDays(ate, -30) : de;
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { de: ini, ate });
+        SkylineDash.normalizeRows(json).forEach((r) => {
+          if (r?.prod_cprod && r.marca && r.marca !== "SEM MARCA") mapa.set(String(r.prod_cprod).trim(), String(r.marca).toUpperCase());
+        });
+      } catch (_) { /* opcional */ }
+      return mapa;
+    }
+
+    async function loadBipagens(need) {
+      const [entradas, descPorImei, marcaSku] = await Promise.all([
+        fetchEntradas(need.de, need.ate),
+        marcasPorImei(),
+        marcasPorSkuNF(need.de, need.ate)
+      ]);
+      const vistos = new Set();
+      const rows = [];
+      entradas.forEach((m) => {
+        if (!m?.data) return;
+        const dt = new Date(m.data);
+        if (Number.isNaN(dt.getTime())) return;
+        const day = SkylineDash.toLocalDateStr(m.data);
+        const imei = String(m.imei ?? "").trim();
+        const chave = `${imei || m.os || m.id}|${day}`;
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+        const desc = descPorImei.get(imei) || "";
+        // Descrição só com código (ex.: BRZDEV13056) não vira "marca"
+        const primeira = desc ? resolveMarca(desc) : null;
+        const marcaPrimeira = primeira && /^[A-Z]{2,}$/.test(primeira) && primeira !== "APARELHO" ? primeira : null;
+        const marca = marcaDoTexto(desc) || marcaSku.get(String(m.sku ?? "").trim()) || marcaPrimeira || "SEM MARCA";
+        rows.push({
+          id: chave,
+          hunit: m.os || null,
+          data_recebimento: m.data,
+          day,
+          hour: dt.getHours(),
+          prod_cprod: m.sku || "—",
+          name: m.usuario ? SkylineDash.normalizeUserName(m.usuario) : "—",
+          descricao: desc || "—",
+          marca,
+          grupo: ""
+        });
+      });
+      return { rows, total: entradas.length };
+    }
+
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const need = neededRange();
+        try {
+          const bip = await loadBipagens(need);
+          allRows = bip.rows;
+          totalFromApi = bip.total;
+          fonteDados = "bipagem";
+          semHora = false;
+          grupoAviso = " · bipagens no endereço RECEBIMENTO";
+          loadedRange = need;
+          renderDashboardNow();
+          return;
+        } catch (errBip) {
+          console.warn("[Recebimento] bipagens indisponíveis, usando NF:", errBip?.message || errBip);
+          fonteDados = "nf";
+        }
         const json = await SkylineDash.fetchWebhook(API_URL, undefined, { de: need.de, ate: need.ate });
         const rawRows = SkylineDash.normalizeRows(json);
         totalFromApi = rawRows.length;
