@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <script src="skyline-auth.js?v=6"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rastreio de IMEI — Fluxo do Aparelho</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-chaves.js?v=3"></script>
+  <style>
+    :root {
+      --azul: #0f4c81;
+      --azul-2: #1565c0;
+      --azul-claro: #bfe0fb;
+      --verde: #3fb36b;
+      --amarelo: #ffd54a;
+      --vermelho: #ff6f6f;
+      --roxo: #7e5bef;
+      --texto: #1b2b41;
+      --muted: #5b6b80;
+      --borda: #dbe3ee;
+      --fundo: #eef3f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--fundo);
+      color: var(--texto);
+    }
+    .wrap { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* Cabeçalho azul (modelo) */
+    .head {
+      background: linear-gradient(90deg, var(--azul), var(--azul-2));
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .head .back { color: #cfe5ff; text-decoration: none; font-size: 0.8rem; }
+    .head h1 { margin: 0; font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+    .head .sub { font-size: 0.78rem; opacity: 0.85; }
+    .head .filters { margin-left: auto; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .head label { display: flex; flex-direction: column; font-size: 0.7rem; gap: 3px; }
+    .head input, .head select {
+      border: 0; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; color: var(--texto); min-width: 130px;
+    }
+    .head button {
+      border: 1px solid #ffffff66; background: #ffffff1f; color: #fff; border-radius: 6px;
+      padding: 7px 12px; font-weight: 700; cursor: pointer;
+    }
+    .head button.primary { background: #fff; color: var(--azul); }
+
+    .status { font-size: 0.8rem; color: var(--muted); padding: 0 4px; }
+    .status.erro { color: #c62828; font-weight: 700; }
+
+    /* KPIs coloridos (modelo) */
+    .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .kpi {
+      border-radius: 10px; padding: 12px; text-align: center; background: #fff;
+      border: 1px solid var(--borda); box-shadow: 0 1px 2px #0000000d;
+    }
+    .kpi .l { font-size: 0.85rem; font-weight: 700; }
+    .kpi .v { font-size: 2.1rem; font-weight: 800; margin-top: 4px; }
+    .kpi .h { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .kpi.azul { background: var(--azul-claro); border-color: #9ccbf3; }
+    .kpi.amarelo { background: var(--amarelo); border-color: #f0c22e; }
+    .kpi.vermelho { background: var(--vermelho); border-color: #f25555; }
+    .kpi.amarelo .h, .kpi.vermelho .h { color: #3a2b10; }
+
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1.05fr; gap: 12px; }
+    .panel {
+      background: #fff; border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px;
+      box-shadow: 0 1px 2px #0000000d; min-width: 0;
+    }
+    .panel h2 { margin: 0 0 6px; font-size: 1rem; font-weight: 800; }
+    .panel .note { font-size: 0.72rem; color: var(--muted); margin: -4px 0 6px; }
+    .chart { position: relative; height: 230px; }
+    .donut-wrap { display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 8px; }
+    .donut-wrap .chart { height: 210px; }
+    .legend { list-style: none; margin: 0; padding: 0; font-size: 0.78rem; }
+    .legend li { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+    .legend .sw { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
+    .legend .n { margin-left: auto; font-weight: 700; white-space: nowrap; }
+
+    /* Tabela de detalhamento */
+    .table-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .table-head h2 { margin: 0; }
+    .table-head input {
+      margin-left: auto; width: min(360px, 100%); border: 1px solid var(--borda); border-radius: 6px;
+      padding: 6px 10px; font-size: 0.82rem;
+    }
+    .tbl-wrap { overflow: auto; max-height: 460px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+    th, td { padding: 6px 6px; border-bottom: 1px solid #edf1f6; text-align: center; white-space: nowrap; }
+    thead th { position: sticky; top: 0; background: #f6f8fb; font-weight: 700; z-index: 1; }
+    thead tr.g th { top: 0; }
+    thead tr.s th { top: 27px; font-weight: 600; color: var(--muted); }
+    th.g-rec { background: #cfe6fb; }
+    th.g-tri { background: #d6f2df; }
+    th.g-rep { background: #fff0b8; }
+    th.g-cqe { background: #e6dcff; }
+    td.l, th.l { text-align: left; }
+    .chip { display: inline-block; padding: 3px 9px; border-radius: 6px; font-weight: 700; font-size: 0.72rem; }
+    .muted { color: var(--muted); }
+
+    /* Fluxo (como funciona) */
+    .fluxo { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .passo { border-radius: 8px; padding: 8px; font-size: 0.74rem; border: 1px solid var(--borda); }
+    .passo b { display: block; font-size: 0.82rem; margin-bottom: 2px; }
+    .passo code { font-size: 0.68rem; color: var(--muted); }
+    .formula { font-size: 0.76rem; margin-top: 6px; color: var(--muted); }
+
+    @media (max-width: 1100px) {
+      .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .row3 { grid-template-columns: 1fr; }
+      .fluxo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .donut-wrap { grid-template-columns: 1fr; }
+      .fluxo { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body class="dash-page">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <a class="back" href="menu.html">← Menu</a>
+        <h1>📦 Rastreio de IMEI — Fluxo do Aparelho</h1>
+        <div class="sub" id="periodLabel">Carregando…</div>
+      </div>
+      <div class="filters">
+        <label>Data inicial <input type="date" id="dateStart" /></label>
+        <label>Data final <input type="date" id="dateEnd" /></label>
+        <label>Status
+          <select id="fStatus"><option value="">Todos</option></select>
+        </label>
+        <button type="button" class="primary" id="btnApply">Atualizar</button>
+        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnReload">Recarregar</button>
+      </div>
+    </div>
+
+    <div class="status" id="statusMsg">Carregando dados…</div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="l">Recebidos</div><div class="v" id="kRec">0</div><div class="h">bipados no RECEBIMENTO no período</div></div>
+      <div class="kpi azul"><div class="l">Finalizados</div><div class="v" id="kFin">0</div><div class="h" id="kFinH">aprovados no CQE</div></div>
+      <div class="kpi amarelo"><div class="l">Aguardando CQE</div><div class="v" id="kCqe">0</div><div class="h">reparo concluído</div></div>
+      <div class="kpi vermelho"><div class="l">Parados</div><div class="v" id="kPar">0</div><div class="h">pausados + aguardando peças</div></div>
+      <div class="kpi"><div class="l">Tempo Médio Total</div><div class="v" id="kTempo">—</div><div class="h">recebido → aprovado no CQE</div></div>
+    </div>
+
+    <div class="row3">
+      <div class="panel">
+        <h2>Quantidade por Etapa</h2>
+        <p class="note">Aparelhos do período que já passaram por cada etapa</p>
+        <div class="chart"><canvas id="cEtapas"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Tempo Médio por Etapa</h2>
+        <p class="note">Média das diferenças (saída − entrada) de cada etapa</p>
+        <div class="chart"><canvas id="cTempos"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Status dos Aparelhos</h2>
+        <p class="note">Situação atual no sistema</p>
+        <div class="donut-wrap">
+          <div class="chart"><canvas id="cStatus"></canvas></div>
+          <ul class="legend" id="legStatus"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="table-head">
+        <h2>Detalhamento dos Aparelhos</h2>
+        <span class="muted" id="tblInfo"></span>
+        <input type="search" id="busca" placeholder="Buscar IMEI, OS, NF, fornecedor, modelo…" />
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr class="g">
+              <th class="l" rowspan="2">IMEI</th>
+              <th rowspan="2">OS</th>
+              <th rowspan="2">NF</th>
+              <th class="l" rowspan="2">Fornecedor</th>
+              <th class="l" rowspan="2">Modelo</th>
+              <th class="g-rec" rowspan="2">Recebido</th>
+              <th class="g-tri" colspan="2">Triagem</th>
+              <th class="g-rep" colspan="2">Reparo</th>
+              <th class="g-cqe" rowspan="2">CQE</th>
+              <th rowspan="2">Tempo Triagem</th>
+              <th rowspan="2">Tempo Reparo</th>
+              <th rowspan="2">Tempo Total</th>
+              <th rowspan="2">Status</th>
+            </tr>
+            <tr class="s">
+              <th class="g-tri">Início</th><th class="g-tri">Fim</th>
+              <th class="g-rep">Início</th><th class="g-rep">Fim</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Como funciona (fluxo do processo)</h2>
+      <div class="fluxo">
+        <div class="passo" style="background:#e3f1fd"><b>1 · Recebido</b>Bipado no RECEBIMENTO<br /><code>recebido_em</code></div>
+        <div class="passo" style="background:#e4f6ea"><b>2 · Triagem</b>Início e fim da triagem<br /><code>triagem_inicio / triagem_fim</code></div>
+        <div class="passo" style="background:#fdf3d2"><b>3 · Espera reparo</b>Gestão de peças / fila<br /><code>triagem_fim → reparo_inicio</code></div>
+        <div class="passo" style="background:#fff3c4"><b>4 · Reparo</b>Início e fim (com pausas)<br /><code>reparo_inicio / reparo_fim</code></div>
+        <div class="passo" style="background:#ece5ff"><b>5 · CQE</b>Inspeção de qualidade<br /><code>cqe_em / cqe_resultado</code></div>
+        <div class="passo" style="background:#e9eef5"><b>6 · Expedição</b>Pedido expedido<br /><code>pedido.expedido_em</code></div>
+      </div>
+      <div class="formula"><b>Tempo por etapa</b> = hora de saída − hora de entrada · <b>Tempo total</b> = aprovado no CQE − recebido. Fonte: <code>api-rastreio-imei</code> (Supabase).</div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const PAGE = 200;          // a API aceita no máximo 200 com estabilidade
+    const PARALELO = 3;        // páginas buscadas ao mesmo tempo
+    const MAX_LINHAS_TABELA = 400;
+    const statusEl = document.getElementById("statusMsg");
+    const CORES_STATUS = {
+      FINALIZADA: "#7e5bef",
+      AGUARDANDO_CQE: "#ffd54a",
+      EM_REPARO: "#3fb36b",
+      REPARO_PAUSADO: "#ff6f6f",
+      AGUARDANDO_GESTAO_PECAS: "#ff9f43",
+      RECEBIDA: "#64b5f6",
+      AGUARDANDO_TRIAGEM: "#90caf9",
+      EM_TRIAGEM: "#26c6da",
+      APROVACAO_PENDENTE_NF: "#a1887f"
+    };
+    const CORES_EXTRA = ["#00897b", "#8d6e63", "#5c6bc0", "#c0ca33", "#ec407a", "#78909c"];
+
+    let itens = [];
+    let carregado = null; // { de, ate }
+    const charts = {};
+
+    function setStatus(msg, erro = false) {
+      statusEl.textContent = msg;
+      statusEl.className = erro ? "status erro" : "status";
+    }
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    }
+
+    function ms(a, b) {
+      if (!a || !b) return null;
+      const d = new Date(b).getTime() - new Date(a).getTime();
+      return Number.isFinite(d) && d >= 0 ? d : null;
+    }
+
+    function media(lista) {
+      const v = lista.filter((x) => x != null);
+      return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+    }
+
+    /** 00:42 (horas:min) ou 2d 04h10 quando passa de um dia. */
+    function fmtDur(v) {
+      if (v == null) return "—";
+      const min = Math.round(v / 60000);
+      const d = Math.floor(min / 1440);
+      const h = Math.floor((min % 1440) / 60);
+      const m = min % 60;
+      const hhmm = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      return d ? `${d}d ${String(h).padStart(2, "0")}h${String(m).padStart(2, "0")}` : hhmm;
+    }
+
+    function fmtHora(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function corStatus(cod, i) {
+      return CORES_STATUS[cod] || CORES_EXTRA[i % CORES_EXTRA.length];
+    }
+
+    async function chave() {
+      if (window.SKYLINE_MOVIMENTACAO_API_KEY) return window.SKYLINE_MOVIMENTACAO_API_KEY;
+      try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+      return window.SKYLINE_MOVIMENTACAO_API_KEY || null;
+    }
+
+    /** Uma página da API; tenta de novo até 3 vezes (a API às vezes devolve 500 sob carga). */
+    async function pagina(key, de, ate, offset) {
+      const qs = new URLSearchParams({ de, ate, limite: String(PAGE), offset: String(offset), eventos: "false" });
+      let ultimoErro = null;
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        try {
+          const res = await fetch(`${API}?${qs}`, { cache: "no-store", headers: { "x-api-key": key } });
+          if (!res.ok) throw new Error(`api-rastreio-imei HTTP ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          ultimoErro = err;
+          await new Promise((r) => setTimeout(r, 1500 * tentativa));
+        }
+      }
+      throw ultimoErro;
+    }
+
+    /** Busca todas as páginas do período (a primeira informa o total; o resto vai em paralelo). */
+    async function buscarTudo(de, ate) {
+      const key = await chave();
+      if (!key) throw new Error("chave da API ausente (skyline-chaves.js)");
+      const primeira = await pagina(key, de, ate, 0);
+      const total = Number(primeira.total) || (primeira.itens || []).length;
+      const out = [...(primeira.itens || [])];
+      const offsets = [];
+      for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
+      for (let i = 0; i < offsets.length; i += PARALELO) {
+        const lote = offsets.slice(i, i + PARALELO);
+        const res = await Promise.all(lote.map((off) => pagina(key, de, ate, off)));
+        res.forEach((j) => out.push(...(j.itens || [])));
+        setStatus(`Carregando… ${Math.min(out.length, total)} de ${total} aparelho(s)`);
+      }
+      // um IMEI por linha
+      const vistos = new Map();
+      out.forEach((x) => vistos.set(String(x.imei || x.os), x));
+      return [...vistos.values()];
+    }
+
+    function montarLinha(x) {
+      const expedido = x.pedido?.expedido_em || null;
+      return {
+        ...x,
+        expedido,
+        tFilaTriagem: ms(x.recebido_em, x.triagem_inicio),
+        tTriagem: ms(x.triagem_inicio, x.triagem_fim),
+        tEsperaReparo: ms(x.triagem_fim, x.reparo_inicio),
+        tReparo: ms(x.reparo_inicio, x.reparo_fim),
+        tEsperaCqe: ms(x.reparo_fim, x.cqe_em),
+        tTotal: x.status === "FINALIZADA" ? ms(x.recebido_em, x.cqe_em) : null,
+        busca: [x.imei, x.os, x.nf, x.fornecedor, x.marca, x.modelo, x.produto, x.status_descricao, x.sku]
+          .filter(Boolean).join(" ").toLowerCase()
+      };
+    }
+
+    function preencherFiltroStatus() {
+      const sel = document.getElementById("fStatus");
+      const atual = sel.value;
+      const mapa = new Map();
+      itens.forEach((x) => mapa.set(x.status, x.status_descricao || x.status));
+      sel.innerHTML = `<option value="">Todos</option>` + [...mapa.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([c, d]) => `<option value="${esc(c)}">${esc(d)}</option>`).join("");
+      if ([...mapa.keys()].includes(atual)) sel.value = atual;
+    }
+
+    function barH(id, labels, data, cores, fmt) {
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(document.getElementById(id), {
+        type: "bar",
+        data: { labels, datasets: [{ data, backgroundColor: cores, borderRadius: 4, barThickness: 22 }] },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 70 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (c) => (fmt ? fmt(c.raw) : c.raw) } },
+            datalabels: { anchor: "end", align: "end", color: "#1b2b41", font: { weight: "700", size: 11 }, formatter: (v) => (fmt ? fmt(v) : v) }
+          },
+          scales: {
+            x: { beginAtZero: true, grid: { color: "#eef2f7" }, ticks: { display: !fmt, precision: 0 } },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function render() {
+      const { start, end } = SkylineDash.getDateRange();
+      const fStatus = document.getElementById("fStatus").value;
+      const busca = document.getElementById("busca").value.trim().toLowerCase();
+      const base = fStatus ? itens.filter((x) => x.status === fStatus) : itens;
+
+      const fin = base.filter((x) => x.status === "FINALIZADA");
+      const cqe = base.filter((x) => x.status === "AGUARDANDO_CQE");
+      const parados = base.filter((x) => x.status === "REPARO_PAUSADO" || x.status === "AGUARDANDO_GESTAO_PECAS");
+      const tTotal = media(base.map((x) => x.tTotal));
+      document.getElementById("kRec").textContent = base.length;
+      document.getElementById("kFin").textContent = fin.length;
+      document.getElementById("kFinH").textContent = base.length ? `aprovados no CQE · ${Math.round((fin.length / base.length) * 100)}%` : "aprovados no CQE";
+      document.getElementById("kCqe").textContent = cqe.length;
+      document.getElementById("kPar").textContent = parados.length;
+      document.getElementById("kTempo").textContent = fmtDur(tTotal);
+
+      // Quantidade por etapa
+      const etapas = [
+        ["Recebido", base.length, "#64b5f6"],
+        ["Triado", base.filter((x) => x.triagem_fim).length, "#3fb36b"],
+        ["Reparo iniciado", base.filter((x) => x.reparo_inicio).length, "#ffd54a"],
+        ["Reparo concluído", base.filter((x) => x.reparo_fim).length, "#f9a825"],
+        ["Aprovado CQE", fin.length, "#7e5bef"],
+        ["Expedido", base.filter((x) => x.expedido).length, "#455a64"]
+      ];
+      barH("cEtapas", etapas.map((e) => e[0]), etapas.map((e) => e[1]), etapas.map((e) => e[2]));
+
+      // Tempo médio por etapa
+      const tempos = [
+        ["Fila p/ triagem", media(base.map((x) => x.tFilaTriagem)), "#64b5f6"],
+        ["Triagem", media(base.map((x) => x.tTriagem)), "#3fb36b"],
+        ["Espera reparo", media(base.map((x) => x.tEsperaReparo)), "#ffb74d"],
+        ["Reparo", media(base.map((x) => x.tReparo)), "#ffd54a"],
+        ["Espera CQE", media(base.map((x) => x.tEsperaCqe)), "#b39ddb"],
+        ["Tempo total", tTotal, "#7e5bef"]
+      ];
+      barH("cTempos", tempos.map((e) => e[0]), tempos.map((e) => (e[1] == null ? 0 : Math.round(e[1]))), tempos.map((e) => e[2]), fmtDur);
+
+      // Status (donut)
+      const porStatus = new Map();
+      base.forEach((x) => {
+        const k = x.status || "—";
+        const cur = porStatus.get(k) || { n: 0, d: x.status_descricao || k };
+        cur.n++;
+        porStatus.set(k, cur);
+      });
+      const st = [...porStatus.entries()].sort((a, b) => b[1].n - a[1].n);
+      if (charts.cStatus) charts.cStatus.destroy();
+      charts.cStatus = new Chart(document.getElementById("cStatus"), {
+        type: "doughnut",
+        data: {
+          labels: st.map(([, v]) => v.d),
+          datasets: [{ data: st.map(([, v]) => v.n), backgroundColor: st.map(([c], i) => corStatus(c, i)), borderWidth: 1 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: { legend: { display: false }, datalabels: { display: false } }
+        },
+        plugins: [{
+          id: "centro",
+          afterDraw(chart) {
+            const { ctx, chartArea: a } = chart;
+            ctx.save();
+            ctx.font = "800 26px Segoe UI, Arial";
+            ctx.fillStyle = "#1b2b41";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(String(base.length), (a.left + a.right) / 2, (a.top + a.bottom) / 2);
+            ctx.restore();
+          }
+        }]
+      });
+      document.getElementById("legStatus").innerHTML = st.map(([c, v], i) => {
+        const pct = base.length ? Math.round((v.n / base.length) * 100) : 0;
+        return `<li><span class="sw" style="background:${corStatus(c, i)}"></span>${esc(v.d)}<span class="n">${v.n} (${pct}%)</span></li>`;
+      }).join("");
+
+      // Tabela
+      const linhas = (busca ? base.filter((x) => x.busca.includes(busca)) : base)
+        .slice()
+        .sort((a, b) => String(b.recebido_em || "").localeCompare(String(a.recebido_em || "")));
+      document.getElementById("tblInfo").textContent =
+        `${linhas.length} aparelho(s)${linhas.length > MAX_LINHAS_TABELA ? ` · mostrando ${MAX_LINHAS_TABELA}` : ""}`;
+      const codigos = [...porStatus.keys()];
+      document.getElementById("tbody").innerHTML = linhas.slice(0, MAX_LINHAS_TABELA).map((x) => {
+        const cor = corStatus(x.status, codigos.indexOf(x.status));
+        return `<tr>
+          <td class="l">${esc(x.imei)}</td>
+          <td>${esc(x.os)}</td>
+          <td>${esc(x.nf)}</td>
+          <td class="l" title="${esc(x.fornecedor)}">${esc(String(x.fornecedor || "—").slice(0, 26))}</td>
+          <td class="l">${esc(x.marca)} ${esc(x.modelo)}</td>
+          <td>${fmtHora(x.recebido_em)}</td>
+          <td>${fmtHora(x.triagem_inicio)}</td>
+          <td>${fmtHora(x.triagem_fim)}</td>
+          <td>${fmtHora(x.reparo_inicio)}</td>
+          <td>${fmtHora(x.reparo_fim)}</td>
+          <td>${fmtHora(x.cqe_em)}</td>
+          <td>${fmtDur(x.tTriagem)}</td>
+          <td>${fmtDur(x.tReparo)}</td>
+          <td>${fmtDur(x.tTotal)}</td>
+          <td><span class="chip" style="background:${cor}33;color:#1b2b41;border:1px solid ${cor}">${esc(x.status_descricao || x.status)}</span></td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="15" class="muted">Nenhum aparelho no período.</td></tr>`;
+
+      document.getElementById("periodLabel").textContent =
+        `Período: ${SkylineDash.formatPeriodBR(start, end)} · aparelhos recebidos (bipados no RECEBIMENTO) no período e o caminho de cada um até o CQE`;
+      SkylineDash.markRefresh?.();
+    }
+
+    async function loadData() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!start || !end) return;
+      if (start > end) {
+        setStatus("A data inicial não pode ser maior que a data final.", true);
+        return;
+      }
+      setStatus("Carregando dados…");
+      try {
+        const brutos = await buscarTudo(start, end);
+        itens = brutos.map(montarLinha);
+        carregado = { de: start, ate: end };
+        preencherFiltroStatus();
+        render();
+        const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        setStatus(`${itens.length} aparelho(s) carregado(s) · atualizado às ${hora}`);
+      } catch (err) {
+        console.warn("[Rastreio IMEI]", err);
+        if (itens.length) {
+          setStatus(`Atualização falhou (${err.message}) — mostrando os últimos dados.`, true);
+        } else {
+          setStatus(`Erro ao carregar: ${err.message}`, true);
+        }
+      }
+    }
+
+    function aoMudarFiltro() {
+      const { start, end } = SkylineDash.getDateRange();
+      if (!carregado || carregado.de !== start || carregado.ate !== end) loadData();
+      else render();
+    }
+
+    document.getElementById("fStatus").addEventListener("change", render);
+    let tBusca = null;
+    document.getElementById("busca").addEventListener("input", () => {
+      clearTimeout(tBusca);
+      tBusca = setTimeout(render, 200);
+    });
+
+    SkylineDash.bindDateFilters({ onChange: aoMudarFiltro, onReload: loadData });
+  </script>
+</body>
+</html>

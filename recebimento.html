@@ -579,7 +579,7 @@
         if (next > max) max = next;
       }
 
-      const header = `<tr><th>Marca \\ ${fonteDados === "bipagem" ? "Recebido por" : "Fornecedor"}</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
+      const header = `<tr><th>Marca \\ ${fonteDados !== "nf" ? "Recebido por" : "Fornecedor"}</th>${topUsers.map((u) => `<th>${u}</th>`).join("")}</tr>`;
       const body = topBrands.map((brand) => {
         const cells = topUsers.map((user) => {
           const val = matrix.get(`${brand}|${user}`) || 0;
@@ -640,7 +640,7 @@
       document.getElementById("kpiMarcaHint").textContent = topMarca ? `${topMarca[1]} un.` : "—";
 
       document.getElementById("periodLabel").textContent =
-        fonteDados === "bipagem"
+        fonteDados !== "nf"
           ? `Período: ${SkylineDash.formatPeriodBR(start, end)} · data e hora em que o aparelho foi bipado no RECEBIMENTO`
           : `Período: ${SkylineDash.formatPeriodBR(start, end)} · data de entrada da NF (bipagens indisponíveis) · aparelhos por item`;
 
@@ -682,13 +682,13 @@
       const noteHeat = document.getElementById("noteHeatmap");
       const tituloHeat = noteHeat?.closest(".panel")?.querySelector("h2");
       if (!APPLY_MASK && noteHeat && tituloHeat) {
-        tituloHeat.textContent = fonteDados === "bipagem" ? "Marca × quem recebeu" : "Marca × fornecedor";
-        noteHeat.textContent = fonteDados === "bipagem" ? "Top marcas e responsáveis pela bipagem · mês" : "Top marcas e fornecedores (NF) · mês";
+        tituloHeat.textContent = fonteDados !== "nf" ? "Marca × quem recebeu" : "Marca × fornecedor";
+        noteHeat.textContent = fonteDados !== "nf" ? "Top marcas e responsáveis pela bipagem · mês" : "Top marcas e fornecedores (NF) · mês";
       }
 
       document.getElementById("footerMeta").textContent =
-        fonteDados === "bipagem"
-          ? `Fonte: bipagens no endereço RECEBIMENTO (status recebido) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`
+        fonteDados !== "nf"
+          ? `Fonte: ${fonteDados === "rastreio" ? "api-rastreio-imei (recebido_em = bipagem no RECEBIMENTO)" : "bipagens no endereço RECEBIMENTO (status recebido)"} · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`
           : `Fonte: consulta-recebimentos (NF de entrada) · ${displayPeriod} no período · carregado ${allRows.length} aparelho(s)`;
 
       SkylineDash.showStatus(
@@ -771,6 +771,86 @@
       return out;
     }
 
+    const API_RASTREIO = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+
+    /** GET com tempo limite e até 3 tentativas (a API às vezes devolve 500/503 sob carga). */
+    async function getJsonApi(url, key) {
+      let ultimoErro = null;
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 60000);
+        try {
+          const res = await fetch(url, { cache: "no-store", headers: { "x-api-key": key }, signal: ctrl.signal });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          ultimoErro = err && err.name === "AbortError" ? new Error("API sem resposta") : err;
+          if (tentativa < 3) await new Promise((r) => setTimeout(r, 1500 * tentativa));
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      throw ultimoErro;
+    }
+
+    /**
+     * Plano B quando api-movimentacao-enderecos está fora: api-rastreio-imei.
+     * recebido_em = data/hora em que o aparelho foi bipado no RECEBIMENTO (mesmo evento do status recebido);
+     * quem bipou vem do evento RECEBIMENTO/RECEBIDO.
+     */
+    async function loadRastreio(need) {
+      if (!window.SKYLINE_MOVIMENTACAO_API_KEY) {
+        try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+      }
+      const key = window.SKYLINE_MOVIMENTACAO_API_KEY;
+      if (!key) throw new Error("chave da api-rastreio-imei ausente");
+      const PAGE = 200;
+      const url = (off) => `${API_RASTREIO}?${new URLSearchParams({ de: need.de, ate: need.ate, limite: String(PAGE), offset: String(off) })}`;
+      const primeira = await getJsonApi(url(0), key);
+      const total = Number(primeira.total) || (primeira.itens || []).length;
+      const itens = [...(primeira.itens || [])];
+      const offsets = [];
+      for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
+      for (let i = 0; i < offsets.length; i += 3) {
+        const lote = await Promise.all(offsets.slice(i, i + 3).map((off) => getJsonApi(url(off), key)));
+        lote.forEach((j) => itens.push(...(j.itens || [])));
+      }
+      const vistos = new Set();
+      const rows = [];
+      itens.forEach((x) => {
+        const evRec = (x.eventos || []).find((e) => e && e.etapa === "RECEBIMENTO");
+        // mesma regra das bipagens: só conta quem ENTROU no endereço RECEBIMENTO (entrada direto em TRIAGEM não é recebimento)
+        const entrada = (x.eventos || []).find((e) => e && e.etapa === "ESTOQUE" && e.evento === "ENTRADA");
+        const destinoEntrada = String(entrada?.detalhe?.destino ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+        if (entrada && !/(^|\/)\s*RECEBIMENTO\s*$/.test(destinoEntrada)) return;
+        const data = x.recebido_em || evRec?.data;
+        if (!data) return;
+        const dt = new Date(data);
+        if (Number.isNaN(dt.getTime())) return;
+        const day = SkylineDash.toLocalDateStr(data);
+        const imei = String(x.imei ?? "").trim();
+        const chave = `${imei || x.os}|${day}`;
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+        const marcaApi = String(x.marca ?? "").trim().toUpperCase();
+        const marca = marcaDoTexto(marcaApi) || marcaDoTexto(x.produto) || marcaDoTexto(x.modelo) ||
+          (/^[A-Z]{2,}$/.test(marcaApi) ? marcaApi : "SEM MARCA");
+        rows.push({
+          id: chave,
+          hunit: x.os || null,
+          data_recebimento: data,
+          day,
+          hour: dt.getHours(),
+          prod_cprod: x.sku || "—",
+          name: evRec?.usuario ? SkylineDash.normalizeUserName(evRec.usuario) : "—",
+          descricao: x.produto || "—",
+          marca,
+          grupo: ""
+        });
+      });
+      return { rows, total: itens.length };
+    }
+
     async function marcasPorImei() {
       const mapa = new Map();
       try {
@@ -850,7 +930,20 @@
           renderDashboardNow();
           return;
         } catch (errBip) {
-          console.warn("[Recebimento] bipagens indisponíveis, usando NF:", errBip?.message || errBip);
+          console.warn("[Recebimento] movimentações indisponíveis, usando api-rastreio-imei:", errBip?.message || errBip);
+        }
+        try {
+          const ras = await loadRastreio(need);
+          allRows = ras.rows;
+          totalFromApi = ras.total;
+          fonteDados = "rastreio";
+          semHora = false;
+          grupoAviso = " · bipagens no RECEBIMENTO (api-rastreio-imei)";
+          loadedRange = need;
+          renderDashboardNow();
+          return;
+        } catch (errRas) {
+          console.warn("[Recebimento] api-rastreio-imei indisponível, usando NF:", errRas?.message || errRas);
           fonteDados = "nf";
         }
         const json = await SkylineDash.fetchWebhook(API_URL, undefined, { de: need.de, ate: need.ate });
@@ -874,7 +967,12 @@
         loadedRange = need;
         renderDashboardNow();
       } catch (err) {
-        SkylineDash.showStatus(statusEl, `Erro: ${err.message}`, true);
+        // API fora do ar: mantém os últimos números na tela em vez de zerar a TV
+        if (allRows.length) {
+          SkylineDash.showStatus(statusEl, `API indisponível (${err.message}) — mostrando os últimos dados carregados.`, true);
+          return;
+        }
+        SkylineDash.showStatus(statusEl, `Erro: ${err.message} — as APIs de recebimento estão fora do ar; nova tentativa automática.`, true);
         ["kpiHoje", "kpiMes", "kpiPeriodo"].forEach((id) => {
           document.getElementById(id).textContent = "0";
         });
