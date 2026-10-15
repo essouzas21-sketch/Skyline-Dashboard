@@ -1427,6 +1427,19 @@
     ];
 
     const STEP_INDEX = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
+
+    /** Status da api-rastreio-imei → etapa da timeline ("Cofre" = concluído / pronto para estoque). */
+    const STATUS_SISTEMA_ETAPA = {
+      RECEBIDA: "recebimento",
+      AGUARDANDO_TRIAGEM: "recebimento",
+      EM_TRIAGEM: "triagem",
+      AGUARDANDO_GESTAO_PECAS: "gestao",
+      EM_REPARO: "reparo",
+      REPARO_PAUSADO: "reparo",
+      AGUARDANDO_CQE: "cqe",
+      APROVACAO_PENDENTE_NF: "cofre",
+      FINALIZADA: "cofre"
+    };
     const CIRC = 2 * Math.PI * 65;
 
     const ICONS = {
@@ -2367,6 +2380,13 @@
       if (/^[cd]\.\s*\d+\.\s*\d+$/.test(key)) return "cofre";
       if (key === "gestao pecas" || key === "pecas casadas" || key === "ag. pecas" || key === "ag pecas") return "gestao";
       if (key === "sala recebimento") return "recebimento";
+      // Endereços do WMS novo (api-rastreio-imei)
+      if (key === "recebimento") return "recebimento";
+      if (/^triagem\s*\d+$/.test(key)) return "triagem";
+      if (/^aguardando pecas/.test(key) || /^gestao/.test(key)) return "gestao";
+      if (/^prod\s*\d{1,2}\s*pronto$/.test(key) || /^cqe/.test(key) || /^qualidade/.test(key)) return "cqe";
+      if (/^prod\s*\d{1,2}$/.test(key)) return "reparo";
+      if (/^aguardando transferencia cofre/.test(key) || /^cofre/.test(key)) return "cofre";
       if (key === "carregamento") return "carregamento";
       return null;
     }
@@ -2534,6 +2554,18 @@
         if (!hu) return;
         if (!map.has(hu)) map.set(hu, []);
         map.get(hu).push(raw);
+      });
+      return map;
+    }
+
+    /** Join reparo × aparelho pelo IMEI (usado com a api-rastreio-imei, onde a chave do aparelho é o IMEI). */
+    function indexReparoBySerial(reparoRows) {
+      const map = new Map();
+      (reparoRows || []).forEach((raw) => {
+        const serial = String(raw?.serial ?? "").trim();
+        if (!serial) return;
+        if (!map.has(serial)) map.set(serial, []);
+        map.get(serial).push(raw);
       });
       return map;
     }
@@ -2785,7 +2817,8 @@
             custoAquisicao: resolveAquisicao(raw),
             grade: resolveGrade(raw),
             locations: [],
-            locationSource: "recebimento"
+            locationSource: "recebimento",
+            statusSistema: raw._statusCod || null
           });
         }
         const device = map.get(key);
@@ -3013,6 +3046,11 @@
           else if (reparo["Iniciado_Reparo"] || reparo["Fim do Reparo"]) currentStep = "reparo";
           else if (reparo["Data Triagem"]) currentStep = "triagem";
         }
+
+        // Com a api-rastreio-imei, o status do sistema manda na etapa atual
+        // (o endereço físico às vezes não é atualizado; o local continua sendo mostrado como está)
+        const etapaPorStatus = STATUS_SISTEMA_ETAPA[device.statusSistema];
+        if (etapaPorStatus) currentStep = etapaPorStatus;
 
         if (tecnico && !fromLocal.user) currentUser = tecnico;
 
@@ -3657,6 +3695,136 @@
       }
     }
 
+    /* ───── Fonte reserva: api-rastreio-imei (quando consulta-recebimentos está fora) ─────
+       NR = número da NF de entrada (o relatorio-reparo usa o mesmo número no campo NR). */
+    const API_RASTREIO = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const RASTREIO_CACHE_MS = 10 * 60 * 1000;
+    let rastreioCache = null; // { at, itens }
+
+    async function rastreioChave() {
+      if (window.SKYLINE_MOVIMENTACAO_API_KEY) return window.SKYLINE_MOVIMENTACAO_API_KEY;
+      try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+      return window.SKYLINE_MOVIMENTACAO_API_KEY || null;
+    }
+
+    async function rastreioPagina(key, params) {
+      let ultimo = null;
+      for (let t = 1; t <= 3; t++) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 60000);
+        try {
+          const res = await fetch(`${API_RASTREIO}?${new URLSearchParams(params)}`, {
+            cache: "no-store", headers: { "x-api-key": key }, signal: ctrl.signal
+          });
+          if (!res.ok) throw new Error(`api-rastreio-imei HTTP ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          ultimo = err && err.name === "AbortError" ? new Error("api-rastreio-imei sem resposta") : err;
+          if (t < 3) await new Promise((r) => setTimeout(r, 1500 * t));
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      throw ultimo;
+    }
+
+    async function rastreioTudo(key, extra = {}) {
+      const base = { limite: "200", ...extra };
+      const primeira = await rastreioPagina(key, { ...base, offset: "0" });
+      const total = Number(primeira.total) || (primeira.itens || []).length;
+      const itens = [...(primeira.itens || [])];
+      const offs = [];
+      for (let o = 200; o < total; o += 200) offs.push(o);
+      for (let i = 0; i < offs.length; i += 4) {
+        const lote = await Promise.all(offs.slice(i, i + 4).map((o) => rastreioPagina(key, { ...base, offset: String(o) })));
+        lote.forEach((j) => itens.push(...(j.itens || [])));
+      }
+      return itens;
+    }
+
+    function rastreioEndereco(destino) {
+      const partes = String(destino || "").split("/");
+      return partes[partes.length - 1].trim() || "—";
+    }
+
+    /** Converte api-rastreio-imei no formato que a timeline já usa (linhas de recebimento + movimentações). */
+    async function carregarViaRastreio(nrs) {
+      const key = await rastreioChave();
+      if (!key) throw new Error("chave da api-rastreio-imei ausente (skyline-chaves.js)");
+      if (!rastreioCache || Date.now() - rastreioCache.at > RASTREIO_CACHE_MS) {
+        rastreioCache = { at: Date.now(), itens: await rastreioTudo(key, { eventos: "false" }) };
+      }
+      const todos = rastreioCache.itens;
+      const nrSet = nrs && nrs.length ? new Set(nrs.map(String)) : null;
+      let itens = nrSet ? todos.filter((x) => nrSet.has(String(x.nf ?? "").trim())) : todos;
+
+      // Histórico (eventos) só do período em que a NR foi bipada — evita baixar o banco inteiro
+      let comEventos = new Map();
+      if (itens.length) {
+        const dias = itens.map((x) => SkylineDash.toLocalDateStr(x.recebido_em)).filter(Boolean).sort();
+        const de = dias[0], ate = dias[dias.length - 1];
+        const spanDias = de && ate ? (new Date(`${ate}T12:00:00`) - new Date(`${de}T12:00:00`)) / 86400000 : 999;
+        if (spanDias <= 45) {
+          const imeis = new Set(itens.map((x) => String(x.imei)));
+          (await rastreioTudo(key, { de, ate })).forEach((x) => {
+            if (imeis.has(String(x.imei))) comEventos.set(String(x.imei), x);
+          });
+          itens = itens.map((x) => comEventos.get(String(x.imei)) || x);
+        }
+      }
+
+      const recRows = [];
+      const moveRows = [];
+      itens.forEach((x) => {
+        const imei = String(x.imei || x.os || "").trim();
+        if (!imei) return;
+        const ev = (x.eventos || []).filter((e) => e && e.data).sort((a, b) => new Date(a.data) - new Date(b.data));
+        const evRec = ev.find((e) => e.etapa === "RECEBIMENTO");
+        recRows.push({
+          numero: String(x.nf ?? "").trim(),
+          hu_id: imei,
+          serial: imei,
+          descricao: x.produto || [x.marca, x.modelo].filter(Boolean).join(" ") || "—",
+          prod_cprod: x.sku || "—",
+          data_recebimento: x.recebido_em || evRec?.data || null,
+          usuario_recebimento: evRec?.usuario || null,
+          prod_vuncom: x.custo_aquisicao ?? null,
+          grade: x.grade || null,
+          endereco: x.estoque?.endereco || "—",
+          data_alt: x.estoque?.entrada_em || null,
+          _origem: "rastreio",
+          _os: x.os || null,
+          _fornecedor: x.fornecedor || null,
+          _status: x.status_descricao || x.status || null,
+          _statusCod: x.status || null
+        });
+        ev.filter((e) => e.etapa === "ESTOQUE" && e.detalhe && e.detalhe.destino).forEach((e, i) => {
+          moveRows.push({
+            id: `${imei}-${i}`,
+            hu_id: imei,
+            serial: imei,
+            endereco: rastreioEndereco(e.detalhe.destino),
+            created_at: e.data,
+            descricao: x.produto || null
+          });
+        });
+      });
+      return { recRows, moveRows, comHistorico: comEventos.size, todos };
+    }
+
+    /** NRs mais recentes (para sugerir quando a digitada não existe). */
+    function nrsRecentes(todos, limite = 12) {
+      const ult = new Map();
+      (todos || []).forEach((x) => {
+        const nf = String(x.nf ?? "").trim();
+        if (!nf || !x.recebido_em) return;
+        const atual = ult.get(nf);
+        if (!atual || x.recebido_em > atual.data) ult.set(nf, { data: x.recebido_em, qtd: (atual?.qtd || 0) + 1 });
+        else atual.qtd++;
+      });
+      return [...ult.entries()].sort((a, b) => b[1].data.localeCompare(a[1].data)).slice(0, limite);
+    }
+
     async function loadNr(nr) {
       const nrs = parseNrList(nr);
       const loadAll = !nrs.length;
@@ -3701,8 +3869,15 @@
           SkylineDash.fetchWebhook(apiPecas)
         ]);
         const [recS, repS, movS, pecS] = settled;
-        if (recS.status !== "fulfilled") {
-          throw recS.reason || new Error("Falha no webhook de recebimento");
+        // consulta-recebimentos (NF) não traz o nº da NR por aparelho e hoje responde 503 (API desativada):
+        // nesses casos a timeline usa a api-rastreio-imei (NR = NF de entrada, histórico de endereços e quem bipou)
+        const recOk = recS.status === "fulfilled" &&
+          SkylineDash.normalizeRows(recS.value).some((r) => String(r.numero || "").trim());
+        let viaRastreio = null;
+        if (!recOk) {
+          console.warn("[NR Timeline] recebimento indisponível/sem NR, usando api-rastreio-imei:", recS.reason?.message || "sem campo numero");
+          setStateMessage("Recebimento (NF) indisponível · buscando pela api-rastreio-imei…");
+          viaRastreio = await carregarViaRastreio(loadAll ? null : nrs);
         }
         if (repS.status !== "fulfilled") {
           console.warn("[NR Timeline] reparo falhou:", repS.reason);
@@ -3714,9 +3889,10 @@
           console.warn("[NR Timeline] peças falhou:", pecS.reason);
         }
 
-        const payloadRec = recS.value;
+        const payloadRec = viaRastreio ? viaRastreio.recRows : recS.value;
         const payloadRep = repS.status === "fulfilled" ? repS.value : {};
-        const payloadMov = movS.status === "fulfilled" ? movS.value : {};
+        // Com a api-rastreio-imei a trilha de endereços vem dos eventos de estoque (o webhook antigo parou em 26/09)
+        const payloadMov = viaRastreio ? viaRastreio.moveRows : movS.status === "fulfilled" ? movS.value : {};
         const payloadPecas = pecS.status === "fulfilled" ? pecS.value : {};
 
         const allRecRows = SkylineDash.normalizeRows(payloadRec);
@@ -3736,7 +3912,12 @@
           found = [...new Set(rows.map((r) => String(r.numero || "").trim()).filter(Boolean))];
           missing = nrs.filter((n) => !found.includes(n));
           if (!rows.length) {
-            setStateMessage(`NR(s) <strong>${targetLabel}</strong> não encontrada(s) no webhook de recebimento.`, "error");
+            const sugestoes = viaRastreio ? nrsRecentes(viaRastreio.todos) : [];
+            const chips = sugestoes.length
+              ? `<div style="margin-top:12px">NRs mais recentes: ${sugestoes.map(([n, info]) =>
+                  `<a href="?nr=${encodeURIComponent(n)}&prod=1" style="display:inline-block;margin:4px;padding:4px 10px;border-radius:999px;border:1px solid currentColor;text-decoration:none;color:inherit">${n} <small>(${info.qtd})</small></a>`).join("")}</div>`
+              : "";
+            setStateMessage(`NR(s) <strong>${targetLabel}</strong> não encontrada(s) ${viaRastreio ? "na api-rastreio-imei" : "no webhook de recebimento"}.${chips}`, "error");
             return;
           }
           if (missing.length) {
@@ -3746,7 +3927,7 @@
         const reparoRows = SkylineDash.normalizeRows(payloadRep);
         const moveRows = SkylineDash.normalizeRows(payloadMov);
         const pecaRows = SkylineDash.normalizeRows(payloadPecas);
-        const reparoByHu = indexReparoByHu(reparoRows);
+        const reparoByHu = viaRastreio ? indexReparoBySerial(reparoRows) : indexReparoByHu(reparoRows);
         const moveByHu = indexMovesByHu(moveRows);
         const pecasBySerial = indexPecasBySerial(pecaRows);
         const pecasById = indexPecasById(pecaRows);
