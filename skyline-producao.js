@@ -616,8 +616,89 @@ const ProducaoDash = {
       }
       return this.loadMovimentosEndereco(linhas, todos);
     } catch (err) {
-      console.warn("[Produção] movimentações de endereço indisponíveis:", err?.message || err);
-      return null;
+      console.warn("[Produção] movimentações de endereço indisponíveis, usando api-rastreio-imei:", err?.message || err);
+      // Reserva: endereço ATUAL de cada aparelho pela api-rastreio-imei (todas as telas só precisam do último endereço)
+      if (!todos) return null;
+      try {
+        const atuais = await this.enderecoAtualViaRastreio(key);
+        return atuais ? this.loadMovimentosEndereco(atuais, todos) : null;
+      } catch (err2) {
+        console.warn("[Produção] api-rastreio-imei indisponível:", err2?.message || err2);
+        return null;
+      }
+    }
+  },
+
+  /**
+   * Reserva quando a api-movimentacao-enderecos está fora (503): api-rastreio-imei com eventos.
+   * Para cada aparelho devolve 1 "movimentação" = endereço atual (estoque.endereco) com a data/hora
+   * em que ele entrou nesse endereço (último evento de ESTOQUE para lá) — mesmo formato da API de
+   * movimentações ({ imei, os, data, destino:{endereco} }).
+   * Resultado compacto fica em localStorage por MOV_CACHE_MS e é compartilhado entre as telas de produção.
+   */
+  API_RASTREIO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei",
+  RASTREIO_CACHE_KEY: "skyline_prod_endereco_atual_v1",
+  _rastreioPromise: null,
+
+  async _rastreioPagina(key, offset) {
+    let ultimo = null;
+    for (let t = 1; t <= 3; t++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 60000);
+      try {
+        const qs = new URLSearchParams({ limite: "200", offset: String(offset) });
+        const res = await fetch(`${this.API_RASTREIO}?${qs}`, { cache: "no-store", headers: { "x-api-key": key }, signal: ctrl.signal });
+        if (!res.ok) throw new Error(`api-rastreio-imei HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        ultimo = err && err.name === "AbortError" ? new Error("api-rastreio-imei sem resposta") : err;
+        if (t < 3) await new Promise((r) => setTimeout(r, 1500 * t));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    throw ultimo;
+  },
+
+  async enderecoAtualViaRastreio(key) {
+    try {
+      const c = JSON.parse(localStorage.getItem(this.RASTREIO_CACHE_KEY) || "null");
+      if (c && Array.isArray(c.linhas) && Date.now() - c.at < this.MOV_CACHE_MS) return c.linhas;
+    } catch (_) { /* sem localStorage */ }
+    if (this._rastreioPromise) return this._rastreioPromise;
+    this._rastreioPromise = (async () => {
+      const primeira = await this._rastreioPagina(key, 0);
+      const total = Number(primeira.total) || (primeira.itens || []).length;
+      const itens = [...(primeira.itens || [])];
+      const offs = [];
+      for (let o = 200; o < total; o += 200) offs.push(o);
+      for (let i = 0; i < offs.length; i += 3) {
+        const lote = await Promise.all(offs.slice(i, i + 3).map((o) => this._rastreioPagina(key, o)));
+        lote.forEach((j) => itens.push(...(j.itens || [])));
+      }
+      const fim = (txt) => String(txt || "").split("/").pop().trim();
+      const linhas = [];
+      itens.forEach((x) => {
+        const atual = String(x.estoque?.endereco || "").trim();
+        if (!atual) return; // fora do estoque (vendido/expedido)
+        const movs = (x.eventos || [])
+          .filter((e) => e && e.etapa === "ESTOQUE" && e.detalhe?.destino && e.data)
+          .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+        let quando = null;
+        for (let i = movs.length - 1; i >= 0; i--) {
+          if (fim(movs[i].detalhe.destino).toUpperCase() === atual.toUpperCase()) { quando = movs[i].data; break; }
+        }
+        linhas.push({ imei: x.imei, os: x.os, data: quando || x.estoque?.entrada_em || null, destino: { endereco: atual } });
+      });
+      try {
+        localStorage.setItem(this.RASTREIO_CACHE_KEY, JSON.stringify({ at: Date.now(), linhas }));
+      } catch (_) { /* cota cheia: segue sem cache */ }
+      return linhas;
+    })();
+    try {
+      return await this._rastreioPromise;
+    } finally {
+      this._rastreioPromise = null;
     }
   },
 
