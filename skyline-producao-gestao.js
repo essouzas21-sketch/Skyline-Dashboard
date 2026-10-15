@@ -55,6 +55,10 @@ const ProducaoGestao = {
     const posicaoDoUsuario = (user) =>
       POSICOES.find((p) => p.match && ProducaoDash.matchesUserFilter(user, [p.match])) || null;
     const META_TEMPO_MIN = 45;
+    // Tempo médio "à prova de exceção": reparos abaixo de 1 min (iniciado e finalizado sem trabalho) ou acima de 2 h
+    // de trabalho no expediente (reparo esquecido aberto) ficam fora da média — continuam contando como reparados.
+    const TEMPO_MIN_VALIDO_MS = 60 * 1000;
+    const TEMPO_MAX_VALIDO_MS = 2 * 60 * 60 * 1000;
     const MAO_OBRA_MIN = 0.35;
     const API_URL = SkylineDash.API_REPARO;
     const APPLY_MASK = config.applyMask === true;
@@ -106,6 +110,21 @@ const ProducaoGestao = {
 
     function fmtMin(ms) {
       return ProducaoDash.fmtWorkMin(ms, 2);
+    }
+
+    /** Média e mediana do tempo trabalhado (expediente, sem pausas), sem os casos fora do padrão. */
+    function tempoStats(rows) {
+      const validos = [];
+      const foraPadrao = [];
+      rows.filter((r) => r.times).forEach((r) => {
+        const ms = r.times.workMs;
+        (ms >= TEMPO_MIN_VALIDO_MS && ms <= TEMPO_MAX_VALIDO_MS ? validos : foraPadrao).push(r);
+      });
+      const v = validos.map((r) => r.times.workMs).sort((a, b) => a - b);
+      const n = v.length;
+      const media = n ? v.reduce((a, b) => a + b, 0) / n : 0;
+      const mediana = n ? (n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2) : 0;
+      return { validos, foraPadrao, media, mediana };
     }
 
     function fmtMoney(v) {
@@ -503,7 +522,7 @@ const ProducaoGestao = {
     }
 
     function statusLabel(st) {
-      return { recebido: "Recebidos (no PROD, aguardando reparo)", pronto: "Prontos no período (endereço PROD PRONTO)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
+      return { recebido: "Receb. Dia (transferidos para o PROD no período)", acumulado: "Acumulado — entrou em dias anteriores e ainda não iniciado", pronto: "Prontos no período (endereço PROD PRONTO)", finalizado: "Finalizados", andamento: "Em reparo", pausado: "Pausados", all: "Todos" }[st] || st;
     }
 
     function rowWorkMs(r, start, end) {
@@ -582,7 +601,9 @@ const ProducaoGestao = {
         fotoRows = {
           andamento: applyUiFilters(foto.reparo.filter((r) => r.status === "andamento").map((r) => ({ ...mapExecRow(r._workRaw), user: r.user, status: "andamento" }))),
           pausado: applyUiFilters(foto.reparo.filter((r) => r.status === "pausado").map((r) => ({ ...mapExecRow(r._workRaw), user: r.user, status: "pausado" }))),
-          recebido: foto.recebidos ? applyUiFilters(foto.recebidos.map((a) => enderecoParaLinha(a, a.endereco))) : null,
+          recebido: foto.recebidosDia ? applyUiFilters(foto.recebidosDia.map((a) => enderecoParaLinha(a, a.endereco))) : null,
+          acumulado: foto.recebidos ? applyUiFilters(foto.recebidos.map((a) => enderecoParaLinha(a, a.endereco))) : null,
+          novosBancada: applyUiFilters((foto.recebidosNovos || []).map((a) => enderecoParaLinha(a, a.endereco))),
           pronto: foto.prontos
             ? applyUiFilters(foto.prontos.filter((a) => a.diaPronto >= start && a.diaPronto <= end).map((a) => enderecoParaLinha(a, a.endereco)))
             : null
@@ -595,22 +616,25 @@ const ProducaoGestao = {
           const pos = POSICOES.find((p) => p.prod === s.prod);
           const doTec = (r) => !!pos?.match && ProducaoDash.matchesUserFilter(r.user, [pos.match]);
           if (fotoRows.recebido) s.recebido = fotoRows.recebido.filter((r) => r.prod === s.prod).length;
+          if (fotoRows.acumulado) s.acumulado = fotoRows.acumulado.filter((r) => r.prod === s.prod).length;
           s.andamento = fotoRows.andamento.filter(doTec).length;
           s.pausado = fotoRows.pausado.filter(doTec).length;
           if (fotoRows.pronto) s.pronto = fotoRows.pronto.filter((r) => r.prod === s.prod).length;
-          s.total = s.recebido + s.andamento + s.pausado + s.pronto;
+          const novosBancada = fotoRows.novosBancada.filter((r) => r.prod === s.prod).length;
+          s.total = (s.acumulado != null ? s.acumulado + novosBancada : s.recebido) + s.andamento + s.pausado + s.pronto;
         });
       }
       const thRec = Array.from(document.querySelectorAll("th")).find((th) => /receb/i.test(th.textContent));
       if (thRec) {
         thRec.title =
           fonteRecebido === "endereco"
-            ? "Aparelhos no endereço PROD do técnico que ainda não entraram em reparo (acumulado, de qualquer dia)"
+            ? "Aparelhos transferidos para o endereço PROD do técnico no período (ex.: hoje)"
             : "Aparelhos pegos para reparo no período (início do reparo) — trilha de endereços PROD sem dados no período";
       }
       const totals = list.reduce(
         (acc, s) => {
           acc.recebido += s.recebido;
+          if (s.acumulado != null) acc.acumulado = (acc.acumulado || 0) + s.acumulado;
           acc.finalizado += s.finalizado;
           acc.pronto += s.pronto || 0;
           acc.andamento += s.andamento;
@@ -619,7 +643,7 @@ const ProducaoGestao = {
           acc.workMs += s.workMs;
           return acc;
         },
-        { recebido: 0, finalizado: 0, pronto: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
+        { recebido: 0, acumulado: null, finalizado: 0, pronto: 0, andamento: 0, pausado: 0, total: 0, workMs: 0 }
       );
 
       tbody.innerHTML = list.map((s) => `
@@ -627,6 +651,7 @@ const ProducaoGestao = {
           <td class="prod">PROD ${s.prod}</td>
           <td class="tec-name">${escapeHtml(s.nome)}</td>
           <td class="v-rec" data-drill data-prod="${s.prod}" data-status="recebido">${s.recebido}</td>
+          <td class="v-rec" data-drill data-prod="${s.prod}" data-status="acumulado">${s.acumulado ?? "—"}</td>
           <td class="v-rep" data-drill data-prod="${s.prod}" data-status="andamento">${s.andamento}</td>
           <td class="v-pau" data-drill data-prod="${s.prod}" data-status="pausado">${s.pausado}</td>
           <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
@@ -638,6 +663,7 @@ const ProducaoGestao = {
         <tr class="total">
           <td colspan="2">Total ${POSICOES.length ? `PROD ${POSICOES[0].prod}–${POSICOES[POSICOES.length - 1].prod}` : ""}</td>
           <td class="v-rec" data-drill data-prod="" data-status="recebido">${totals.recebido}</td>
+          <td class="v-rec" data-drill data-prod="" data-status="acumulado">${totals.acumulado ?? "—"}</td>
           <td class="v-rep" data-drill data-prod="" data-status="andamento">${totals.andamento}</td>
           <td class="v-pau" data-drill data-prod="" data-status="pausado">${totals.pausado}</td>
           <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
@@ -651,15 +677,15 @@ const ProducaoGestao = {
           const prod = cell.dataset.prod ? Number(cell.dataset.prod) : null;
           const pos = prod ? POSICOES.find((p) => p.prod === prod) : null;
           const st = cell.dataset.status;
-          const daFoto = fotoRows && ["recebido", "andamento", "pausado", "pronto"].includes(st) && fotoRows[st];
+          const daFoto = fotoRows && ["recebido", "acumulado", "andamento", "pausado", "pronto"].includes(st) && fotoRows[st];
           const fonte = daFoto
             ? fotoRows[st]
             : fotoRows && st === "all"
-              ? [].concat(fotoRows.recebido || [], fotoRows.andamento, fotoRows.pausado, fotoRows.pronto || [])
-              : st === "recebido" ? recebidosRows : statusRows;
+              ? [].concat(fotoRows.acumulado || fotoRows.recebido || [], fotoRows.novosBancada || [], fotoRows.andamento, fotoRows.pausado, fotoRows.pronto || [])
+              : st === "recebido" || st === "acumulado" ? recebidosRows : statusRows;
           const rows = fonte.filter((r) => {
             if (daFoto || (fotoRows && st === "all")) { /* já é a foto de agora */ }
-            else if (st === "recebido") { /* já filtrado */ }
+            else if (st === "recebido" || st === "acumulado") { /* já filtrado */ }
             else if (st === "pronto") { if (!ehPronto(r)) return false; }
             else if (st !== "all" && r.status !== st) return false;
             if (!pos) return true;
@@ -705,10 +731,8 @@ const ProducaoGestao = {
       const finished = rows.filter((r) => r.times);
       return PANEL.users.map((u) => {
         const list = finished.filter((r) => ProducaoDash.matchesUserFilter(r.user, [u.match]));
-        const avgWork = list.length
-          ? list.reduce((a, r) => a + ProducaoDash.calcShiftWorkMsInPeriod(r.raw, start, end), 0) / list.length
-          : 0;
-        return { label: u.label, match: u.match, avgWork, list };
+        const st = tempoStats(list);
+        return { label: u.label, match: u.match, avgWork: st.media, mediana: st.mediana, foraPadrao: st.foraPadrao.length, list };
       });
     }
 
@@ -876,9 +900,8 @@ const ProducaoGestao = {
       const filtered = getPeriodRows();
       const finished = filtered.filter((r) => r.times);
 
-      const avgWork = finished.length
-        ? finished.reduce((a, r) => a + ProducaoDash.calcShiftWorkMsInPeriod(r.raw, start, end), 0) / finished.length
-        : 0;
+      const tempo = tempoStats(finished);
+      const avgWork = tempo.media;
       const pecasN = finished.filter((r) => r.peca && r.peca !== "—").length;
       const statusRows = getStatusRows();
       const totalPausado = statusRows.filter((r) => r.status === "pausado").length;
@@ -891,7 +914,26 @@ const ProducaoGestao = {
           ? PANEL.users.length
           : new Set(finished.map((r) => r.tecnico)).size
       );
-      setKpi("tempoMedio", fmtMin(avgWork), avgWork / 60000 > META_TEMPO_MIN ? "warn" : "ok");
+      setKpi("tempoMedio", tempo.validos.length ? fmtMin(avgWork) : "—", avgWork / 60000 > META_TEMPO_MIN ? "warn" : "ok");
+      // O card é compacto (kpi-hint fica oculto no CSS): mediana e "fora do padrão" vão ao lado do valor.
+      const valTempo = document.getElementById("kpi_tempoMedio");
+      if (valTempo) {
+        const nFora = tempo.foraPadrao.length;
+        const extra = document.createElement("span");
+        extra.style.cssText = "font-size:.5rem;font-weight:700;color:var(--rg-muted,#6b5b7a);margin-left:6px;white-space:nowrap";
+        extra.innerHTML = (tempo.validos.length ? `mediana ${escapeHtml(fmtMin(tempo.mediana))}` : "") +
+          (nFora ? `${tempo.validos.length ? " · " : ""}<a href="#" class="kpi-fora" style="color:#b45309;text-decoration:underline">${nFora} fora do padrão</a>` : "");
+        valTempo.appendChild(extra);
+        valTempo.title = "Média sem os reparos abaixo de 1 min ou acima de 2 h de trabalho (expediente 7h–16h48, sem pausas). Um aparelho que demorou muito não distorce a média. Clique em \"fora do padrão\" para ver a lista.";
+        const link = extra.querySelector(".kpi-fora");
+        if (link) {
+          link.onclick = (ev) => {
+            ev.preventDefault();
+            const lista = [...tempo.foraPadrao].sort((a, b) => b.times.workMs - a.times.workMs);
+            openDrill(`Fora do padrão (< 1 min ou > 2 h) — fora da média: ${lista.length}`, lista);
+          };
+        }
+      }
       setKpi("pecas", pecasN);
 
       renderStatusBoard();
@@ -907,6 +949,7 @@ const ProducaoGestao = {
       try {
         const json = await SkylineDash.fetchWebhook(API_URL);
         allRows = ProducaoDash.loadRows(json);
+        if (!homologOnly && typeof ProducaoDash.aPartirDoMarco === "function") allRows = ProducaoDash.aPartirDoMarco(allRows);
         const mapped = allRows.map((r) => mapExecRow(r._workRaw)).filter((r) => inPanelUser(r.tecnico));
         populateFilters(mapped);
         SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
