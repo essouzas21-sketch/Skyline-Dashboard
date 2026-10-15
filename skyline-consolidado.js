@@ -191,14 +191,29 @@ const ConsolidadoDash = {
     SkylineDash.showStatus(statusEl, "Carregando todos os módulos…", false);
 
     try {
-      const [recJson, repJson] = await Promise.all([
-        SkylineDash.fetchWebhook(SkylineDash.API_RECEBIMENTO),
-        SkylineDash.fetchWebhook(SkylineDash.API_REPARO)
+      // Cada fonte é independente: uma API fora não zera o consolidado inteiro.
+      const usaRastreio = typeof SkylineRastreio !== "undefined" && !SkylineDash.useHomologData();
+      const [repS, rasS] = await Promise.allSettled([
+        SkylineDash.fetchWebhook(SkylineDash.API_REPARO),
+        usaRastreio ? SkylineRastreio.todos({ eventos: true }) : Promise.reject(new Error("rastreio indisponível"))
       ]);
+      if (repS.status !== "fulfilled") throw repS.reason || new Error("relatorio-reparo indisponível");
+      const repJson = repS.value;
+      const itensRastreio = rasS.status === "fulfilled" ? rasS.value : null;
 
-      const recRows = this.loadRecebimentoRows(recJson);
+      // Recebidos = bipados no RECEBIMENTO (mesma regra do dash Recebimento) via api-rastreio-imei;
+      // consulta-recebimentos (NF) só se o rastreio estiver fora.
+      let recRows;
+      if (itensRastreio) {
+        recRows = SkylineRastreio.recebidos(itensRastreio).map((r) => ({ id: r.id, data_recebimento: r.data_recebimento, grupo: "" }));
+      } else {
+        recRows = this.loadRecebimentoRows(await SkylineDash.fetchWebhook(SkylineDash.API_RECEBIMENTO));
+      }
       const triRows = this.loadTriagemRows(repJson);
-      const gestaoRows = this.loadGestaoRows(repJson);
+      // Peças = cada peça solicitada (mesma regra do dash Gestão de Produto)
+      const gestaoRows = itensRastreio
+        ? SkylineRastreio.pedidosDePeca(itensRastreio).map((p) => ({ id: p.id, data_pedido_sankhya: p.data, produto_requisitado_id: p.sku || p.peca }))
+        : this.loadGestaoRows(repJson);
       const prodRows = ProducaoDash.loadRows(repJson);
       const cqeRows = this.loadCqeRows(repJson);
 

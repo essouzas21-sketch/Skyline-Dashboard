@@ -10,6 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
   <script src="skyline-dash.js?v=79"></script>
+  <script src="skyline-chaves.js?v=3"></script>
+  <script src="skyline-rastreio.js?v=1"></script>
   <style>
     :root {
       --gp-page: #694992;
@@ -610,7 +612,7 @@
       <div class="gp-kpi">
         <div class="label">Peças no período</div>
         <div class="value" id="kpiPeriodo">0</div>
-        <div class="hint" id="kpiPeriodoHint">Pedidos diários únicos</div>
+        <div class="hint" id="kpiPeriodoHint">Cada peça solicitada</div>
       </div>
       <div class="gp-kpi">
         <div class="label">Peças hoje</div>
@@ -630,7 +632,7 @@
         <div class="chart-box"><canvas id="chartTopPecas"></canvas></div>
       </div>
       <div class="gp-panel">
-        <h2>Top aparelhos</h2>
+        <h2>Peças por aparelho</h2>
         <div class="chart-box"><canvas id="chartAparelhos"></canvas></div>
       </div>
       <aside class="gp-panel gp-alerts" id="alertsPanel">
@@ -652,7 +654,7 @@
      */
     const ETAPAS = Object.assign(new Set(["todas"]), { has: () => true });
     const statusEl = document.getElementById("statusMsg");
-    const SESSION_KEY = "skyline_gestao_rows_v6";
+    const SESSION_KEY = "skyline_gestao_rows_v7";
     const SESSION_TTL_MS = 3600000;
     const SKY = { primary: "#694992", accent: "#8b6bb8", red: "#dc2626", green: "#15803d", muted: "#6b5b7a" };
     const dataLabelCount = {
@@ -1185,17 +1187,17 @@
         }
       });
 
+      // Quantas peças foram pedidas para CADA aparelho (OS · modelo)
       const byAparelho = new Map();
       for (let i = 0; i < periodRows.length; i++) {
         const r = periodRows[i];
-        const modelo = String(r.aparelho || "").trim() || "—";
         const os = r.id != null && String(r.id).trim() !== "" ? String(r.id).trim() : null;
         if (!os) continue;
-        if (!byAparelho.has(modelo)) byAparelho.set(modelo, new Set());
-        byAparelho.get(modelo).add(os);
+        const modelo = String(r.aparelho || "").trim() || "—";
+        const k = `${os} · ${modelo}`;
+        byAparelho.set(k, (byAparelho.get(k) || 0) + 1);
       }
       const topAparelhos = [...byAparelho.entries()]
-        .map(([nome, ids]) => [nome, ids.size])
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8);
       destroyChart("aparelhos");
@@ -1204,7 +1206,7 @@
         data: {
           labels: topAparelhos.map(([n]) => (n.length > 28 ? n.slice(0, 27) + "…" : n)),
           datasets: [{
-            label: "Aparelhos",
+            label: "Peças",
             data: topAparelhos.map(([, v]) => v),
             backgroundColor: SKY.primary,
             borderRadius: 4
@@ -1245,8 +1247,11 @@
       if (hojeRows.length) {
         alerts.push({
           cls: "ok",
-          title: `${hojeRows.length} pedido(s) únicos hoje`,
-          body: "Contagem diária deduplicada"
+          title: `${hojeRows.length} peça(s) pedida(s) hoje`,
+          body: (() => {
+            const top = SkylineDash.aggregateCount(hojeRows, (r) => SkylineDash.normalizeUserName(String(r.solicitante || "—")));
+            return top.slice(0, 3).map(([n, v]) => `${n}: ${v}`).join(" · ") || "—";
+          })()
         });
       }
       if (!alerts.length) {
@@ -1283,7 +1288,7 @@
       document.getElementById("kpiHoje").textContent = baseHoje.length;
       document.getElementById("kpiAparelhos").textContent = kPeriod.aparelhos;
       document.getElementById("kpiAparelhosHint").textContent = "OS distintas";
-      document.getElementById("kpiPeriodoHint").textContent = "Pedidos diários únicos";
+      document.getElementById("kpiPeriodoHint").textContent = "Cada peça solicitada";
 
       const agora = new Date().toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -1309,8 +1314,46 @@
       document.getElementById("btnToday").click();
     }
 
+    /**
+     * Fonte principal: api-rastreio-imei — cada peça solicitada na Gestão de Peças
+     * (evento GESTAO_PECAS/SOLICITAR) com a data/hora do próprio pedido, inclusive as peças
+     * pedidas de novo no retorno do técnico. O relatorio-reparo só guarda 1 pedido por aparelho.
+     */
+    async function carregarPedidosRastreio() {
+      if (typeof SkylineRastreio === "undefined") throw new Error("skyline-rastreio.js não carregado");
+      const itens = await SkylineRastreio.todos({ eventos: true });
+      return SkylineRastreio.pedidosDePeca(itens).map((p) => ({
+        id: p.id,
+        nr: p.nr,
+        serial: p.serial,
+        data_pedido_sankhya: p.data,
+        produto_requisitado_id: p.sku || `desc:${p.peca}`,
+        descricao: p.peca,
+        aparelho: p.aparelho,
+        marca: SkylineDash.normalizeBrandName(p.aparelho) || SkylineDash.normalizeBrandName(p.marca || "") || "—",
+        categoria: categorizePeca(p.peca),
+        solicitante: p.solicitante,
+        status_sankhya: "sucesso"
+      }));
+    }
+
     async function loadData() {
       const seq = ++loadSeq;
+      if (!SkylineDash.useHomologData()) {
+        try {
+          const rowsRastreio = await carregarPedidosRastreio();
+          if (seq !== loadSeq) return;
+          if (rowsRastreio.length) {
+            allRows = rowsRastreio;
+            saveSession();
+            renderDashboard();
+            SkylineDash.showStatus(statusEl, `${allRows.length} peça(s) solicitada(s) · api-rastreio-imei (cada pedido com sua data).`, false);
+            return;
+          }
+        } catch (errRas) {
+          console.warn("[Gestão] api-rastreio-imei indisponível, usando relatorio-reparo:", errRas?.message || errRas);
+        }
+      }
       const hadData = allRows.length > 0;
       if (!hadData && !restoreSession()) {
         SkylineDash.showStatus(statusEl, "Carregando dados…", false);

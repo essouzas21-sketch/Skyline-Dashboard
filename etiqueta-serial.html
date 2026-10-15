@@ -422,7 +422,7 @@
     <h1>Localizar Serial e Imprimir Etiqueta</h1>
 
     <div class="row">
-      <input id="endpoint" type="text" value="https://automacao.skylinemobile.com.br/webhook/fi" />
+      <input id="endpoint" type="text" value="https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/relatorio-reparo" />
       <button id="loadData">Atualizar dados</button>
     </div>
 
@@ -895,13 +895,18 @@
 
       setStatus("Carregando dados...");
       try {
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          throw new Error(`Erro HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const rows = extractRows(payload);
+        // relatorio-reparo = base atual (aparelhos novos); o webhook /fi antigo parou em 05/10 e
+        // fica só como histórico. A lista nova vai por último para ganhar no desempate (mais recente).
+        const LEGADO = "https://automacao.skylinemobile.com.br/webhook/fi";
+        const fontes = /relatorio-reparo/.test(endpoint) ? [LEGADO, endpoint] : [endpoint];
+        const res = await Promise.allSettled(fontes.map(async (url) => {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
+          return extractRows(await response.json());
+        }));
+        const ok = res.filter((r) => r.status === "fulfilled");
+        if (!ok.length) throw res[res.length - 1].reason || new Error("sem dados");
+        const rows = ok.flatMap((r) => r.value);
         state.rows = rows;
         setStatus(`Dados atualizados: ${rows.length} registros carregados.`);
       } catch (error) {

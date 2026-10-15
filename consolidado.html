@@ -10,7 +10,9 @@
   <script src="skyline-dash.js?v=82"></script>
   <script src="skyline-producao.js?v=25"></script>
   <script src="skyline-producao-gestao.js?v=19"></script>
-  <script src="skyline-consolidado.js?v=29"></script>
+  <script src="skyline-chaves.js?v=3"></script>
+  <script src="skyline-rastreio.js?v=1"></script>
+  <script src="skyline-consolidado.js?v=30"></script>
   <style>
     :root {
       --co-page: #694992;
@@ -585,7 +587,7 @@
       const steps = [
         { lab: "Recebimento", val: data.recebimento.total, tip: "HUs recebidas" },
         { lab: "Triagem", val: data.triagem.total, tip: "OS distintas" },
-        { lab: "Peças", val: data.gestao.total, tip: "Pedidos únicos" },
+        { lab: "Peças", val: data.gestao.total, tip: "Cada peça solicitada" },
         { lab: "Produção", val: data.producaoAndroid.total + data.producaoIphone.total, tip: "OS em reparo" },
         { lab: "CQE", val: data.cqe.total, tip: "Inspeções" }
       ];

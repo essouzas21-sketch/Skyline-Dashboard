@@ -285,7 +285,7 @@
     <h1>Imprimir Recebimento</h1>
 
     <div class="row">
-      <input id="endpoint" type="text" value="https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos" />
+      <input id="endpoint" type="text" value="https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei" />
       <button id="btnLoadData" type="button">Atualizar dados</button>
     </div>
 
@@ -352,12 +352,14 @@
 
   <script src="skyline-version.js?v=2"></script>
   <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-chaves.js?v=3"></script>
+  <script src="skyline-rastreio.js?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
   (function () {
     "use strict";
 
-    const ENDPOINT_DEFAULT = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos";
+    const ENDPOINT_DEFAULT = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
 
     const state = { rows: [], current: null, loading: false };
     let loadPromise = null;
@@ -431,7 +433,29 @@
       return normalizeRowsLocal(payload);
     }
 
+    /**
+     * api-rastreio-imei: 1 linha por aparelho bipado (serial = IMEI, HU = OS, NR = NF de entrada).
+     * A consulta-recebimentos devolve só notas fiscais (sem serial) e está desativada (503).
+     */
+    async function fetchRowsRastreio(force = false) {
+      const itens = await SkylineRastreio.todos({ eventos: false, force });
+      return itens.map((x) => ({
+        serial: x.imei || null,
+        imei: x.imei || null,
+        hu_id: x.os || null,
+        numero: x.nf != null ? String(x.nf) : null,
+        descricao: x.produto || [x.marca, x.modelo].filter(Boolean).join(" ") || null,
+        prod_cprod: x.sku || null,
+        data_alt: x.recebido_em || null,
+        data_add: x.recebido_em || null
+      }));
+    }
+
     async function fetchRows(endpoint, force = false) {
+      const usaRastreio = /api-rastreio-imei|consulta-recebimentos/.test(endpoint) &&
+        typeof SkylineRastreio !== "undefined" &&
+        !(typeof SkylineDash !== "undefined" && SkylineDash.useHomologData());
+      if (usaRastreio) return fetchRowsRastreio(force);
       if (typeof SkylineDash === "undefined") {
         return fetchRowsDirect(endpoint);
       }
