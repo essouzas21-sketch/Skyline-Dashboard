@@ -817,7 +817,7 @@ const ProducaoDash = {
 
   /**
    * FOTO DA PRODUÇÃO (vale quando o período inclui hoje). Colunas:
-   *  - Receb. Dia: aparelhos TRANSFERIDOS para o endereço PROD n no período (ex.: hoje 10 foram para a PROD 3).
+   *  - Receb. Dia: aparelhos TRANSFERIDOS para o endereço PROD n no período, menos os que terminaram e já foram enviados para o CQE.
    *  - Acumulado:  o que está AGORA na bancada (endereço PROD n), o técnico ainda não iniciou e ENTROU EM DIAS
    *                ANTERIORES ao período (o que entrou hoje e não iniciou está no Receb. Dia — recebidosNovos).
    *  - Reparo:     em reparo AGORA (status em execução), pelo técnico.
@@ -887,10 +887,18 @@ const ProducaoDash = {
       const entradas = Array.isArray(m.raw?.entradasProd)
         ? m.raw.entradasProd
         : (m.prod != null ? [{ prod: m.prod, data: m.created_at }] : []);
-      const jaContou = new Set();
+      // 1 por aparelho e PROD (última entrada do dia). Sai do Receb. Dia quando o reparo terminou E o aparelho
+      // já foi enviado para o CQE (não está mais na PROD n / PROD n PRONTO).
+      const ultEntrada = new Map();
       entradas.forEach((e) => {
-        if (jaContou.has(e.prod) || !desdeMarco(e.data) || !noPeriodo(SkylineDash.toLocalDateStr(e.data))) return;
-        jaContou.add(e.prod);
+        if (!desdeMarco(e.data) || !noPeriodo(SkylineDash.toLocalDateStr(e.data))) return;
+        ultEntrada.set(e.prod, e);
+      });
+      const fimReparo = status === "finalizado" ? this.parseDt(row?._workRaw?.["Fim do Reparo"]) : null;
+      const prodAtual = this.prodDoEndereco(m.endereco) ?? this.prodProntoDoEndereco(m.endereco);
+      ultEntrada.forEach((e) => {
+        const terminou = (fimReparo && fimReparo.getTime() >= new Date(e.data).getTime()) || ["AGUARDANDO_CQE", "APROVACAO_PENDENTE_NF", "FINALIZADA"].includes(wms);
+        if (terminou && prodAtual !== e.prod) return; // terminou e já foi para o CQE: fora do Receb. Dia
         recebidosDia.push({ ...m, prod: e.prod, created_at: e.data, _row: row, user: `PROD ${e.prod}` });
       });
 
