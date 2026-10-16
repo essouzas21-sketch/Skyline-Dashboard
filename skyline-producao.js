@@ -973,7 +973,8 @@ const ProducaoDash = {
           u.andamento = foto.reparo.filter((r) => r.status === "andamento" && doTec(r)).length;
           u.pausado = foto.reparo.filter((r) => r.status === "pausado" && doTec(r)).length;
           if (foto.prontos) u.pronto = foto.prontos.filter((r) => r.prod === pu.prod).length;
-          u.total = (u.acumulado != null ? u.acumulado + novosBancada : u.recebido) + u.andamento + u.pausado + u.pronto;
+          // Σ = soma das colunas da foto mostradas (Acumulado + Reparo + Pausa + Pronto), a partir do marco zero
+          u.total = (u.acumulado != null ? u.acumulado : u.recebido) + u.andamento + u.pausado + u.pronto;
         });
         const soma = (k) => list.reduce((a, u) => a + u[k], 0);
         const setKpi = (id, v) => {

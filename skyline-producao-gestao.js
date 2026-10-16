@@ -621,7 +621,8 @@ const ProducaoGestao = {
           s.pausado = fotoRows.pausado.filter(doTec).length;
           if (fotoRows.pronto) s.pronto = fotoRows.pronto.filter((r) => r.prod === s.prod).length;
           const novosBancada = fotoRows.novosBancada.filter((r) => r.prod === s.prod).length;
-          s.total = (s.acumulado != null ? s.acumulado + novosBancada : s.recebido) + s.andamento + s.pausado + s.pronto;
+          // Σ = Acumulado + Reparo + Pausa + Pronto (o que aparece nas colunas), a partir do marco zero
+          s.total = (s.acumulado != null ? s.acumulado : s.recebido) + s.andamento + s.pausado + s.pronto;
         });
       }
       const thRec = Array.from(document.querySelectorAll("th")).find((th) => /receb/i.test(th.textContent));
@@ -656,7 +657,6 @@ const ProducaoGestao = {
           <td class="v-pau" data-drill data-prod="${s.prod}" data-status="pausado">${s.pausado}</td>
           <td class="v-fin" data-drill data-prod="${s.prod}" data-status="finalizado">${s.finalizado}</td>
           <td class="v-pronto" data-drill data-prod="${s.prod}" data-status="pronto">${s.pronto}</td>
-          <td class="v-tot" data-drill data-prod="${s.prod}" data-status="all">${s.total}</td>
           <td class="v-work">${fmtWorkTotal(s.workMs)}</td>
         </tr>
       `).join("") + `
@@ -668,7 +668,6 @@ const ProducaoGestao = {
           <td class="v-pau" data-drill data-prod="" data-status="pausado">${totals.pausado}</td>
           <td class="v-fin" data-drill data-prod="" data-status="finalizado">${totals.finalizado}</td>
           <td class="v-pronto" data-drill data-prod="" data-status="pronto">${totals.pronto}</td>
-          <td class="v-tot" data-drill data-prod="" data-status="all">${totals.total}</td>
           <td class="v-work">${fmtWorkTotal(totals.workMs)}</td>
         </tr>`;
 
@@ -681,7 +680,7 @@ const ProducaoGestao = {
           const fonte = daFoto
             ? fotoRows[st]
             : fotoRows && st === "all"
-              ? [].concat(fotoRows.acumulado || fotoRows.recebido || [], fotoRows.novosBancada || [], fotoRows.andamento, fotoRows.pausado, fotoRows.pronto || [])
+              ? [].concat(fotoRows.acumulado || fotoRows.recebido || [], fotoRows.andamento, fotoRows.pausado, fotoRows.pronto || [])
               : st === "recebido" || st === "acumulado" ? recebidosRows : statusRows;
           const rows = fonte.filter((r) => {
             if (daFoto || (fotoRows && st === "all")) { /* já é a foto de agora */ }
