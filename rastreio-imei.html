@@ -1,0 +1,1555 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <script src="skyline-auth.js?v=6"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recebimento de NF — Fluxo WMS</title>
+  <link rel="stylesheet" href="skyline-dash.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=2"></script>
+  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-chaves.js?v=3"></script>
+  <style>
+    /* Mesmo visual dos outros dashboards (skyline-dash.css); aqui só liberamos a rolagem,
+       porque esta tela é analítica (muitas tabelas) e não um painel fixo de TV. */
+    html, body.rastreio-page { height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto; }
+    body.rastreio-page { --side-space: clamp(10px, 3vw, 48px); }
+    .rastreio-page .page { height: auto; overflow: visible; gap: 10px; }
+    .rastreio-page .dash-title h1 { font-size: 1.1rem; }
+
+    .rastreio-page .filter-row label { color: var(--accent); }
+    .rastreio-page .filtros-wms { flex-wrap: wrap; width: 100%; align-items: flex-end; }
+    .rastreio-page .filtros-wms label { flex: 1 1 140px; min-width: 0; }
+    .rastreio-page .filtros-wms select,
+    .rastreio-page .filtros-wms input[type="text"],
+    .rastreio-page .busca-tabela {
+      width: 100%;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: var(--card);
+      color: var(--text-on-card);
+      font-size: 0.8rem;
+      min-width: 0;
+    }
+    .rastreio-page .filtros-wms button {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: none;
+      background: var(--card);
+      color: var(--text-on-card);
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .rastreio-page .filtro-info { font-size: 0.68rem; color: var(--accent); flex-basis: 100%; }
+    .rastreio-page .filtros-wms label:has(#fImei) { flex: 2 1 240px; }
+    .rastreio-page .filtros-wms input[type="date"] {
+      width: 100%; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25);
+      background: var(--card); color: var(--text-on-card); font-size: 0.8rem; min-width: 0;
+    }
+    .rastreio-page .filtros-wms input[type="search"] {
+      width: 100%; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25);
+      background: var(--card); color: var(--text-on-card); font-size: 0.8rem; min-width: 0;
+    }
+    .rastreio-page .filtro-info.nf-busca { color: #fff; font-weight: 700; }
+    .rastreio-page td.pecas { white-space: normal; min-width: 150px; font-size: 0.68rem; line-height: 1.3; }
+
+    .rastreio-page .wms-kpis { flex-wrap: wrap; }
+    .rastreio-page .wms-kpis .kpi-card { flex: 1 1 150px; }
+    .rastreio-page .kpi-card .hint {
+      font-size: 0.62rem;
+      color: var(--accent-strong);
+      font-weight: 600;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rastreio-page .kpi-card.gargalo .value { color: #dc2626; font-size: 1.15rem; line-height: 1.35; }
+    .rastreio-page .kpi-card.tempo .value { font-size: 1.35rem; }
+
+    .rastreio-page .grade { display: grid; gap: 10px; }
+    .rastreio-page .grade-3 { grid-template-columns: 1.25fr 1fr 0.85fr; }
+    .rastreio-page .grade-2 { grid-template-columns: 1fr 1fr; }
+    .rastreio-page .panel { overflow: visible; }
+    .rastreio-page .panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .rastreio-page .panel-head h2 { margin: 0; }
+    .rastreio-page .section-note { margin: 0; font-size: 0.64rem; color: var(--muted); }
+    .rastreio-page .chart-box { flex: none; height: 300px; }
+
+    .rastreio-page .tabela-wrap { overflow: auto; max-height: 440px; -webkit-overflow-scrolling: touch; }
+    .rastreio-page .tabela-wrap--alta { max-height: 560px; }
+    .rastreio-page table.wms { table-layout: auto; font-size: 0.74rem; }
+    .rastreio-page table.wms th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+    .rastreio-page table.wms th, .rastreio-page table.wms td { padding: 5px 7px; }
+    .rastreio-page table.wms .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .rastreio-page table.wms tr.sub td { color: var(--muted); font-style: italic; }
+    .rastreio-page table.wms tr.total td { font-weight: 800; border-top: 2px solid #d9cdea; background: #faf7ff; }
+    .rastreio-page table.wms tr.clicavel { cursor: pointer; }
+    .rastreio-page table.wms tr.clicavel:hover td { background: #f6f1fc; }
+    .rastreio-page .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; white-space: nowrap; }
+    .rastreio-page .pill.gargalo { background: #fee2e2; color: #b91c1c; }
+    .rastreio-page .pill.atencao { background: #fef3c7; color: #b45309; }
+    .rastreio-page .pill.ok { background: #dcfce7; color: #15803d; }
+    .rastreio-page .pill.andamento { background: #e0e7ff; color: #1d4ed8; }
+    .rastreio-page .pill.neutro { background: #f0eaf8; color: var(--muted); }
+    .rastreio-page .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; color: #fff; white-space: nowrap; }
+    .rastreio-page .tabela-topo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+    .rastreio-page .tabela-topo .busca-tabela { max-width: 320px; border: 1px solid #d9cdea; }
+    .rastreio-page .tabela-topo button {
+      padding: 5px 10px; border-radius: 6px; border: none; cursor: pointer;
+      background: var(--accent-strong); color: #fff; font-weight: 700; font-size: 0.75rem;
+    }
+    .rastreio-page .tabela-nota { font-size: 0.64rem; color: var(--muted); margin-left: auto; }
+
+    /* Consolidado (NF / responsável) — uma tabela compacta, centralizada */
+    .rastreio-page .consolidado .panel-head { align-items: center; }
+    .rastreio-page .abas { display: inline-flex; background: #f0eaf8; border-radius: 8px; padding: 2px; gap: 2px; }
+    .rastreio-page .aba { border: none; background: transparent; color: var(--muted); font-weight: 700; font-size: 0.7rem; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+    .rastreio-page .aba.ativa { background: var(--bg); color: #fff; }
+    .rastreio-page .consolidado-wrap { max-height: 250px; }
+    .rastreio-page table.compacta { table-layout: fixed; font-size: 0.72rem; }
+    /* no celular a tabela rola de lado em vez de cortar o texto */
+    .rastreio-page #tNfs { min-width: 860px; }
+    .rastreio-page #tResp { min-width: 560px; }
+    .rastreio-page table.compacta th,
+    .rastreio-page table.compacta td { text-align: center; padding: 3px 6px; line-height: 1.25; }
+    .rastreio-page table.compacta th { font-size: 0.6rem; background: #faf7ff; }
+    .rastreio-page table.compacta tbody tr:nth-child(even) td { background: #fcfaff; }
+    .rastreio-page table.compacta tr.clicavel:hover td { background: #f0eaf8; }
+    .rastreio-page table.compacta tr.selecionada td { background: #e9defa; font-weight: 700; }
+    .rastreio-page table.compacta small { color: var(--muted); }
+
+    .rastreio-page .fluxo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+    .rastreio-page .fluxo .passo { background: #faf7ff; border: 1px solid #ece6f4; border-radius: 10px; padding: 8px 10px; font-size: 0.7rem; line-height: 1.4; }
+    .rastreio-page .fluxo .passo b { color: var(--bg); display: block; font-size: 0.76rem; margin-bottom: 2px; }
+    .rastreio-page .formulas { margin: 8px 0 0; padding-left: 18px; font-size: 0.7rem; line-height: 1.55; color: var(--text-on-card); }
+
+    /* Detalhe do aparelho */
+    .rastreio-page .modal { position: fixed; inset: 0; z-index: 150; background: rgba(30, 18, 48, 0.55); display: flex; align-items: flex-start; justify-content: center; padding: 24px 12px; overflow-y: auto; }
+    .rastreio-page .modal[hidden] { display: none; }
+    .rastreio-page .modal-card { background: var(--card); color: var(--text-on-card); border-radius: 14px; box-shadow: var(--shadow); width: 100%; max-width: 1100px; padding: 14px 16px; }
+    .rastreio-page .modal-head { display: flex; gap: 10px; align-items: flex-start; }
+    .rastreio-page .modal-head h2 { margin: 0; color: var(--bg); font-size: 1rem; }
+    .rastreio-page .modal-head p { margin: 2px 0 0; font-size: 0.72rem; color: var(--muted); }
+    .rastreio-page .modal-head button { margin-left: auto; padding: 6px 12px; border-radius: 8px; border: none; background: var(--bg); color: #fff; font-weight: 700; cursor: pointer; }
+    .rastreio-page .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px 14px; margin: 10px 0; font-size: 0.72rem; }
+    .rastreio-page .ficha span { display: block; font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .rastreio-page .modal-card h3 { margin: 12px 0 4px; font-size: 0.82rem; color: var(--bg); }
+
+    @media (max-width: 1150px) {
+      .rastreio-page .grade-3 { grid-template-columns: 1fr 1fr; }
+      .rastreio-page .grade-3 > :last-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 780px) {
+      .rastreio-page .grade-3, .rastreio-page .grade-2 { grid-template-columns: 1fr; }
+      .rastreio-page .grade-3 > :last-child { grid-column: auto; }
+      .rastreio-page .dash-toolbar .filter-row { flex-wrap: wrap; width: 100%; }
+      .rastreio-page .chart-box { height: 260px; }
+    }
+  </style>
+</head>
+<body class="dash-page rastreio-page">
+  <div class="page">
+    <div class="dash-toolbar">
+      <a class="back" href="menu.html">← Menu</a>
+      <div class="dash-title">
+        <h1>Recebimento de NF — Fluxo do Aparelho (WMS)</h1>
+        <p class="subtitle" id="periodLabel">Carregando todos os dados do sistema…</p>
+      </div>
+      <div class="filter-row">
+        <button type="button" id="btnReload" title="Busca de novo todos os dados do sistema">Recarregar</button>
+      </div>
+    </div>
+
+    <div class="filter-row filtros-wms">
+      <label title="Opcional — vazio = todas as datas">Recebido de <input type="date" id="dateStart" /></label>
+      <label title="Opcional — vazio = todas as datas">até <input type="date" id="dateEnd" /></label>
+      <button type="button" id="btnToday">Hoje</button>
+      <label>NF <select id="fNf"></select></label>
+      <label>Status <select id="fStatus"></select></label>
+      <label>Fornecedor <select id="fFornecedor"></select></label>
+      <label>Aparelho <select id="fAparelho"></select></label>
+      <label>Etapa atual <select id="fEtapa"></select></label>
+      <label>Responsável <select id="fResp"></select></label>
+      <label title="Procura em todos os dados do sistema (respeita as datas, se preenchidas)">Pesquisar IMEI / OS / NF <input type="search" id="fImei" placeholder="Digite IMEI, OS ou NF" autocomplete="off" /></label>
+      <label>Posição de peças <select id="fPecas"></select></label>
+      <button type="button" id="btnNfHist" hidden>Histórico da NF</button>
+      <button type="button" id="btnLimpar">Limpar filtros</button>
+      <div class="filtro-info" id="filtroInfo">—</div>
+    </div>
+
+    <div id="statusMsg" class="status">Carregando…</div>
+
+    <div class="kpi-row wms-kpis">
+      <div class="kpi-card">
+        <div class="label">Aparelhos recebidos</div>
+        <div class="value" id="kRec">—</div>
+        <div class="hint" id="kRecHint">—</div>
+      </div>
+      <div class="kpi-card finalizado">
+        <div class="label">Concluídos (CQE aprovado)</div>
+        <div class="value" id="kFin">—</div>
+        <div class="hint" id="kFinHint">—</div>
+      </div>
+      <div class="kpi-card andamento">
+        <div class="label">Em andamento</div>
+        <div class="value" id="kAnd">—</div>
+        <div class="hint" id="kAndHint">—</div>
+      </div>
+      <div class="kpi-card reprovado">
+        <div class="label">Parados</div>
+        <div class="value" id="kPar">—</div>
+        <div class="hint" id="kParHint">Reparo pausado + aguardando peças</div>
+      </div>
+      <div class="kpi-card tempo">
+        <div class="label">Tempo médio ponderado</div>
+        <div class="value" id="kTempo">—</div>
+        <div class="hint" id="kTempoHint">Recebido → CQE aprovado</div>
+      </div>
+      <div class="kpi-card tempo">
+        <div class="label">Importação NF → conclusão</div>
+        <div class="value" id="kNf">—</div>
+        <div class="hint" id="kNfHint">—</div>
+      </div>
+      <div class="kpi-card andamento" id="kCarrCard" style="cursor:pointer" title="Clique para ver só os aparelhos em carregamento">
+        <div class="label">Em carregamento</div>
+        <div class="value" id="kCarr">—</div>
+        <div class="hint" id="kCarrHint">endereço CARREGAMENTO (por IMEI)</div>
+      </div>
+      <div class="kpi-card gargalo">
+        <div class="label">Gargalo operacional</div>
+        <div class="value" id="kGargalo">—</div>
+        <div class="hint" id="kGargaloHint">—</div>
+      </div>
+    </div>
+
+    <div class="grade grade-3">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Tempo médio por etapa</h2>
+          <p class="section-note"><span class="nota-hist">Todo o histórico do sistema</span> · média ponderada · mediana · P90</p>
+        </div>
+        <div class="chart-box"><canvas id="cTempo"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Quantidade por etapa</h2>
+          <p class="section-note"><span class="nota-hist">Todo o histórico do sistema</span> · concluíram a etapa × estão nela agora</p>
+        </div>
+        <div class="chart-box"><canvas id="cQtd"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Situação atual</h2>
+          <p class="section-note"><span class="nota-hist">Todo o histórico do sistema</span> · status atual</p>
+        </div>
+        <div class="chart-box"><canvas id="cStatus"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Desempenho por etapa</h2>
+        <p class="section-note">Entrada, saída, permanência e conclusão de cada etapa · o indicador aponta onde o tempo está sendo consumido</p>
+      </div>
+      <div class="tabela-wrap">
+        <table class="wms" id="tEtapas"></table>
+      </div>
+    </div>
+
+    <div class="panel consolidado">
+      <div class="panel-head">
+        <h2>Consolidado</h2>
+        <div class="abas" role="tablist">
+          <button type="button" class="aba ativa" data-aba="nf" role="tab">Por NF</button>
+          <button type="button" class="aba" data-aba="resp" role="tab">Por responsável</button>
+        </div>
+        <p class="section-note" id="notaConsolidado">Clique numa linha para filtrar o dashboard</p>
+      </div>
+      <div class="tabela-wrap consolidado-wrap">
+        <table class="wms compacta" id="tNfs"></table>
+        <table class="wms compacta" id="tResp" hidden></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Aparelhos</h2>
+        <p class="section-note">Clique em um aparelho para ver o histórico completo de movimentações</p>
+      </div>
+      <div class="tabela-topo">
+        <input type="search" class="busca-tabela" id="busca" placeholder="Buscar na tabela (modelo, NF, fornecedor…)" />
+        <button type="button" id="btnCsv">Exportar CSV</button>
+        <span class="tabela-nota" id="notaTabela">—</span>
+      </div>
+      <div class="tabela-wrap tabela-wrap--alta">
+        <table class="wms" id="tAparelhos"></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Como funciona</h2></div>
+      <div class="fluxo">
+        <div class="passo"><b>0 · Importação da NF</b>Data de entrada da NF no sistema (consulta-recebimentos). A NF só tem a data, sem hora — por isso esse trecho é medido em dias.</div>
+        <div class="passo"><b>1 · Recebimento (bipagem)</b>Aparelho bipado no endereço RECEBIMENTO. É o início do fluxo e a data usada pelo filtro opcional de datas.</div>
+        <div class="passo"><b>2 · Carregamento</b>Tempo em que o aparelho ficou no endereço CARREGAMENTO (entrada → saída), com status Em carregamento / Concluído.</div>
+        <div class="passo"><b>3 · Fila p/ triagem → Triagem</b>Do bipe (ou do fim do carregamento) até o início da triagem (fila) e do início ao fim da triagem. Tempos de triagem abaixo de 1 min aparecem como 1 min (arredondado para cima só na exibição).</div>
+        <div class="passo"><b>4 · Gestão de peças → Fila do reparo</b>Do fim da triagem até as peças casadas (gestão) e daí até o técnico iniciar (fila). Só para aparelhos com necessidade de reparo.</div>
+        <div class="passo"><b>5 · Reparo</b>Do primeiro início ao último fim de reparo (inclui retrabalho após reprovação). As pausas aparecem à parte.</div>
+        <div class="passo"><b>6 · Espera + CQE</b>Do fim do reparo (ou da triagem, quando é só limpeza) até a aprovação no CQE, que conclui o processo.</div>
+      </div>
+      <ul class="formulas">
+        <li><b>Média ponderada da etapa</b> = Σ (tempo de cada operação) ÷ nº de operações. Cada aparelho pesa igual, então uma NF com 100 aparelhos pesa 100× mais que uma NF de 1.</li>
+        <li><b>Média simples por NF</b> = média das médias de cada NF (toda NF pesa igual). Se ela for bem diferente da ponderada, poucas NFs estão puxando o tempo.</li>
+        <li><b>Permanência</b> = há quanto tempo os aparelhos que ainda estão na etapa entraram nela. <b>Carga (ap·dia)</b> = tempo concluído + permanência de quem está na etapa, somado por aparelho (10 aparelhos parados 1 dia = 10 ap·dia).</li>
+        <li><b>Gargalo</b> = etapa com a maior fatia da carga total do fluxo (tempo × quantidade). <b>Atenção</b> = a segunda maior.</li>
+        <li><b>Datas</b> são um filtro opcional como os outros: vazias = todos os dados do sistema. <b>Pesquisar IMEI / OS / NF</b> procura em todos os dados (e respeita as datas, se preenchidas). <b>Posição de peças</b> = situação de cada peça do aparelho na gestão de peças (solicitada, pedido enviado, aceita, recebida, casada, aplicada, cancelada).</li>
+        <li>A data de importação da NF vem da consulta-recebimentos; enquanto essa API estiver desativada, as linhas de NF ficam com "—" e o restante funciona normalmente.</li>
+        <li>Fonte: api-rastreio-imei (eventos do WMS: recebimento, estoque, triagem, gestão de peças, reparo, CQE) + consulta-recebimentos (NF). Todos os números respeitam os filtros acima.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mTitulo">
+      <div class="modal-head">
+        <div>
+          <h2 id="mTitulo">—</h2>
+          <p id="mSub">—</p>
+        </div>
+        <button type="button" id="mFechar">Fechar ✕</button>
+      </div>
+      <div id="mCorpo"></div>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    const API = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const PAGE = 200;            // a API aceita no máximo 200 com estabilidade
+    const PARALELO = 3;          // páginas buscadas ao mesmo tempo
+    const MAX_LINHAS = 500;      // linhas exibidas na tabela de aparelhos
+    const AUTO_MS = 600000;      // recarga automática (10 min) — todo o histórico com eventos é pesado
+    const NF_DIAS_ANTES = 45;    // NFs importadas até 45 dias antes do período
+    const NF_CACHE_MS = 600000;
+    const TIMEOUT_MS = 60000;    // tempo máximo de espera por página da API
+    const HORA = 3600000;
+    const DIA = 86400000;
+
+    const ETAPAS = [
+      { id: "nf", nome: "Importação NF → bipagem", dia: true },
+      { id: "carregamento", nome: "Carregamento", fluxo: true, resp: "carregamento" },
+      { id: "fila_triagem", nome: "Fila p/ triagem", fluxo: true },
+      { id: "triagem", nome: "Triagem", fluxo: true, resp: "triagem" },
+      { id: "gestao", nome: "Gestão de peças", fluxo: true, resp: "gestao" },
+      { id: "fila_reparo", nome: "Fila do reparo", fluxo: true },
+      { id: "reparo", nome: "Reparo", fluxo: true, resp: "reparo" },
+      { id: "pausa", nome: "↳ Pausas no reparo", sub: true },
+      { id: "cqe", nome: "Espera + CQE", fluxo: true, resp: "cqe" }
+    ];
+    const ETAPAS_FLUXO = ETAPAS.filter((e) => e.fluxo);
+    const NOME_ETAPA = Object.fromEntries(ETAPAS.map((e) => [e.id, e.nome]));
+    NOME_ETAPA.concluido = "Concluído (CQE aprovado)";
+    const ORDEM_ETAPA = ["carregamento", "fila_triagem", "triagem", "gestao", "fila_reparo", "reparo", "cqe", "concluido"];
+
+    const STATUS_ETAPA = {
+      RECEBIDA: "fila_triagem",
+      AGUARDANDO_TRIAGEM: "fila_triagem",
+      EM_TRIAGEM: "triagem",
+      AGUARDANDO_GESTAO_PECAS: "gestao",
+      EM_REPARO: "reparo",
+      REPARO_PAUSADO: "reparo",
+      AGUARDANDO_CQE: "cqe",
+      APROVACAO_PENDENTE_NF: "concluido",
+      FINALIZADA: "concluido"
+    };
+    const STATUS_PARADO = new Set(["REPARO_PAUSADO", "AGUARDANDO_GESTAO_PECAS"]);
+    const CORES_STATUS = {
+      FINALIZADA: "#15803d",
+      APROVACAO_PENDENTE_NF: "#65a30d",
+      AGUARDANDO_CQE: "#f59e0b",
+      EM_REPARO: "#1d4ed8",
+      REPARO_PAUSADO: "#dc2626",
+      AGUARDANDO_GESTAO_PECAS: "#ea580c",
+      RECEBIDA: "#8b6bb8",
+      AGUARDANDO_TRIAGEM: "#c4a8e8",
+      EM_TRIAGEM: "#694992"
+    };
+    const CORES_EXTRA = ["#0891b2", "#a16207", "#4a3568", "#db2777", "#64748b"];
+    const ROXO = "#694992", ROXO_MEDIO = "#8b6bb8", LILAS = "#c4a8e8", AMBAR = "#f59e0b", VERDE = "#15803d";
+
+    const statusEl = document.getElementById("statusMsg");
+    let brutos = [];
+    let linhas = [];
+    let nfMapa = new Map();
+    let nfCache = null;          // { chave, em, mapa }
+    let nfAviso = "";
+    let carregado = null;        // { de, ate }
+    let agora = Date.now();
+    let imeiAberto = null;
+    let nfBusca = null;          // termo pesquisado em todo o histórico (IMEI / OS / NF — independe do período)
+    let nfUnica = null;          // quando todos os resultados são da mesma NF
+    let linhasNf = [];           // aparelhos da NF pesquisada
+    let todosCache = null;       // { em, brutos } — histórico completo, para pesquisar NF fora do período
+    const TODOS_CACHE_MS = 600000;
+    let linhasTodos = [];        // todo o histórico montado (gráficos não usam o filtro de datas)
+    let todosCarregando = null;
+    /** Histórico completo em segundo plano (para os gráficos e para a pesquisa). */
+    function carregarTodos(forcar = false, silencioso = true) {
+      if (todosCarregando) return todosCarregando;
+      if (!forcar && todosCache && Date.now() - todosCache.em < TODOS_CACHE_MS) return Promise.resolve(todosCache.brutos);
+      todosCarregando = buscarAparelhos(null, null, silencioso)
+        .then((brutosTodos) => {
+          todosCache = { em: Date.now(), brutos: brutosTodos };
+          agora = Date.now();
+          linhasTodos = brutosTodos.map(montar);
+          return brutosTodos;
+        })
+        .finally(() => { todosCarregando = null; });
+      return todosCarregando;
+    }
+    /** Base da tela: NF pesquisada (qualquer data) ou aparelhos do período. */
+    /** Datas = filtro comum e opcional (vazio = todos os dados do sistema). */
+    const filtroData = () => ({ de: document.getElementById("dateStart").value || "", ate: document.getElementById("dateEnd").value || "" });
+    const filtroDatas = () => { const d = filtroData(); return !!(d.de || d.ate); };
+    const diaLocal = (t) => (t == null ? "" : SkylineDash.toLocalDateStr(new Date(t).toISOString()));
+    const base = () => (nfBusca ? linhasNf : linhasTodos);
+    const charts = {};
+
+    /* ───────── utilitários ───────── */
+    function setStatus(msg, erro = false) {
+      statusEl.textContent = msg;
+      statusEl.className = erro ? "status error" : "status";
+    }
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function tms(iso) {
+      if (!iso) return null;
+      const t = new Date(iso).getTime();
+      return Number.isFinite(t) ? t : null;
+    }
+    function dif(a, b) {
+      if (a == null || b == null) return null;
+      const d = b - a;
+      return d >= 0 ? d : null;
+    }
+    function fmtDur(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      const min = Math.round(v / 60000);
+      const d = Math.floor(min / 1440);
+      const h = Math.floor((min % 1440) / 60);
+      const m = min % 60;
+      if (d) return `${d}d ${String(h).padStart(2, "0")}h${String(m).padStart(2, "0")}`;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    /** Triagem: arredonda para cima ao minuto só na exibição (15 s → 1 min · 60 s → 1 min · 61 s → 2 min). */
+    function fmtDurCeil(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      if (v <= 0) return fmtDur(v);
+      return fmtDur(Math.ceil(v / 60000) * 60000);
+    }
+    const fmtDurEtapa = (id, v) => (id === "triagem" ? fmtDurCeil(v) : fmtDur(v));
+    function fmtDias(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      return `${(v / DIA).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} d`;
+    }
+    function fmtData(t) {
+      if (t == null) return "—";
+      return new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+    function fmtDia(t) {
+      if (t == null) return "—";
+      return new Date(t).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    }
+    /** Carga = soma de tempos de vários aparelhos → mostrada em "aparelho·dia" (1 aparelho parado 1 dia = 1). */
+    function fmtCarga(v) {
+      if (v == null || !Number.isFinite(v)) return "—";
+      const dias = v / DIA;
+      return `${dias.toLocaleString("pt-BR", { maximumFractionDigits: dias < 10 ? 1 : 0 })} ap·dia`;
+    }
+    function fmtN(n) { return Number(n || 0).toLocaleString("pt-BR"); }
+    function pct(a, b) { return b ? `${Math.round((a / b) * 100)}%` : "—"; }
+    function addDias(iso, n) {
+      const d = new Date(`${iso}T12:00:00`);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+    function corStatus(cod, i) { return CORES_STATUS[cod] || CORES_EXTRA[i % CORES_EXTRA.length]; }
+    function chipStatus(r) {
+      return `<span class="chip" style="background:${corStatus(r.status, 0)}">${esc(r.statusDesc)}</span>`;
+    }
+
+    function estat(lista) {
+      const v = lista.filter((x) => x != null && Number.isFinite(x)).sort((a, b) => a - b);
+      const n = v.length;
+      if (!n) return { n: 0, soma: 0, media: null, mediana: null, p90: null, max: null };
+      const soma = v.reduce((s, x) => s + x, 0);
+      const meio = Math.floor(n / 2);
+      return {
+        n,
+        soma,
+        media: soma / n,
+        mediana: n % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2,
+        p90: v[Math.min(n - 1, Math.ceil(n * 0.9) - 1)],
+        max: v[n - 1]
+      };
+    }
+    /** Média simples por NF: média das médias de cada NF (toda NF pesa igual). */
+    function mediaPorNf(rows, valorFn) {
+      const grupos = new Map();
+      rows.forEach((r) => {
+        const v = valorFn(r);
+        if (v == null) return;
+        const g = grupos.get(r.nfLabel) || [];
+        g.push(v);
+        grupos.set(r.nfLabel, g);
+      });
+      const medias = [...grupos.values()].map((g) => g.reduce((s, x) => s + x, 0) / g.length);
+      return medias.length ? medias.reduce((s, x) => s + x, 0) / medias.length : null;
+    }
+
+    /* ───────── API ───────── */
+    async function chave() {
+      if (window.SKYLINE_MOVIMENTACAO_API_KEY) return window.SKYLINE_MOVIMENTACAO_API_KEY;
+      try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+      return window.SKYLINE_MOVIMENTACAO_API_KEY || null;
+    }
+
+    async function getJson(url, headers) {
+      let ultimoErro = null;
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        // sem resposta em 60s → aborta e tenta de novo (evita a tela travar em "Carregando…")
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+        try {
+          const res = await fetch(url, { cache: "no-store", headers, signal: ctrl.signal });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          if (err && err.name === "AbortError") err = new Error("API sem resposta (tempo esgotado)");
+          ultimoErro = err;
+          if (tentativa < 3) await new Promise((r) => setTimeout(r, 1500 * tentativa));
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      throw ultimoErro;
+    }
+
+    /** api-rastreio-imei com eventos (histórico completo de cada aparelho). */
+    async function buscarAparelhos(de, ate, silencioso = false) {
+      const key = await chave();
+      if (!key) throw new Error("chave da API ausente (skyline-chaves.js)");
+      const url = (offset) => `${API}?${new URLSearchParams({ ...(de && ate ? { de, ate } : {}), limite: String(PAGE), offset: String(offset) })}`;
+      const primeira = await getJson(url(0), { "x-api-key": key });
+      const total = Number(primeira.total) || (primeira.itens || []).length;
+      const out = [...(primeira.itens || [])];
+      const offsets = [];
+      for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
+      for (let i = 0; i < offsets.length; i += PARALELO) {
+        const lote = offsets.slice(i, i + PARALELO);
+        const res = await Promise.all(lote.map((off) => getJson(url(off), { "x-api-key": key })));
+        res.forEach((j) => out.push(...(j.itens || [])));
+        if (!silencioso) setStatus(`Carregando… ${fmtN(Math.min(out.length, total))} de ${fmtN(total)} aparelho(s)`);
+      }
+      const vistos = new Map();
+      out.forEach((x) => vistos.set(String(x.imei || x.os), x));
+      return [...vistos.values()];
+    }
+
+    /** consulta-recebimentos (NF) — no máximo 31 dias por consulta, então vai em blocos. */
+    async function buscarNfs(de, ate, usarCache = true) {
+      const ini = addDias(de, -NF_DIAS_ANTES);
+      const chaveCache = `${ini}|${ate}`;
+      if (usarCache && nfCache && nfCache.chave === chaveCache && Date.now() - nfCache.em < NF_CACHE_MS) return nfCache.mapa;
+      let key = null;
+      try { key = await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chave */ }
+      if (!key) throw new Error("chave do recebimento ausente");
+      const mapa = new Map();
+      for (let a = ini; a <= ate; a = addDias(a, 31)) {
+        const b = addDias(a, 30) < ate ? addDias(a, 30) : ate;
+        const url = (p) => `${SkylineDash.API_RECEBIMENTO}?${new URLSearchParams({ de: a, ate: b, pagina: String(p) })}`;
+        const primeira = await getJson(url(1), { "x-api-key": key });
+        const paginas = [primeira];
+        const totalPag = Math.min(Number(primeira.total_paginas) || 1, 200);
+        for (let p = 2; p <= totalPag; p += PARALELO) {
+          const lote = [];
+          for (let q = p; q < p + PARALELO && q <= totalPag; q++) lote.push(getJson(url(q), { "x-api-key": key }));
+          paginas.push(...(await Promise.all(lote)));
+        }
+        paginas.forEach((j) => (j.recebimentos || []).forEach((nf) => {
+          const num = String(nf.numero_nf ?? "").replace(/^0+/, "");
+          if (!num) return;
+          const lista = mapa.get(num) || [];
+          lista.push({
+            numero: num,
+            dataEntrada: nf.data_entrada || null,
+            emissao: nf.data_emissao || null,
+            fornecedor: nf.fornecedor?.nome || "",
+            status: nf.status || ""
+          });
+          mapa.set(num, lista);
+        }));
+      }
+      if (usarCache) nfCache = { chave: chaveCache, em: Date.now(), mapa };
+      return mapa;
+    }
+
+    function normalizaNome(s) {
+      return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+    /** Escolhe a NF certa quando o mesmo número existe em fornecedores diferentes. */
+    function nfDoAparelho(x, rec) {
+      const lista = nfMapa.get(String(x.nf ?? "").replace(/^0+/, ""));
+      if (!lista || !lista.length) return null;
+      const forn = normalizaNome(x.fornecedor).slice(0, 12);
+      const candidatas = lista.filter((n) => forn && normalizaNome(n.fornecedor).startsWith(forn));
+      const base = candidatas.length ? candidatas : lista.length === 1 ? lista : [];
+      if (!base.length) return null;
+      const validas = base.filter((n) => !rec || !n.dataEntrada || new Date(`${n.dataEntrada}T00:00:00`).getTime() <= rec);
+      const pool = validas.length ? validas : base;
+      return pool.sort((a, b) => String(b.dataEntrada).localeCompare(String(a.dataEntrada)))[0];
+    }
+
+    /* ───────── nome do aparelho (marca + modelo, nunca o SKU) ───────── */
+    const MARCAS = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "INFINIX", "REALME", "LG", "ASUS", "NOKIA", "OPPO", "HUAWEI",
+      "TCL", "ZTE", "MULTILASER", "POSITIVO", "LENOVO", "ONEPLUS", "GOOGLE", "TECNO", "HONOR", "VIVO"];
+    function semAcento(t) { return String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim(); }
+    function marcaDoTexto(t) {
+      const up = semAcento(t);
+      const palavras = up.split(/[^A-Z0-9]+/).filter(Boolean);
+      const achou = MARCAS.find((m) => palavras.includes(m));
+      if (achou) return achou;
+      if (/\b(IPHONE|IPAD|MACBOOK|AIRPODS)\b/.test(up)) return "APPLE";
+      if (/\bGALAXY\b/.test(up)) return "SAMSUNG";
+      if (/\b(REDMI|POCO)\b/.test(up)) return "XIAOMI";
+      if (/\bMOTO\b/.test(up)) return "MOTOROLA";
+      return "";
+    }
+    /** Texto parece código (SKU) e não descrição: sem espaço, ou só "APARELHOS <MARCA>". */
+    function pareceCodigo(t) {
+      const up = semAcento(t);
+      return !up || !/\s/.test(up) || /^APARELHOS?\s+[A-Z]+$/.test(up);
+    }
+    function nomeAparelho(x) {
+      const marca = semAcento(x.marca) || marcaDoTexto(x.produto) || marcaDoTexto(x.modelo);
+      let modelo = semAcento(x.modelo);
+      if (!modelo && !pareceCodigo(x.produto)) {
+        modelo = semAcento(String(x.produto).split(" - ")[0]);
+        if (marca && modelo.startsWith(marca + " ")) modelo = modelo.slice(marca.length + 1);
+      }
+      if (marca && modelo.startsWith(marca + " ")) modelo = modelo.slice(marca.length + 1);
+      return `${marca || "SEM MARCA"} ${modelo || "· MODELO NÃO INFORMADO"}`.replace(/\s+/g, " ").trim();
+    }
+
+    /* ───────── modelagem do fluxo de cada aparelho ───────── */
+    function montar(x) {
+      const ev = (x.eventos || [])
+        .filter((e) => e && e.data)
+        .map((e) => ({ ...e, t: tms(e.data) }))
+        .filter((e) => e.t != null)
+        .sort((a, b) => a.t - b.t);
+      const primeiro = (etapa, eventos) => ev.find((e) => e.etapa === etapa && (!eventos || eventos.includes(e.evento))) || null;
+      const ultimo = (etapa, eventos, ate) => {
+        let r = null;
+        ev.forEach((e) => {
+          if (e.etapa === etapa && (!eventos || eventos.includes(e.evento)) && (ate == null || e.t <= ate)) r = e;
+        });
+        return r;
+      };
+
+      const status = x.status || "";
+      const etapaStatus = STATUS_ETAPA[status] || null;
+      const concluido = etapaStatus === "concluido" || x.cqe_resultado === "APROVADO";
+      const rec = tms(x.recebido_em) ?? primeiro("RECEBIMENTO")?.t ?? null;
+      const tIni = tms(x.triagem_inicio) ?? primeiro("TRIAGEM", ["INICIO"])?.t ?? null;
+      const tFim = tms(x.triagem_fim) ?? ultimo("TRIAGEM", ["FINALIZACAO"])?.t ?? null;
+      const rIni = primeiro("REPARO", ["INICIO"])?.t ?? tms(x.reparo_inicio);
+      const cqe = tms(x.cqe_em) ?? (concluido ? ultimo("QUALIDADE", ["APROVADO"])?.t ?? null : null);
+      const rFim = ultimo("REPARO", ["FINALIZACAO"], cqe)?.t ?? tms(x.reparo_fim);
+      const temGestao = ev.some((e) => e.etapa === "GESTAO_PECAS");
+
+      // CARREGAMENTO: permanência no endereço CARREGAMENTO (entrada → próxima movimentação de estoque)
+      const ehCarreg = (d) => /(^|\/)\s*CARREGAMENTO\s*$/i.test(String(d || ""));
+      const iCarr = ev.findIndex((e) => e.etapa === "ESTOQUE" && ehCarreg(e.detalhe?.destino));
+      const carrEv = iCarr >= 0 ? ev[iCarr] : null;
+      const carrSaiEv = carrEv ? ev.slice(iCarr + 1).find((e) => e.etapa === "ESTOQUE" && e.detalhe?.destino) : null;
+      const cIni = carrEv ? carrEv.t : null;
+      const cFim = carrSaiEv ? carrSaiEv.t : null;
+      const noCarregamento = cIni != null && cFim == null && ehCarreg(x.estoque?.endereco);
+
+      // POSIÇÃO DE PEÇAS: situação atual de cada peça na gestão de peças (último evento por peça)
+      const POS_PECA = { SOLICITAR: "Solicitada", RESERVAR: "Solicitada", ACEITAR: "Pedido aceito", RECEBER: "Recebida", CASAR: "Casada", APLICAR: "Aplicada", CANCELAR: "Cancelada" };
+      const envioPedido = ev.filter((e) => e.etapa === "GESTAO_PECAS" && e.evento === "ENVIAR_PEDIDO_SKYTECH").map((e) => e.t);
+      const pecasMap = new Map();
+      ev.forEach((e) => {
+        if (e.etapa !== "GESTAO_PECAS" || !POS_PECA[e.evento]) return;
+        const id = e.detalhe?.os_peca_id ?? `${e.detalhe?.sku_peca || ""}|${e.detalhe?.peca || ""}`;
+        const atual = pecasMap.get(id);
+        if (!atual || e.t >= atual.t) pecasMap.set(id, { sku: e.detalhe?.sku_peca || "", nome: e.detalhe?.peca || "", evento: e.evento, t: e.t, user: e.usuario || "" });
+      });
+      const pecas = [...pecasMap.values()].map((p) => {
+        let pos = POS_PECA[p.evento];
+        if (pos === "Solicitada" && envioPedido.some((t) => t >= p.t)) pos = "Pedido enviado";
+        return { ...p, pos };
+      }).sort((a, b) => a.t - b.t);
+      const contPos = new Map();
+      pecas.forEach((p) => contPos.set(p.pos, (contPos.get(p.pos) || 0) + 1));
+      const posPecas = [...contPos.keys()];
+      const posPecasTexto = pecas.length ? [...contPos.entries()].map(([k, n]) => `${k} (${n})`).join(" · ") : "Sem peças";
+      const precisaReparo = x.necessidade === "REPARO" || rIni != null || temGestao || ["AGUARDANDO_GESTAO_PECAS", "EM_REPARO", "REPARO_PAUSADO"].includes(status);
+
+      // fim da gestão de peças = última peça casada (ou etapa pulada) antes do reparo começar
+      let gFim = null;
+      if (precisaReparo) {
+        const casou = ultimo("GESTAO_PECAS", ["CASAR", "PULAR_ETAPA"], rIni);
+        gFim = casou ? casou.t : rIni;
+        if (status === "AGUARDANDO_GESTAO_PECAS" && rIni == null) gFim = null;
+        if (gFim != null && tFim != null && gFim < tFim) gFim = tFim;
+        if (gFim != null && rIni != null && gFim > rIni) gFim = rIni;
+        // o sistema marca EM_REPARO quando as peças são aplicadas/casadas, antes do técnico iniciar:
+        // sem início de reparo, a gestão termina no último evento de peças
+        if (gFim == null && rIni == null && ["EM_REPARO", "REPARO_PAUSADO"].includes(status)) {
+          const ultG = ultimo("GESTAO_PECAS");
+          gFim = ultG ? ultG.t : tFim;
+          if (gFim != null && tFim != null && gFim < tFim) gFim = tFim;
+        }
+      }
+
+      // pausas do reparo (PAUSA → RETOMADA/FINALIZACAO)
+      let pausaMs = 0, nPausas = 0, pausaDesde = null, primeiraPausa = null;
+      ev.filter((e) => e.etapa === "REPARO").forEach((e) => {
+        if (e.evento === "PAUSA") {
+          if (pausaDesde == null) { pausaDesde = e.t; nPausas++; if (primeiraPausa == null) primeiraPausa = e.t; }
+        } else if (pausaDesde != null && ["RETOMADA", "FINALIZACAO", "INICIO"].includes(e.evento)) {
+          pausaMs += Math.max(0, e.t - pausaDesde);
+          pausaDesde = null;
+        }
+      });
+      const pausaAberta = pausaDesde != null && status === "REPARO_PAUSADO";
+      if (pausaAberta) pausaMs += Math.max(0, agora - pausaDesde);
+
+      const nf = nfDoAparelho(x, rec);
+      const nfEnt = nf?.dataEntrada ? new Date(`${nf.dataEntrada}T00:00:00`).getTime() : null;
+
+      // etapa atual: pelo status do sistema; se o status for novo/desconhecido, pela última etapa aberta
+      let etapaAtual = concluido ? "concluido" : etapaStatus;
+      if (etapaAtual === "gestao" && gFim != null && rIni == null) etapaAtual = "fila_reparo";
+      // "Em reparo" sem o técnico ter iniciado = aguardando técnico (peças casadas)
+      if (etapaAtual === "reparo" && rIni == null) etapaAtual = "fila_reparo";
+      // ainda no endereço CARREGAMENTO (antes da triagem) = etapa atual Carregamento
+      if (!concluido && noCarregamento && tIni == null) etapaAtual = "carregamento";
+
+      const seg = {};
+      const defSeg = (id, ent, sai) => {
+        if (ent == null) return;
+        const aberto = !concluido && etapaAtual === id;
+        const saida = aberto ? null : sai;
+        seg[id] = { ent, sai: saida, dur: saida != null ? dif(ent, saida) : null, aberto, perm: aberto ? dif(ent, agora) : null };
+      };
+      defSeg("carregamento", cIni, cFim);
+      // fila p/ triagem começa no fim do carregamento (se passou por ele antes da triagem)
+      const carregAntes = cIni != null && (tIni == null || cIni <= tIni);
+      defSeg("fila_triagem", carregAntes ? cFim : rec, tIni ?? tFim);
+      defSeg("triagem", tIni, tFim);
+      if (precisaReparo) {
+        defSeg("gestao", tFim, gFim);
+        // fila do reparo: das peças casadas até o técnico iniciar (ou aberta, se ainda aguarda o técnico)
+        if (gFim != null && (rIni != null || etapaAtual === "fila_reparo")) defSeg("fila_reparo", gFim, rIni);
+        defSeg("reparo", rIni, ["EM_REPARO", "REPARO_PAUSADO"].includes(status) ? null : rFim);
+        // sem reparo (ex.: peça dispensada) o CQE começa ao fim da gestão/triagem
+        if (!["EM_REPARO", "REPARO_PAUSADO", "AGUARDANDO_GESTAO_PECAS"].includes(status)) defSeg("cqe", rIni != null ? rFim : (gFim ?? tFim), cqe);
+      } else {
+        defSeg("cqe", tFim, cqe);
+      }
+      if (!etapaAtual) {
+        const abertos = ETAPAS_FLUXO.filter((e) => seg[e.id] && seg[e.id].sai == null);
+        etapaAtual = abertos.length ? abertos[abertos.length - 1].id : "fila_triagem";
+        if (seg[etapaAtual]) { seg[etapaAtual].aberto = true; seg[etapaAtual].perm = dif(seg[etapaAtual].ent, agora); }
+      }
+      if (nPausas) {
+        seg.pausa = { ent: primeiraPausa, sai: pausaAberta ? null : primeiraPausa + pausaMs, dur: pausaAberta ? null : pausaMs, aberto: pausaAberta, perm: pausaAberta ? pausaMs : null, qtd: nPausas };
+      }
+      if (nfEnt != null && rec != null) {
+        const d = dif(nfEnt, rec);
+        if (d != null) seg.nf = { ent: nfEnt, sai: rec, dur: d, aberto: false, perm: null };
+      }
+
+      const usuario = (e) => (e && e.usuario ? String(e.usuario).trim() : "");
+      const resp = {
+        recebimento: usuario(primeiro("RECEBIMENTO")),
+        carregamento: usuario(carrEv),
+        triagem: usuario(ultimo("TRIAGEM", ["INICIO"])) || usuario(ultimo("TRIAGEM")),
+        gestao: usuario(primeiro("GESTAO_PECAS")),
+        reparo: usuario(ultimo("REPARO", ["INICIO"])),
+        cqe: usuario(ultimo("QUALIDADE"))
+      };
+      const usuarios = [...new Set(ev.map(usuario).filter(Boolean))];
+      const aparelho = nomeAparelho(x);
+      const fornecedorNome = String(x.fornecedor || nf?.fornecedor || "Sem fornecedor").trim();
+      const nfLabel = x.nf ? `NF ${x.nf}` : "Sem NF";
+
+      return {
+        x, ev, status,
+        statusDesc: x.status_descricao || status || "Sem status",
+        imei: String(x.imei || ""),
+        os: String(x.os || ""),
+        nfLabel,
+        nf,
+        fornecedorNome,
+        aparelho,
+        etapaAtual,
+        etapaAtualNome: NOME_ETAPA[etapaAtual] || etapaAtual,
+        concluido,
+        parado: STATUS_PARADO.has(status),
+        rec, tIni, tFim, gFim, rIni, rFim, cqe, nfEnt,
+        total: concluido ? dif(rec, cqe) : null,
+        totalAberto: !concluido ? dif(rec, agora) : null,
+        nfAteFim: concluido ? dif(nfEnt, cqe) : null,
+        seg, resp, usuarios, nPausas, pausaMs,
+        cIni, cFim, carrStatus: cIni == null ? null : cFim == null ? "Em carregamento" : "Concluído",
+        pecas, posPecas, posPecasTexto,
+        busca: [x.imei, x.os, x.nf, fornecedorNome, aparelho, x.produto, x.sku, x.status_descricao, ...usuarios,
+          ...pecas.map((p) => `${p.sku} ${p.nome} ${p.pos}`)]
+          .filter(Boolean).join(" ").toLowerCase()
+      };
+    }
+
+    /* ───────── filtros dinâmicos ───────── */
+    const FILTROS = [
+      { id: "fNf", campo: (r) => r.nfLabel, ordenar: (a, b) => b[1] - a[1] },
+      { id: "fStatus", campo: (r) => r.statusDesc },
+      { id: "fFornecedor", campo: (r) => r.fornecedorNome },
+      { id: "fAparelho", campo: (r) => r.aparelho },
+      { id: "fEtapa", campo: (r) => r.etapaAtualNome, ordem: ORDEM_ETAPA.map((id) => NOME_ETAPA[id]) },
+      { id: "fResp", campo: (r) => r.usuarios, multi: true },
+      { id: "fPecas", campo: (r) => (r.posPecas.length ? r.posPecas : ["Sem peças"]), multi: true }
+    ];
+    const valorFiltro = (id) => document.getElementById(id).value;
+
+    function passa(r, exceto) {
+      for (const f of FILTROS) {
+        if (f.id === exceto) continue;
+        const v = valorFiltro(f.id);
+        if (!v) continue;
+        if (f.multi ? !f.campo(r).includes(v) : f.campo(r) !== v) return false;
+      }
+      if (exceto !== "data") {
+        const { de, ate } = filtroData();
+        if (de || ate) {
+          const d = diaLocal(r.rec);
+          if (!d || (de && d < de) || (ate && d > ate)) return false;
+        }
+      }
+      if (exceto !== "fImei") {
+        const q = document.getElementById("fImei").value.trim().toLowerCase();
+        const nfNum = String(r.x.nf ?? "").toLowerCase();
+        if (q && !r.imei.toLowerCase().includes(q) && !r.os.toLowerCase().includes(q) &&
+          !(nfNum && (nfNum.includes(q) || nfNum.replace(/^0+/, "") === q.replace(/^nf\s*/, "").replace(/^0+/, "")))) return false;
+      }
+      return true;
+    }
+
+    /** Cada lista mostra só as opções que existem com os outros filtros aplicados (com a contagem). */
+    function atualizarOpcoes() {
+      FILTROS.forEach((f) => {
+        const sel = document.getElementById(f.id);
+        const atual = sel.value;
+        const cont = new Map();
+        base().forEach((r) => {
+          if (!passa(r, f.id)) return;
+          const v = f.campo(r);
+          (f.multi ? v : [v]).forEach((k) => { if (k) cont.set(k, (cont.get(k) || 0) + 1); });
+        });
+        if (atual && !cont.has(atual)) cont.set(atual, 0);
+        let lista = [...cont.entries()];
+        if (f.ordem) lista.sort((a, b) => f.ordem.indexOf(a[0]) - f.ordem.indexOf(b[0]));
+        else if (f.ordenar) lista.sort(f.ordenar);
+        else lista.sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
+        sel.innerHTML = `<option value="">Todos</option>` +
+          lista.map(([k, n]) => `<option value="${esc(k)}">${esc(k)} (${fmtN(n)})</option>`).join("");
+        sel.value = atual;
+      });
+    }
+
+    function filtrosAtivos() {
+      const nomes = { fNf: "NF", fStatus: "Status", fFornecedor: "Fornecedor", fAparelho: "Aparelho", fEtapa: "Etapa", fResp: "Responsável", fPecas: "Posição de peças" };
+      const out = FILTROS.filter((f) => valorFiltro(f.id)).map((f) => `${nomes[f.id]}: ${valorFiltro(f.id)}`);
+      const q = document.getElementById("fImei").value.trim();
+      if (q) out.push(`IMEI/OS/NF: ${q}`);
+      const { de, ate } = filtroData();
+      if (de || ate) out.unshift(`Recebido: ${de ? SkylineDash.formatDateBR(de + "T12:00:00") : "início"} a ${ate ? SkylineDash.formatDateBR(ate + "T12:00:00") : "hoje"}`);
+      return out;
+    }
+
+    /* ───────── cálculos consolidados ───────── */
+    function calcularEtapas(F) {
+      const res = ETAPAS.map((e) => {
+        const comSeg = F.filter((r) => r.seg[e.id]);
+        const concl = comSeg.filter((r) => r.seg[e.id].dur != null);
+        const abertos = comSeg.filter((r) => r.seg[e.id].aberto);
+        const st = estat(concl.map((r) => r.seg[e.id].dur));
+        const perm = estat(abertos.map((r) => r.seg[e.id].perm));
+        return {
+          ...e,
+          entradas: comSeg.length,
+          saidas: concl.length,
+          andamento: abertos.length,
+          permMedia: perm.media,
+          permSoma: perm.soma,
+          ponderada: st.media,
+          simplesNf: mediaPorNf(concl, (r) => r.seg[e.id].dur),
+          mediana: st.mediana,
+          p90: st.p90,
+          max: st.max,
+          carga: st.soma + perm.soma,
+          ultimaEntrada: comSeg.length ? Math.max(...comSeg.map((r) => r.seg[e.id].ent)) : null
+        };
+      });
+      const fluxo = res.filter((e) => e.fluxo);
+      const cargaTotal = fluxo.reduce((s, e) => s + e.carga, 0);
+      fluxo.forEach((e) => { e.share = cargaTotal ? e.carga / cargaTotal : 0; });
+      const rank = [...fluxo].filter((e) => e.carga > 0).sort((a, b) => b.carga - a.carga);
+      if (rank[0]) rank[0].indicador = "gargalo";
+      if (rank[1]) rank[1].indicador = "atencao";
+      return { etapas: res, cargaTotal, gargalo: rank[0] || null };
+    }
+
+    /* ───────── render ───────── */
+    function destruir(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+    function graficoTempo(etapas) {
+      destruir("cTempo");
+      const lista = etapas.filter((e) => e.fluxo || e.sub);
+      const h = (v) => (v == null ? null : +(v / HORA).toFixed(2));
+      charts.cTempo = new Chart(document.getElementById("cTempo"), {
+        type: "bar",
+        data: {
+          labels: lista.map((e) => e.nome.replace("↳ ", "")),
+          datasets: [
+            { label: "Média ponderada", data: lista.map((e) => h(e.ponderada)), backgroundColor: ROXO, borderRadius: 4 },
+            { label: "Mediana", data: lista.map((e) => h(e.mediana)), backgroundColor: LILAS, borderRadius: 4 },
+            { label: "P90", data: lista.map((e) => h(e.p90)), backgroundColor: AMBAR, borderRadius: 4 }
+          ]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 64 } },
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 10 } } },
+            tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtDurEtapa(lista[c.dataIndex]?.id, c.raw * HORA)}` } },
+            datalabels: {
+              display: (c) => c.datasetIndex === 0 && c.raw != null,
+              anchor: "end", align: "end", color: "#2d1f42", font: { size: 10, weight: "700" },
+              formatter: (v, c) => fmtDurEtapa(lista[c.dataIndex]?.id, v * HORA)
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: "horas", font: { size: 10 } }, ticks: { font: { size: 10 } }, grid: { color: "#f0eaf8" } },
+            y: { ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function graficoQtd(etapas) {
+      destruir("cQtd");
+      const lista = etapas.filter((e) => e.fluxo);
+      charts.cQtd = new Chart(document.getElementById("cQtd"), {
+        type: "bar",
+        data: {
+          labels: lista.map((e) => e.nome),
+          datasets: [
+            { label: "Concluíram", data: lista.map((e) => e.saidas), backgroundColor: VERDE, borderRadius: 4 },
+            { label: "Na etapa agora", data: lista.map((e) => e.andamento), backgroundColor: ROXO_MEDIO, borderRadius: 4 }
+          ]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 10 } } },
+            datalabels: {
+              display: (c) => (c.raw || 0) > 0,
+              color: "#fff", font: { size: 10, weight: "700" },
+              formatter: (v) => fmtN(v)
+            }
+          },
+          scales: {
+            x: { stacked: true, ticks: { font: { size: 10 } }, grid: { color: "#f0eaf8" } },
+            y: { stacked: true, ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function graficoStatus(F) {
+      destruir("cStatus");
+      const cont = new Map();
+      F.forEach((r) => {
+        const k = r.status || r.statusDesc;
+        const atual = cont.get(k) || { desc: r.statusDesc, n: 0 };
+        atual.n++;
+        cont.set(k, atual);
+      });
+      const lista = [...cont.entries()].sort((a, b) => b[1].n - a[1].n);
+      const total = F.length;
+      charts.cStatus = new Chart(document.getElementById("cStatus"), {
+        type: "doughnut",
+        data: {
+          labels: lista.map(([, v]) => v.desc),
+          datasets: [{ data: lista.map(([, v]) => v.n), backgroundColor: lista.map(([k], i) => corStatus(k, i)), borderWidth: 2, borderColor: "#fff" }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "58%",
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 10 } } },
+            tooltip: { callbacks: { label: (c) => `${c.label}: ${fmtN(c.raw)} (${pct(c.raw, total)})` } },
+            datalabels: {
+              display: (c) => total && c.raw / total >= 0.05,
+              color: "#fff", font: { size: 10, weight: "700" },
+              formatter: (v) => pct(v, total)
+            }
+          }
+        }
+      });
+    }
+
+    function tabelaEtapas(calc, F) {
+      const fmtE = (e, v) => (e.dia ? fmtDias(v) : fmtDurEtapa(e.id, v));
+      const ind = (e) => {
+        if (e.indicador === "gargalo") return `<span class="pill gargalo">Gargalo</span>`;
+        if (e.indicador === "atencao") return `<span class="pill atencao">Atenção</span>`;
+        if (e.fluxo && e.entradas) return `<span class="pill ok">Normal</span>`;
+        if (e.fluxo) return `<span class="pill neutro">Sem registros</span>`;
+        return `<span class="pill neutro">${e.dia ? "Em dias" : "Sub-etapa"}</span>`;
+      };
+      const cab = `<thead><tr>
+        <th>Etapa</th><th class="num">Entradas</th><th class="num">Saídas (concluídas)</th><th class="num">Na etapa agora</th>
+        <th class="num">Permanência média (agora)</th><th class="num">Média ponderada</th><th class="num">Média simples por NF</th>
+        <th class="num">Mediana</th><th class="num">P90</th><th class="num">Máximo</th><th class="num" title="Soma do tempo de todos os aparelhos na etapa (concluídos + em andamento)">Carga (ap·dia)</th>
+        <th class="num">% da carga</th><th>Última entrada</th><th>Indicador</th></tr></thead>`;
+      const corpo = calc.etapas.map((e) => `<tr class="${e.sub ? "sub" : ""}">
+        <td>${esc(e.nome)}</td>
+        <td class="num">${fmtN(e.entradas)}</td>
+        <td class="num">${fmtN(e.saidas)} <small>${e.entradas ? `(${pct(e.saidas, e.entradas)})` : ""}</small></td>
+        <td class="num">${fmtN(e.andamento)}</td>
+        <td class="num">${fmtE(e, e.permMedia)}</td>
+        <td class="num"><b>${fmtE(e, e.ponderada)}</b></td>
+        <td class="num">${fmtE(e, e.simplesNf)}</td>
+        <td class="num">${fmtE(e, e.mediana)}</td>
+        <td class="num">${fmtE(e, e.p90)}</td>
+        <td class="num">${fmtE(e, e.max)}</td>
+        <td class="num">${e.dia ? "—" : fmtCarga(e.carga)}</td>
+        <td class="num">${e.fluxo ? pct(e.carga, calc.cargaTotal) : "—"}</td>
+        <td>${e.dia ? fmtDia(e.ultimaEntrada) : fmtData(e.ultimaEntrada)}</td>
+        <td>${ind(e)}</td></tr>`).join("");
+      const tot = estat(F.map((r) => r.total));
+      const totAberto = estat(F.map((r) => r.totalAberto));
+      const nfFim = estat(F.map((r) => r.nfAteFim));
+      const linhaTotal = `<tr class="total">
+        <td>Fluxo completo (recebido → CQE)</td><td class="num">${fmtN(F.length)}</td>
+        <td class="num">${fmtN(tot.n)} <small>(${pct(tot.n, F.length)})</small></td><td class="num">${fmtN(totAberto.n)}</td>
+        <td class="num">${fmtDur(totAberto.media)}</td><td class="num">${fmtDur(tot.media)}</td>
+        <td class="num">${fmtDur(mediaPorNf(F, (r) => r.total))}</td><td class="num">${fmtDur(tot.mediana)}</td>
+        <td class="num">${fmtDur(tot.p90)}</td><td class="num">${fmtDur(tot.max)}</td>
+        <td class="num">${fmtCarga(calc.cargaTotal)}</td><td class="num">100%</td><td>—</td><td></td></tr>
+        <tr class="total"><td>Importação NF → conclusão</td><td class="num">${fmtN(F.filter((r) => r.nfEnt != null).length)}</td>
+        <td class="num">${fmtN(nfFim.n)}</td><td class="num">—</td><td class="num">—</td><td class="num">${fmtDias(nfFim.media)}</td>
+        <td class="num">${fmtDias(mediaPorNf(F, (r) => r.nfAteFim))}</td><td class="num">${fmtDias(nfFim.mediana)}</td>
+        <td class="num">${fmtDias(nfFim.p90)}</td><td class="num">${fmtDias(nfFim.max)}</td><td class="num">—</td><td class="num">—</td><td>—</td><td></td></tr>`;
+      document.getElementById("tEtapas").innerHTML = `${cab}<tbody>${corpo}${linhaTotal}</tbody>`;
+    }
+
+    function tabelaNfs(F) {
+      const grupos = new Map();
+      F.forEach((r) => {
+        const g = grupos.get(r.nfLabel) || { nf: r.nfLabel, forn: r.fornecedorNome, nfEnt: r.nfEnt, rows: [] };
+        g.rows.push(r);
+        if (g.nfEnt == null && r.nfEnt != null) g.nfEnt = r.nfEnt;
+        grupos.set(r.nfLabel, g);
+      });
+      const lista = [...grupos.values()].sort((a, b) => b.rows.length - a.rows.length);
+      const corpo = lista.map((g) => {
+        const recs = g.rows.map((r) => r.rec).filter((t) => t != null);
+        const prim = recs.length ? Math.min(...recs) : null;
+        const ult = recs.length ? Math.max(...recs) : null;
+        const fin = g.rows.filter((r) => r.concluido).length;
+        const par = g.rows.filter((r) => r.parado).length;
+        const tempo = estat(g.rows.map((r) => r.total)).media;
+        const etapas = new Map();
+        g.rows.forEach((r) => etapas.set(r.etapaAtualNome, (etapas.get(r.etapaAtualNome) || 0) + 1));
+        const top = [...etapas.entries()].sort((a, b) => b[1] - a[1])[0];
+        const sel = valorFiltro("fNf") === g.nf ? " selecionada" : "";
+        return `<tr class="clicavel${sel}" data-nf="${esc(g.nf)}">
+          <td><b>${esc(g.nf.replace(/^NF\s*/, ""))}</b></td><td title="${esc(g.forn)}">${esc(g.forn)}</td>
+          <td>${fmtDia(g.nfEnt)}</td><td>${fmtData(prim)}</td><td>${fmtData(ult)}</td>
+          <td><b>${fmtN(g.rows.length)}</b></td><td>${fmtN(fin)} <small>(${pct(fin, g.rows.length)})</small></td>
+          <td>${fmtN(par)}</td><td>${fmtDur(tempo)}</td>
+          <td title="${top ? esc(top[0]) : ""}">${top ? `${esc(top[0])} (${fmtN(top[1])})` : "—"}</td></tr>`;
+      }).join("");
+      document.getElementById("tNfs").innerHTML = `<colgroup><col style="width:8%"><col style="width:20%"><col style="width:8%">
+        <col style="width:9%"><col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:6%">
+        <col style="width:9%"><col style="width:16%"></colgroup>
+        <thead><tr><th>NF</th><th>Fornecedor</th><th>Import. NF</th><th>1º bipe</th><th>Último bipe</th><th>Qtd</th>
+        <th>Concluídos</th><th>Parados</th><th>Tempo médio</th><th>Maior concentração</th></tr></thead><tbody>${corpo ||
+        `<tr><td colspan="10" class="empty">Sem dados.</td></tr>`}</tbody>`;
+    }
+
+    function tabelaResp(F) {
+      const mapaEtapa = { recebimento: "Recebimento (bipagem)", triagem: "Triagem", gestao: "Gestão de peças", reparo: "Reparo", cqe: "Espera + CQE" };
+      const grupos = new Map();
+      F.forEach((r) => {
+        Object.entries(r.resp).forEach(([etapa, user]) => {
+          if (!user) return;
+          const k = `${user}|${etapa}`;
+          const g = grupos.get(k) || { user, etapa, ops: 0, tempos: [], aparelhos: 0 };
+          g.ops++;
+          const s = r.seg[etapa];
+          if (s && s.dur != null) g.tempos.push(s.dur);
+          grupos.set(k, g);
+        });
+      });
+      const lista = [...grupos.values()].sort((a, b) => b.ops - a.ops);
+      const corpo = lista.map((g) => {
+        const st = estat(g.tempos);
+        const sel = valorFiltro("fResp") === g.user ? " selecionada" : "";
+        return `<tr class="clicavel${sel}" data-resp="${esc(g.user)}">
+          <td><b>${esc(g.user)}</b></td><td>${esc(mapaEtapa[g.etapa])}</td><td><b>${fmtN(g.ops)}</b></td>
+          <td>${g.etapa === "recebimento" ? "—" : fmtDur(st.media)}</td>
+          <td>${g.etapa === "recebimento" ? "—" : fmtDur(st.mediana)}</td>
+          <td>${g.etapa === "recebimento" ? "—" : fmtDur(st.soma)}</td></tr>`;
+      }).join("");
+      document.getElementById("tResp").innerHTML = `<colgroup><col style="width:24%"><col style="width:22%"><col style="width:12%">
+        <col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+        <thead><tr><th>Responsável</th><th>Etapa</th><th>Operações</th>
+        <th>Tempo médio</th><th>Mediana</th><th>Tempo total</th></tr></thead><tbody>${corpo ||
+        `<tr><td colspan="6" class="empty">Sem dados.</td></tr>`}</tbody>`;
+    }
+
+    function linhasTabela(F) {
+      const q = document.getElementById("busca").value.trim().toLowerCase();
+      return (q ? F.filter((r) => r.busca.includes(q)) : F).slice().sort((a, b) => (b.rec || 0) - (a.rec || 0));
+    }
+
+    function tabelaAparelhos(F) {
+      const lista = linhasTabela(F);
+      const durSeg = (r, id) => {
+        const s = r.seg[id];
+        if (!s) return "—";
+        if (s.aberto) return `<span title="em andamento">${fmtDurEtapa(id, s.perm)} ⏳</span>`;
+        return fmtDurEtapa(id, s.dur);
+      };
+      const corpo = lista.slice(0, MAX_LINHAS).map((r) => {
+        const s = r.seg[r.etapaAtual];
+        return `<tr class="clicavel" data-imei="${esc(r.imei || r.os)}">
+          <td>${esc(r.imei)}</td><td>${esc(r.os)}</td><td>${esc(r.nfLabel)}</td>
+          <td title="${esc(r.fornecedorNome)}">${esc(r.fornecedorNome.slice(0, 22))}</td>
+          <td title="${esc(r.x.produto || "")}">${esc(r.aparelho)}</td><td>${fmtData(r.rec)}</td>
+          <td class="num" title="${r.cIni != null ? `Início ${fmtData(r.cIni)} · fim ${r.cFim != null ? fmtData(r.cFim) : "—"} · ${r.carrStatus}` : "Não passou pelo carregamento"}">${durSeg(r, "carregamento")}</td>
+          <td>${esc(r.etapaAtualNome)}</td><td class="num">${r.concluido ? "—" : fmtDurEtapa(r.etapaAtual, s?.perm)}</td>
+          <td class="num">${durSeg(r, "triagem")}</td><td class="num">${durSeg(r, "gestao")}</td>
+          <td class="pecas" title="${esc(r.pecas.map((p) => `${p.sku} ${p.nome}: ${p.pos}`).join("\n"))}">${esc(r.posPecasTexto)}</td>
+          <td class="num">${durSeg(r, "reparo")}</td><td class="num">${durSeg(r, "cqe")}</td>
+          <td class="num"><b>${r.concluido ? fmtDur(r.total) : fmtDur(r.totalAberto) + " ⏳"}</b></td>
+          <td>${chipStatus(r)}</td></tr>`;
+      }).join("");
+      document.getElementById("tAparelhos").innerHTML = `<thead><tr><th>IMEI</th><th>OS</th><th>NF</th><th>Fornecedor</th>
+        <th>Aparelho</th><th>Recebido</th><th class="num">Carregamento</th><th>Etapa atual</th><th class="num">Na etapa há</th><th class="num">Triagem</th>
+        <th class="num">Gestão peças</th><th>Posição de peças</th><th class="num">Reparo</th><th class="num">Espera + CQE</th><th class="num">Tempo total</th>
+        <th>Status</th></tr></thead><tbody>${corpo || `<tr><td colspan="16" class="empty">Nenhum aparelho com esses filtros.</td></tr>`}</tbody>`;
+      document.getElementById("notaTabela").textContent = lista.length > MAX_LINHAS
+        ? `Mostrando ${fmtN(MAX_LINHAS)} de ${fmtN(lista.length)} — use os filtros ou o CSV para ver todos · ⏳ = em andamento`
+        : `${fmtN(lista.length)} aparelho(s) · ⏳ = em andamento`;
+    }
+
+    function render() {
+      agora = Date.now();
+      const F = base().filter((r) => passa(r));
+      atualizarOpcoes();
+
+      const ativos = filtrosAtivos();
+      const info = document.getElementById("filtroInfo");
+      info.classList.toggle("nf-busca", !!nfBusca);
+      info.textContent = nfBusca
+        ? `Pesquisa "${nfBusca}" em todo o histórico: ${fmtN(F.length)} de ${fmtN(linhasNf.length)} aparelho(s)` + (ativos.length ? ` · ${ativos.join(" · ")}` : "") + " · filtre por data para ver só o período"
+        : `Mostrando ${fmtN(F.length)} de ${fmtN(base().length)} aparelho(s) do sistema` + (ativos.length ? ` · ${ativos.join(" · ")}` : " · sem filtros");
+      document.getElementById("btnNfHist").hidden = true;
+
+      const calc = calcularEtapas(F);
+      const fin = F.filter((r) => r.concluido).length;
+      const and = F.length - fin;
+      const par = F.filter((r) => r.parado).length;
+      const nNf = new Set(F.map((r) => r.nfLabel)).size;
+      const nForn = new Set(F.map((r) => r.fornecedorNome)).size;
+      const tot = estat(F.map((r) => r.total));
+      const nfFim = estat(F.map((r) => r.nfAteFim));
+
+      document.getElementById("kRec").textContent = fmtN(F.length);
+      document.getElementById("kRecHint").textContent = `${fmtN(nNf)} NF(s) · ${fmtN(nForn)} fornecedor(es)`;
+      document.getElementById("kFin").textContent = fmtN(fin);
+      document.getElementById("kFinHint").textContent = `${pct(fin, F.length)} dos recebidos`;
+      document.getElementById("kAnd").textContent = fmtN(and);
+      const maisCheia = calc.etapas.filter((e) => e.fluxo).sort((a, b) => b.andamento - a.andamento)[0];
+      document.getElementById("kAndHint").textContent = maisCheia && maisCheia.andamento
+        ? `Maior fila: ${maisCheia.nome} (${fmtN(maisCheia.andamento)})` : "—";
+      // CARREGAMENTO: aparelhos (IMEI) que estão agora no endereço CARREGAMENTO + tempo médio de quem já saiu
+      const emCarr = F.filter((r) => r.etapaAtual === "carregamento");
+      const eCarr = calc.etapas.find((e) => e.id === "carregamento");
+      document.getElementById("kCarr").textContent = fmtN(emCarr.length);
+      document.getElementById("kCarrHint").textContent = eCarr && eCarr.entradas
+        ? `${fmtN(eCarr.saidas)} concluído(s) · média ${fmtDur(eCarr.ponderada)} · há ${fmtDur(eCarr.permMedia)} (agora)`
+        : "Nenhum aparelho passou pelo carregamento";
+      document.getElementById("kPar").textContent = fmtN(par);
+      document.getElementById("kParHint").textContent = `${pct(par, F.length)} · pausado + aguardando peças`;
+      document.getElementById("kTempo").textContent = fmtDur(tot.media);
+      document.getElementById("kTempoHint").textContent = tot.n
+        ? `${fmtN(tot.n)} concluído(s) · simples por NF ${fmtDur(mediaPorNf(F, (r) => r.total))}` : "Nenhum concluído no filtro";
+      document.getElementById("kNf").textContent = fmtDias(nfFim.media);
+      document.getElementById("kNfHint").textContent = nfAviso || (nfFim.n ? `${fmtN(nfFim.n)} aparelho(s) com NF localizada` : "Sem NF localizada para os concluídos");
+      if (calc.gargalo) {
+        document.getElementById("kGargalo").textContent = calc.gargalo.nome;
+        document.getElementById("kGargaloHint").textContent =
+          `${pct(calc.gargalo.carga, calc.cargaTotal)} da carga · ${fmtN(calc.gargalo.andamento)} na etapa · P90 ${fmtDur(calc.gargalo.p90)}`;
+      } else {
+        document.getElementById("kGargalo").textContent = "—";
+        document.getElementById("kGargaloHint").textContent = "—";
+      }
+
+      const fd = filtroData();
+      const escopo = !linhasTodos.length ? "Carregando todos os dados do sistema…"
+        : filtroDatas() ? `Recebidos de ${fd.de ? SkylineDash.formatDateBR(fd.de + "T12:00:00") : "início"} a ${fd.ate ? SkylineDash.formatDateBR(fd.ate + "T12:00:00") : "hoje"}`
+        : "Todos os dados do sistema";
+      document.querySelectorAll(".nota-hist").forEach((el) => { el.textContent = `${escopo} · ${fmtN(F.length)} aparelho(s)`; });
+      const pl = document.getElementById("periodLabel");
+      if (pl) pl.textContent = `${escopo} · api-rastreio-imei + consulta-recebimentos · as datas são um filtro opcional`;
+      // uma NF só no resultado filtrado → botão de histórico da NF
+      const nfsF = [...new Set(F.map((r) => String(r.x.nf ?? "").replace(/^0+/, "")).filter(Boolean))];
+      nfUnica = ativos.length && nfsF.length === 1 ? nfsF[0] : null;
+      document.getElementById("btnNfHist").hidden = !nfUnica;
+      graficoTempo(calc.etapas);
+      graficoQtd(calc.etapas);
+      graficoStatus(F);
+      tabelaEtapas(calc, F);
+      tabelaNfs(F);
+      tabelaResp(F);
+      tabelaAparelhos(F);
+      if (imeiAberto) abrirAparelho(imeiAberto, true);
+    }
+
+    /* ───────── detalhe individual ───────── */
+    function enderecos(r) {
+      const lista = [];
+      r.ev.filter((e) => e.etapa === "ESTOQUE").forEach((e) => {
+        const destino = e.detalhe?.destino || null;
+        if (lista.length) lista[lista.length - 1].sai = e.t;
+        if (destino) lista.push({ end: destino, ent: e.t, sai: null, user: e.usuario || "", tipo: e.evento });
+      });
+      return lista;
+    }
+
+    function abrirAparelho(id, silencioso = false) {
+      const r = base().find((l) => (l.imei || l.os) === id) || linhas.find((l) => (l.imei || l.os) === id);
+      if (!r) { if (!silencioso) fecharModal(); return; }
+      imeiAberto = id;
+      const x = r.x;
+      document.getElementById("mTitulo").textContent = `${r.aparelho} · IMEI ${r.imei || "—"}`;
+      document.getElementById("mSub").innerHTML = `${esc(x.produto || "")} · ${chipStatus(r)} · etapa atual: <b>${esc(r.etapaAtualNome)}</b>`;
+
+      const ficha = [
+        ["OS", r.os], ["NF", r.nfLabel], ["Fornecedor", r.fornecedorNome],
+        ["Importação da NF", r.nfEnt != null ? fmtDia(r.nfEnt) : "não localizada"],
+        ["SKU", x.sku], ["Necessidade", x.necessidade || "—"],
+        ["Reparos da triagem", (x.reparos_triagem || []).join(", ") || "—"],
+        ["Endereço atual", x.estoque ? `${x.estoque.armazem || ""} / ${x.estoque.endereco || ""}` : "—"],
+        ["Carregamento", r.cIni != null ? `${fmtData(r.cIni)} → ${r.cFim != null ? fmtData(r.cFim) : "em andamento"} · ${fmtDur(dif(r.cIni, r.cFim ?? agora))} · ${r.carrStatus}` : "Não passou"],
+        ["Posição de peças", r.posPecasTexto],
+        ["Resultado CQE", x.cqe_resultado || "—"],
+        ["Pausas no reparo", r.nPausas ? `${r.nPausas} · ${fmtDur(r.pausaMs)}` : "—"],
+        ["Tempo total", r.concluido ? fmtDur(r.total) : `${fmtDur(r.totalAberto)} (em andamento)`],
+        ["Pedido", x.pedido ? `${x.pedido.pedido || ""} · ${x.pedido.status || ""}${x.pedido.expedido_em ? ` · expedido ${fmtData(tms(x.pedido.expedido_em))}` : ""}` : "—"]
+      ].map(([k, v]) => `<div><span>${esc(k)}</span>${esc(v ?? "—")}</div>`).join("");
+
+      const respDe = { carregamento: r.resp.carregamento, triagem: r.resp.triagem, gestao: r.resp.gestao, reparo: r.resp.reparo, cqe: r.resp.cqe, fila_triagem: "", fila_reparo: "", nf: "", pausa: r.resp.reparo };
+      const linhasEtapa = ETAPAS.map((e) => {
+        const s = r.seg[e.id];
+        const fmtT = e.dia ? fmtDia : fmtData;
+        const fmtD = e.dia ? fmtDias : (v) => fmtDurEtapa(e.id, v);
+        if (!s) return `<tr class="${e.sub ? "sub" : ""}"><td>${esc(e.nome)}</td><td>—</td><td>—</td><td class="num">—</td><td>—</td><td><span class="pill neutro">Não passou / sem registro</span></td></tr>`;
+        const situ = s.aberto
+          ? `<span class="pill andamento">Em andamento há ${fmtD(s.perm)}</span>`
+          : s.dur != null ? `<span class="pill ok">Concluída</span>` : `<span class="pill neutro">Sem saída registrada</span>`;
+        return `<tr class="${e.sub ? "sub" : ""}"><td>${esc(e.nome)}${s.qtd ? ` (${s.qtd}×)` : ""}</td><td>${fmtT(s.ent)}</td>
+          <td>${s.aberto ? "—" : fmtT(s.sai)}</td><td class="num"><b>${fmtD(s.aberto ? s.perm : s.dur)}</b></td>
+          <td>${esc(respDe[e.id] || "—")}</td><td>${situ}</td></tr>`;
+      }).join("");
+
+      const linhasPecas = r.pecas.map((p) => `<tr><td>${esc(p.sku || "—")}</td><td style="white-space:normal">${esc(p.nome || "—")}</td>
+        <td><b>${esc(p.pos)}</b></td><td>${fmtData(p.t)}</td><td>${esc(p.user || "—")}</td></tr>`).join("");
+      const ends = enderecos(r);
+      const linhasEnd = ends.map((m) => `<tr><td>${esc(m.end)}</td><td>${fmtData(m.ent)}</td><td>${m.sai ? fmtData(m.sai) : "—"}</td>
+        <td class="num"><b>${fmtDur(dif(m.ent, m.sai ?? agora))}</b>${m.sai ? "" : " ⏳"}</td><td>${esc(m.user || "—")}</td></tr>`).join("");
+
+      let anterior = null;
+      const linhasEv = r.ev.map((e) => {
+        const delta = anterior != null ? fmtDur(dif(anterior, e.t)) : "—";
+        anterior = e.t;
+        return `<tr><td>${fmtData(e.t)}</td><td>${esc(e.etapa)}</td><td>${esc(e.evento)}</td><td>${esc(e.usuario || "—")}</td>
+          <td style="white-space:normal">${esc(e.descricao || "")}</td><td class="num">${delta}</td></tr>`;
+      }).join("");
+
+      document.getElementById("mCorpo").innerHTML = `
+        <div class="ficha">${ficha}</div>
+        <h3>Etapas — entrada, saída e permanência</h3>
+        <div class="tabela-wrap"><table class="wms"><thead><tr><th>Etapa</th><th>Entrada</th><th>Saída</th><th class="num">Permanência</th><th>Responsável</th><th>Situação</th></tr></thead><tbody>${linhasEtapa}</tbody></table></div>
+        <h3>Posição de peças</h3>
+        <div class="tabela-wrap"><table class="wms"><thead><tr><th>SKU</th><th>Peça</th><th>Posição</th><th>Última movimentação</th><th>Usuário</th></tr></thead><tbody>${linhasPecas || `<tr><td colspan="5" class="empty">Sem peças na gestão de peças.</td></tr>`}</tbody></table></div>
+        <h3>Endereços (movimentações de estoque)</h3>
+        <div class="tabela-wrap"><table class="wms"><thead><tr><th>Endereço</th><th>Entrada</th><th>Saída</th><th class="num">Permanência</th><th>Movido por</th></tr></thead><tbody>${linhasEnd || `<tr><td colspan="5" class="empty">Sem movimentações registradas.</td></tr>`}</tbody></table></div>
+        <h3>Histórico completo (${fmtN(r.ev.length)} eventos)</h3>
+        <div class="tabela-wrap tabela-wrap--alta"><table class="wms"><thead><tr><th>Data</th><th>Etapa</th><th>Evento</th><th>Usuário</th><th>Descrição</th><th class="num">Δ desde o anterior</th></tr></thead><tbody>${linhasEv || `<tr><td colspan="6" class="empty">Sem eventos.</td></tr>`}</tbody></table></div>`;
+      document.getElementById("modal").hidden = false;
+    }
+
+    function fecharModal() {
+      imeiAberto = null;
+      document.getElementById("modal").hidden = true;
+    }
+
+    /* ───────── CSV ───────── */
+    function exportarCsv() {
+      const F = linhasTabela(base().filter((r) => passa(r)));
+      const h = (v) => (v == null ? "" : +(v / HORA).toFixed(2));
+      const cab = ["IMEI", "OS", "NF", "Fornecedor", "Aparelho", "Produto", "Importacao NF", "Recebido", "Etapa atual", "Status",
+        "Carregamento inicio", "Carregamento fim", "Carregamento (h)", "Status carregamento", "Posicao de pecas",
+        "Fila triagem (h)", "Triagem (h)", "Gestao pecas (h)", "Fila reparo (h)", "Reparo (h)", "Pausas (h)", "Espera+CQE (h)", "Tempo total (h)",
+        "Resp. triagem", "Resp. gestao", "Resp. reparo", "Resp. CQE"];
+      const linhasCsv = F.map((r) => [
+        r.imei, r.os, r.x.nf || "", r.fornecedorNome, r.aparelho, r.x.produto || "",
+        r.nfEnt != null ? fmtDia(r.nfEnt) : "", fmtData(r.rec), r.etapaAtualNome, r.statusDesc,
+        r.cIni != null ? fmtData(r.cIni) : "", r.cFim != null ? fmtData(r.cFim) : "", h(r.seg.carregamento?.dur), r.carrStatus || "", r.posPecasTexto,
+        h(r.seg.fila_triagem?.dur), h(r.seg.triagem?.dur), h(r.seg.gestao?.dur), h(r.seg.fila_reparo?.dur),
+        h(r.seg.reparo?.dur), r.nPausas ? h(r.pausaMs) : "", h(r.seg.cqe?.dur), h(r.total),
+        r.resp.triagem, r.resp.gestao, r.resp.reparo, r.resp.cqe
+      ]);
+      const csv = [cab, ...linhasCsv]
+        .map((l) => l.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";"))
+        .join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      const { de: start, ate: end } = filtroData();
+      a.href = URL.createObjectURL(blob);
+      a.download = nfUnica ? `fluxo-nf-${nfUnica}.csv` : filtroDatas() ? `fluxo-nf-${start || "inicio"}_a_${end || "hoje"}.csv` : "fluxo-nf-todos-os-dados.csv";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    }
+
+    /* ───────── carga ───────── */
+    async function loadData() {
+      setStatus(linhasTodos.length ? "Atualizando todos os dados do sistema…" : "Carregando todos os dados do sistema… (1 a 2 min)");
+      try {
+        await carregarTodos(true, false);
+        linhas = linhasTodos;
+        render();
+        const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        setStatus(`${fmtN(linhasTodos.length)} aparelho(s) — todos os dados do sistema · atualizado às ${hora} · recarga automática a cada ${AUTO_MS / 60000} min`);
+        // dados das NFs (fornecedor / data de entrada) do primeiro recebimento até hoje
+        const recs = linhasTodos.map((r) => r.rec).filter((t) => t != null);
+        if (recs.length) {
+          const hoje = SkylineDash.todayISO();
+          let ini = diaLocal(Math.min(...recs));
+          if (ini < addDias(hoje, -180)) ini = addDias(hoje, -180);
+          try {
+            nfMapa = await buscarNfs(ini, hoje);
+            nfAviso = "";
+          } catch (errNf) {
+            console.warn("[Fluxo NF] NF indisponível:", errNf);
+            nfAviso = nfMapa.size ? "NF: usando a última consulta" : "Consulta de NF indisponível no momento";
+          }
+          agora = Date.now();
+          linhasTodos = todosCache.brutos.map(montar);
+          linhas = linhasTodos;
+          render();
+        }
+      } catch (err) {
+        console.warn("[Fluxo NF]", err);
+        if (linhasTodos.length) setStatus(`Atualização falhou (${err.message}) — mostrando os últimos dados.`, true);
+        else setStatus(`Erro ao carregar: ${err.message}`, true);
+      }
+    }
+
+    /** Pesquisa IMEI, OS ou NF em todo o histórico do WMS (sem filtro de data). */
+    async function pesquisarNf(valor) {
+      const termo = String(valor || "").trim();
+      if (!termo) { limparPesquisaNf(); return; }
+      nfBusca = termo;
+      setStatus(`Pesquisando "${termo}" em todo o histórico…`);
+      try {
+        const q = termo.toLowerCase();
+        const qNf = q.replace(/^nf\s*/, "").replace(/^0+/, "");
+        // IMEI completo: puxa direto do rastreio daquele IMEI (rápido, com todos os eventos, inclusive o CARREGAMENTO)
+        let fonte = null;
+        if (/^\d{14,16}$/.test(termo) && !(todosCache && Date.now() - todosCache.em < TODOS_CACHE_MS)) {
+          const key = await chave();
+          const j = await getJson(`${API}?${new URLSearchParams({ imei: termo })}`, { "x-api-key": key });
+          fonte = j.itens || [];
+        }
+        if (!fonte || !fonte.length) { await carregarTodos(); fonte = todosCache.brutos; }
+        if (nfBusca !== termo) return; // usuário mudou a pesquisa no meio
+        const achados = fonte.filter((x) => {
+          const imei = String(x.imei ?? "").toLowerCase();
+          const os = String(x.os ?? "").toLowerCase();
+          const nf = String(x.nf ?? "").replace(/^0+/, "").toLowerCase();
+          return (qNf && nf === qNf) || (q.length >= 4 && imei.includes(q)) || (os && os === q);
+        });
+        agora = Date.now();
+        linhasNf = achados.map(montar);
+        const nfs = [...new Set(achados.map((x) => String(x.nf ?? "").replace(/^0+/, "")).filter(Boolean))];
+        nfUnica = nfs.length === 1 && achados.length > 1 ? nfs[0] : null;
+        render();
+        setStatus(achados.length
+          ? `"${termo}": ${fmtN(achados.length)} aparelho(s) — pesquisa em todo o histórico, independente do período`
+          : `"${termo}" não encontrado no WMS (IMEI, OS ou NF)`, !achados.length);
+        if (achados.length) {
+          // dados da NF (fornecedor / data de entrada) para o período em que os aparelhos foram recebidos
+          const recs = linhasNf.map((r) => r.rec).filter((t) => t != null);
+          if (recs.length) {
+            const dia = (t) => new Date(t).toISOString().slice(0, 10);
+            const ini = dia(Math.min(...recs)), fim = dia(Math.max(...recs));
+            buscarNfs(ini, fim < addDias(ini, 120) ? fim : addDias(ini, 120), false).then((m) => {
+              m.forEach((lista, k) => { if (!nfMapa.has(k)) nfMapa.set(k, lista); });
+              if (nfBusca === termo) { linhasNf = achados.map(montar); render(); }
+            }).catch((err) => console.warn("[Fluxo NF] NF da pesquisa indisponível:", err));
+          }
+        }
+      } catch (err) {
+        console.warn("[Fluxo NF] pesquisa", err);
+        setStatus(`Não foi possível pesquisar "${termo}": ${err.message}`, true);
+      }
+    }
+
+    function limparPesquisaNf() {
+      nfBusca = null;
+      nfUnica = null;
+      linhasNf = [];
+      document.getElementById("fImei").value = "";
+      render();
+    }
+
+    /** Histórico completo da NF: aparelhos + todas as movimentações em ordem de horário. */
+    function abrirNf(num) {
+      const rows = (linhasNf.length ? linhasNf : linhasTodos).filter((r) => String(r.x.nf ?? "").replace(/^0+/, "") === String(num));
+      if (!rows.length) return;
+      imeiAberto = null;
+      const forn = [...new Set(rows.map((r) => r.fornecedorNome))].join(", ");
+      const fin = rows.filter((r) => r.concluido).length;
+      const nfEnt = rows.map((r) => r.nfEnt).find((t) => t != null);
+      document.getElementById("mTitulo").textContent = `NF ${num} — histórico completo`;
+      document.getElementById("mSub").textContent =
+        `${forn} · ${fmtN(rows.length)} aparelho(s) · ${fmtN(fin)} concluído(s) · importação ${nfEnt != null ? fmtDia(nfEnt) : "não localizada"}`;
+      const linhasAp = rows.slice().sort((a, b) => (a.rec || 0) - (b.rec || 0)).map((r) => `<tr class="clicavel" data-imei="${esc(r.imei || r.os)}">
+        <td>${esc(r.imei)}</td><td>${esc(r.os)}</td><td>${esc(r.aparelho)}</td><td>${fmtData(r.rec)}</td>
+        <td>${r.cIni != null ? `${fmtData(r.cIni)} → ${r.cFim != null ? fmtData(r.cFim) : "⏳"}` : "—"}</td>
+        <td>${esc(r.etapaAtualNome)}</td><td>${chipStatus(r)}</td><td class="pecas">${esc(r.posPecasTexto)}</td></tr>`).join("");
+      const eventos = rows.flatMap((r) => r.ev.map((e) => ({ ...e, imei: r.imei || r.os }))).sort((a, b) => a.t - b.t);
+      const linhasEv = eventos.slice(0, 5000).map((e) => `<tr><td>${fmtData(e.t)}</td><td>${esc(e.imei)}</td><td>${esc(e.etapa)}</td>
+        <td>${esc(e.evento)}</td><td>${esc(e.usuario || "—")}</td><td style="white-space:normal">${esc(e.descricao || "")}</td></tr>`).join("");
+      document.getElementById("mCorpo").innerHTML = `
+        <h3>Aparelhos da NF (clique para ver o detalhe)</h3>
+        <div class="tabela-wrap"><table class="wms" id="tNfAparelhos"><thead><tr><th>IMEI</th><th>OS</th><th>Aparelho</th><th>Recebido</th><th>Carregamento</th><th>Etapa atual</th><th>Status</th><th>Posição de peças</th></tr></thead><tbody>${linhasAp}</tbody></table></div>
+        <h3>Todas as movimentações (${fmtN(eventos.length)} eventos${eventos.length > 5000 ? " · mostrando 5.000" : ""})</h3>
+        <div class="tabela-wrap tabela-wrap--alta"><table class="wms"><thead><tr><th>Data</th><th>IMEI / OS</th><th>Etapa</th><th>Evento</th><th>Usuário</th><th>Descrição</th></tr></thead><tbody>${linhasEv || `<tr><td colspan="6" class="empty">Sem eventos.</td></tr>`}</tbody></table></div>`;
+      document.getElementById("tNfAparelhos").addEventListener("click", (ev) => {
+        const tr = ev.target.closest("tr[data-imei]");
+        if (tr) abrirAparelho(tr.dataset.imei);
+      });
+      document.getElementById("modal").hidden = false;
+    }
+
+    FILTROS.forEach((f) => document.getElementById(f.id).addEventListener("change", render));
+    let tImei = null, tBusca = null;
+    // digitou: filtra em todos os dados do sistema (respeita as datas, se preenchidas)
+    document.getElementById("fImei").addEventListener("input", () => { clearTimeout(tImei); tImei = setTimeout(render, 300); });
+    document.getElementById("busca").addEventListener("input", () => {
+      clearTimeout(tBusca);
+      tBusca = setTimeout(() => tabelaAparelhos(base().filter((r) => passa(r))), 200);
+    });
+    const campoNf = document.getElementById("fImei");
+    campoNf.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); clearTimeout(tImei); render(); } });
+    document.getElementById("btnNfHist").addEventListener("click", () => { if (nfUnica) abrirNf(nfUnica); });
+    ["dateStart", "dateEnd"].forEach((id) => document.getElementById(id).addEventListener("change", () => {
+      const { de, ate } = filtroData();
+      if (de && ate && de > ate) { setStatus("A data inicial não pode ser maior que a data final.", true); return; }
+      render();
+    }));
+    document.getElementById("btnToday").addEventListener("click", () => {
+      const hoje = SkylineDash.todayISO();
+      document.getElementById("dateStart").value = hoje;
+      document.getElementById("dateEnd").value = hoje;
+      render();
+    });
+    document.getElementById("btnReload").addEventListener("click", () => { todosCache = null; loadData(); });
+    document.getElementById("btnLimpar").addEventListener("click", () => {
+      FILTROS.forEach((f) => { document.getElementById(f.id).value = ""; });
+      document.getElementById("fImei").value = "";
+      document.getElementById("busca").value = "";
+      document.getElementById("dateStart").value = "";
+      document.getElementById("dateEnd").value = "";
+      if (nfBusca) { limparPesquisaNf(); return; }
+      render();
+    });
+    document.getElementById("btnCsv").addEventListener("click", exportarCsv);
+    document.getElementById("kCarrCard").addEventListener("click", () => {
+      const sel = document.getElementById("fEtapa");
+      const alvo = sel.value === NOME_ETAPA.carregamento ? "" : NOME_ETAPA.carregamento;
+      if (alvo && ![...sel.options].some((op) => op.value === alvo)) sel.add(new Option(alvo, alvo));
+      sel.value = alvo;
+      render();
+    });
+    document.querySelectorAll(".consolidado .aba").forEach((btn) => btn.addEventListener("click", () => {
+      document.querySelectorAll(".consolidado .aba").forEach((b) => b.classList.toggle("ativa", b === btn));
+      const nf = btn.dataset.aba === "nf";
+      document.getElementById("tNfs").hidden = !nf;
+      document.getElementById("tResp").hidden = nf;
+    }));
+    document.getElementById("tNfs").addEventListener("click", (ev) => {
+      const tr = ev.target.closest("tr[data-nf]");
+      if (!tr) return;
+      const sel = document.getElementById("fNf");
+      sel.value = sel.value === tr.dataset.nf ? "" : tr.dataset.nf;
+      render();
+    });
+    document.getElementById("tResp").addEventListener("click", (ev) => {
+      const tr = ev.target.closest("tr[data-resp]");
+      if (!tr) return;
+      const sel = document.getElementById("fResp");
+      sel.value = sel.value === tr.dataset.resp ? "" : tr.dataset.resp;
+      render();
+    });
+    document.getElementById("tAparelhos").addEventListener("click", (ev) => {
+      const tr = ev.target.closest("tr[data-imei]");
+      if (tr) abrirAparelho(tr.dataset.imei);
+    });
+    document.getElementById("mFechar").addEventListener("click", fecharModal);
+    document.getElementById("modal").addEventListener("click", (ev) => { if (ev.target.id === "modal") fecharModal(); });
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharModal(); });
+
+    // carga inicial = todos os dados do sistema (sem filtro de data) e recarga automática
+    loadData();
+    setInterval(() => { if (!document.hidden) loadData(); }, AUTO_MS);
+  </script>
+</body>
+</html>
