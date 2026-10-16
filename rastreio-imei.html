@@ -47,6 +47,10 @@
     }
     .rastreio-page .filtro-info { font-size: 0.68rem; color: var(--accent); flex-basis: 100%; }
     .rastreio-page .filtros-wms label:has(#fImei) { flex: 2 1 240px; }
+    .rastreio-page .filtros-wms input[type="date"] {
+      width: 100%; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25);
+      background: var(--card); color: var(--text-on-card); font-size: 0.8rem; min-width: 0;
+    }
     .rastreio-page .filtros-wms input[type="search"] {
       width: 100%; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.25);
       background: var(--card); color: var(--text-on-card); font-size: 0.8rem; min-width: 0;
@@ -155,26 +159,24 @@
       <a class="back" href="menu.html">← Menu</a>
       <div class="dash-title">
         <h1>Recebimento de NF — Fluxo do Aparelho (WMS)</h1>
-        <p class="subtitle" id="periodLabel">Carregando período…</p>
+        <p class="subtitle" id="periodLabel">Carregando todos os dados do sistema…</p>
       </div>
       <div class="filter-row">
-        <label>Recebido de <input type="date" id="dateStart" /></label>
-        <label>até <input type="date" id="dateEnd" /></label>
-        <button type="button" class="primary" id="btnApply">Atualizar</button>
-        <button type="button" id="btnToday">Hoje</button>
-        <button type="button" id="btnTudo" title="Mostra tudo que já está no sistema, sem filtro de datas">Tudo</button>
-        <button type="button" id="btnReload">Recarregar</button>
+        <button type="button" id="btnReload" title="Busca de novo todos os dados do sistema">Recarregar</button>
       </div>
     </div>
 
     <div class="filter-row filtros-wms">
+      <label title="Opcional — vazio = todas as datas">Recebido de <input type="date" id="dateStart" /></label>
+      <label title="Opcional — vazio = todas as datas">até <input type="date" id="dateEnd" /></label>
+      <button type="button" id="btnToday">Hoje</button>
       <label>NF <select id="fNf"></select></label>
       <label>Status <select id="fStatus"></select></label>
       <label>Fornecedor <select id="fFornecedor"></select></label>
       <label>Aparelho <select id="fAparelho"></select></label>
       <label>Etapa atual <select id="fEtapa"></select></label>
       <label>Responsável <select id="fResp"></select></label>
-      <label title="Traz tudo que bate em todo o histórico. Ao filtrar por data, mostra só o que está dentro do período">Pesquisar IMEI / OS / NF <input type="search" id="fImei" placeholder="Digite IMEI, OS ou NF" autocomplete="off" /></label>
+      <label title="Procura em todos os dados do sistema (respeita as datas, se preenchidas)">Pesquisar IMEI / OS / NF <input type="search" id="fImei" placeholder="Digite IMEI, OS ou NF" autocomplete="off" /></label>
       <label>Posição de peças <select id="fPecas"></select></label>
       <button type="button" id="btnNfHist" hidden>Histórico da NF</button>
       <button type="button" id="btnLimpar">Limpar filtros</button>
@@ -294,7 +296,7 @@
       <div class="panel-head"><h2>Como funciona</h2></div>
       <div class="fluxo">
         <div class="passo"><b>0 · Importação da NF</b>Data de entrada da NF no sistema (consulta-recebimentos). A NF só tem a data, sem hora — por isso esse trecho é medido em dias.</div>
-        <div class="passo"><b>1 · Recebimento (bipagem)</b>Aparelho bipado no endereço RECEBIMENTO. É o início do fluxo e a data usada pelo filtro de período.</div>
+        <div class="passo"><b>1 · Recebimento (bipagem)</b>Aparelho bipado no endereço RECEBIMENTO. É o início do fluxo e a data usada pelo filtro opcional de datas.</div>
         <div class="passo"><b>2 · Carregamento</b>Tempo em que o aparelho ficou no endereço CARREGAMENTO (entrada → saída), com status Em carregamento / Concluído.</div>
         <div class="passo"><b>3 · Fila p/ triagem → Triagem</b>Do bipe (ou do fim do carregamento) até o início da triagem (fila) e do início ao fim da triagem. Tempos de triagem abaixo de 1 min aparecem como 1 min (arredondado para cima só na exibição).</div>
         <div class="passo"><b>4 · Gestão de peças → Fila do reparo</b>Do fim da triagem até as peças casadas (gestão) e daí até o técnico iniciar (fila). Só para aparelhos com necessidade de reparo.</div>
@@ -306,7 +308,7 @@
         <li><b>Média simples por NF</b> = média das médias de cada NF (toda NF pesa igual). Se ela for bem diferente da ponderada, poucas NFs estão puxando o tempo.</li>
         <li><b>Permanência</b> = há quanto tempo os aparelhos que ainda estão na etapa entraram nela. <b>Carga (ap·dia)</b> = tempo concluído + permanência de quem está na etapa, somado por aparelho (10 aparelhos parados 1 dia = 10 ap·dia).</li>
         <li><b>Gargalo</b> = etapa com a maior fatia da carga total do fluxo (tempo × quantidade). <b>Atenção</b> = a segunda maior.</li>
-        <li><b>Pesquisar IMEI / OS / NF</b>: traz tudo que bate com o que foi digitado, em todo o histórico do WMS; ao filtrar por data (Atualizar / Hoje / datas), mostra só o que está dentro do período. <b>Posição de peças</b> = situação de cada peça do aparelho na gestão de peças (solicitada, pedido enviado, aceita, recebida, casada, aplicada, cancelada).</li>
+        <li><b>Datas</b> são um filtro opcional como os outros: vazias = todos os dados do sistema. <b>Pesquisar IMEI / OS / NF</b> procura em todos os dados (e respeita as datas, se preenchidas). <b>Posição de peças</b> = situação de cada peça do aparelho na gestão de peças (solicitada, pedido enviado, aceita, recebida, casada, aplicada, cancelada).</li>
         <li>A data de importação da NF vem da consulta-recebimentos; enquanto essa API estiver desativada, as linhas de NF ficam com "—" e o restante funciona normalmente.</li>
         <li>Fonte: api-rastreio-imei (eventos do WMS: recebimento, estoque, triagem, gestão de peças, reparo, CQE) + consulta-recebimentos (NF). Todos os números respeitam os filtros acima.</li>
       </ul>
@@ -333,7 +335,7 @@
     const PAGE = 200;            // a API aceita no máximo 200 com estabilidade
     const PARALELO = 3;          // páginas buscadas ao mesmo tempo
     const MAX_LINHAS = 500;      // linhas exibidas na tabela de aparelhos
-    const AUTO_MS = 180000;      // recarga automática (3 min) — payload com eventos é pesado
+    const AUTO_MS = 600000;      // recarga automática (10 min) — todo o histórico com eventos é pesado
     const NF_DIAS_ANTES = 45;    // NFs importadas até 45 dias antes do período
     const NF_CACHE_MS = 600000;
     const TIMEOUT_MS = 60000;    // tempo máximo de espera por página da API
@@ -399,10 +401,10 @@
     let linhasTodos = [];        // todo o histórico montado (gráficos não usam o filtro de datas)
     let todosCarregando = null;
     /** Histórico completo em segundo plano (para os gráficos e para a pesquisa). */
-    function carregarTodos(forcar = false) {
+    function carregarTodos(forcar = false, silencioso = true) {
       if (todosCarregando) return todosCarregando;
       if (!forcar && todosCache && Date.now() - todosCache.em < TODOS_CACHE_MS) return Promise.resolve(todosCache.brutos);
-      todosCarregando = buscarAparelhos(null, null, true)
+      todosCarregando = buscarAparelhos(null, null, silencioso)
         .then((brutosTodos) => {
           todosCache = { em: Date.now(), brutos: brutosTodos };
           agora = Date.now();
@@ -413,8 +415,11 @@
       return todosCarregando;
     }
     /** Base da tela: NF pesquisada (qualquer data) ou aparelhos do período. */
-    let filtroDatas = false;     // só filtra por data quando o usuário escolhe (datas / Atualizar / Hoje)
-    const base = () => (nfBusca ? linhasNf : filtroDatas || !linhasTodos.length ? linhas : linhasTodos);
+    /** Datas = filtro comum e opcional (vazio = todos os dados do sistema). */
+    const filtroData = () => ({ de: document.getElementById("dateStart").value || "", ate: document.getElementById("dateEnd").value || "" });
+    const filtroDatas = () => { const d = filtroData(); return !!(d.de || d.ate); };
+    const diaLocal = (t) => (t == null ? "" : SkylineDash.toLocalDateStr(new Date(t).toISOString()));
+    const base = () => (nfBusca ? linhasNf : linhasTodos);
     const charts = {};
 
     /* ───────── utilitários ───────── */
@@ -836,6 +841,13 @@
         if (!v) continue;
         if (f.multi ? !f.campo(r).includes(v) : f.campo(r) !== v) return false;
       }
+      if (exceto !== "data") {
+        const { de, ate } = filtroData();
+        if (de || ate) {
+          const d = diaLocal(r.rec);
+          if (!d || (de && d < de) || (ate && d > ate)) return false;
+        }
+      }
       if (exceto !== "fImei") {
         const q = document.getElementById("fImei").value.trim().toLowerCase();
         const nfNum = String(r.x.nf ?? "").toLowerCase();
@@ -872,6 +884,8 @@
       const out = FILTROS.filter((f) => valorFiltro(f.id)).map((f) => `${nomes[f.id]}: ${valorFiltro(f.id)}`);
       const q = document.getElementById("fImei").value.trim();
       if (q) out.push(`IMEI/OS/NF: ${q}`);
+      const { de, ate } = filtroData();
+      if (de || ate) out.unshift(`Recebido: ${de ? SkylineDash.formatDateBR(de + "T12:00:00") : "início"} a ${ate ? SkylineDash.formatDateBR(ate + "T12:00:00") : "hoje"}`);
       return out;
     }
 
@@ -1171,8 +1185,8 @@
       info.classList.toggle("nf-busca", !!nfBusca);
       info.textContent = nfBusca
         ? `Pesquisa "${nfBusca}" em todo o histórico: ${fmtN(F.length)} de ${fmtN(linhasNf.length)} aparelho(s)` + (ativos.length ? ` · ${ativos.join(" · ")}` : "") + " · filtre por data para ver só o período"
-        : `Mostrando ${fmtN(F.length)} de ${fmtN(base().length)} aparelho(s) ${filtroDatas || !linhasTodos.length ? "do período" : "de todo o histórico"}` + (ativos.length ? ` · ${ativos.join(" · ")}` : " · sem filtros");
-      document.getElementById("btnNfHist").hidden = !(nfBusca && nfUnica);
+        : `Mostrando ${fmtN(F.length)} de ${fmtN(base().length)} aparelho(s) do sistema` + (ativos.length ? ` · ${ativos.join(" · ")}` : " · sem filtros");
+      document.getElementById("btnNfHist").hidden = true;
 
       const calc = calcularEtapas(F);
       const fin = F.filter((r) => r.concluido).length;
@@ -1214,11 +1228,17 @@
         document.getElementById("kGargaloHint").textContent = "—";
       }
 
-      const escopo = nfBusca ? `Pesquisa "${nfBusca}"` : filtroDatas ? `Período ${SkylineDash.formatPeriodBR(SkylineDash.getDateRange().start, SkylineDash.getDateRange().end)}`
-        : linhasTodos.length ? "Todo o histórico do sistema" : "Carregando todo o histórico… (por enquanto, hoje)";
+      const fd = filtroData();
+      const escopo = !linhasTodos.length ? "Carregando todos os dados do sistema…"
+        : filtroDatas() ? `Recebidos de ${fd.de ? SkylineDash.formatDateBR(fd.de + "T12:00:00") : "início"} a ${fd.ate ? SkylineDash.formatDateBR(fd.ate + "T12:00:00") : "hoje"}`
+        : "Todos os dados do sistema";
       document.querySelectorAll(".nota-hist").forEach((el) => { el.textContent = `${escopo} · ${fmtN(F.length)} aparelho(s)`; });
       const pl = document.getElementById("periodLabel");
-      if (pl) pl.textContent = `${escopo} · api-rastreio-imei + consulta-recebimentos${filtroDatas ? "" : " · use as datas + Atualizar para filtrar"}`;
+      if (pl) pl.textContent = `${escopo} · api-rastreio-imei + consulta-recebimentos · as datas são um filtro opcional`;
+      // uma NF só no resultado filtrado → botão de histórico da NF
+      const nfsF = [...new Set(F.map((r) => String(r.x.nf ?? "").replace(/^0+/, "")).filter(Boolean))];
+      nfUnica = ativos.length && nfsF.length === 1 ? nfsF[0] : null;
+      document.getElementById("btnNfHist").hidden = !nfUnica;
       graficoTempo(calc.etapas);
       graficoQtd(calc.etapas);
       graficoStatus(F);
@@ -1329,9 +1349,9 @@
         .join("\r\n");
       const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
       const a = document.createElement("a");
-      const { start, end } = SkylineDash.getDateRange();
+      const { de: start, ate: end } = filtroData();
       a.href = URL.createObjectURL(blob);
-      a.download = nfBusca ? `fluxo-pesquisa-${String(nfBusca).replace(/[^0-9A-Za-z]+/g, "_")}.csv` : filtroDatas ? `fluxo-nf-${start}_a_${end}.csv` : "fluxo-nf-todo-historico.csv";
+      a.download = nfUnica ? `fluxo-nf-${nfUnica}.csv` : filtroDatas() ? `fluxo-nf-${start || "inicio"}_a_${end || "hoje"}.csv` : "fluxo-nf-todos-os-dados.csv";
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -1339,47 +1359,34 @@
 
     /* ───────── carga ───────── */
     async function loadData() {
-      const { start, end } = SkylineDash.getDateRange();
-      if (!start || !end) return;
-      if (start > end) {
-        setStatus("A data inicial não pode ser maior que a data final.", true);
-        return;
-      }
-      document.getElementById("periodLabel").textContent =
-        `Recebidos de ${SkylineDash.formatPeriodBR(start, end)} · api-rastreio-imei + consulta-recebimentos`;
-      setStatus("Carregando dados…");
+      setStatus(linhasTodos.length ? "Atualizando todos os dados do sistema…" : "Carregando todos os dados do sistema… (1 a 2 min)");
       try {
-        // NF corre em paralelo e não segura a tela: os aparelhos aparecem primeiro e a NF completa depois
-        const nfsPromessa = buscarNfs(start, end).then((m) => ({ ok: true, m }), (err) => ({ ok: false, err }));
-        brutos = await buscarAparelhos(start, end);
-        agora = Date.now();
-        linhas = brutos.map(montar);
-        carregado = { de: start, ate: end };
+        await carregarTodos(true, false);
+        linhas = linhasTodos;
         render();
         const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        setStatus(`${fmtN(linhas.length)} aparelho(s) carregado(s) · atualizado às ${hora} · recarga automática a cada ${AUTO_MS / 60000} min`);
-        // histórico completo (gráficos) em segundo plano, renovado a cada 10 min
-        if (!filtroDatas && !linhasTodos.length) setStatus(`${fmtN(linhas.length)} aparelho(s) de hoje · carregando todo o histórico do sistema… (1 a 2 min)`);
-        carregarTodos().then(() => {
-          render();
-          if (!filtroDatas && !nfBusca) {
-            const h = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-            setStatus(`${fmtN(linhasTodos.length)} aparelho(s) — todo o histórico do sistema · atualizado às ${h} · para filtrar, escolha as datas e clique em Atualizar`);
+        setStatus(`${fmtN(linhasTodos.length)} aparelho(s) — todos os dados do sistema · atualizado às ${hora} · recarga automática a cada ${AUTO_MS / 60000} min`);
+        // dados das NFs (fornecedor / data de entrada) do primeiro recebimento até hoje
+        const recs = linhasTodos.map((r) => r.rec).filter((t) => t != null);
+        if (recs.length) {
+          const hoje = SkylineDash.todayISO();
+          let ini = diaLocal(Math.min(...recs));
+          if (ini < addDias(hoje, -180)) ini = addDias(hoje, -180);
+          try {
+            nfMapa = await buscarNfs(ini, hoje);
+            nfAviso = "";
+          } catch (errNf) {
+            console.warn("[Fluxo NF] NF indisponível:", errNf);
+            nfAviso = nfMapa.size ? "NF: usando a última consulta" : "Consulta de NF indisponível no momento";
           }
-        }).catch((err) => console.warn("[Fluxo NF] histórico completo indisponível:", err));
-        const nfs = await nfsPromessa;
-        if (nfs.ok) { nfMapa = nfs.m; nfAviso = ""; }
-        else {
-          console.warn("[Fluxo NF] NF indisponível:", nfs.err);
-          nfAviso = nfMapa.size ? "NF: usando a última consulta" : "Consulta de NF indisponível no momento";
-        }
-        if (carregado.de === start && carregado.ate === end) {
-          linhas = brutos.map(montar);
+          agora = Date.now();
+          linhasTodos = todosCache.brutos.map(montar);
+          linhas = linhasTodos;
           render();
         }
       } catch (err) {
         console.warn("[Fluxo NF]", err);
-        if (linhas.length) setStatus(`Atualização falhou (${err.message}) — mostrando os últimos dados.`, true);
+        if (linhasTodos.length) setStatus(`Atualização falhou (${err.message}) — mostrando os últimos dados.`, true);
         else setStatus(`Erro ao carregar: ${err.message}`, true);
       }
     }
@@ -1444,7 +1451,7 @@
 
     /** Histórico completo da NF: aparelhos + todas as movimentações em ordem de horário. */
     function abrirNf(num) {
-      const rows = linhasNf;
+      const rows = (linhasNf.length ? linhasNf : linhasTodos).filter((r) => String(r.x.nf ?? "").replace(/^0+/, "") === String(num));
       if (!rows.length) return;
       imeiAberto = null;
       const forn = [...new Set(rows.map((r) => r.fornecedorNome))].join(", ");
@@ -1472,35 +1479,35 @@
       document.getElementById("modal").hidden = false;
     }
 
-    function aoMudarPeriodo() {
-      filtroDatas = true; // o usuário escolheu filtrar por data
-      // filtrou por data: a pesquisa digitada passa a valer só dentro do período escolhido
-      if (nfBusca) { nfBusca = null; nfUnica = null; linhasNf = []; }
-      const { start, end } = SkylineDash.getDateRange();
-      if (!carregado || carregado.de !== start || carregado.ate !== end) loadData();
-      else render();
-    }
-
     FILTROS.forEach((f) => document.getElementById(f.id).addEventListener("change", render));
     let tImei = null, tBusca = null;
-    // digitou: traz tudo que bate com o texto em todo o histórico (sem limite de data)
-    document.getElementById("fImei").addEventListener("input", () => {
-      clearTimeout(tImei);
-      const v = document.getElementById("fImei").value.trim();
-      if (!v) { if (nfBusca) limparPesquisaNf(); else render(); return; }
-      tImei = setTimeout(() => (v.length >= 3 ? pesquisarNf(v) : render()), 600);
-    });
+    // digitou: filtra em todos os dados do sistema (respeita as datas, se preenchidas)
+    document.getElementById("fImei").addEventListener("input", () => { clearTimeout(tImei); tImei = setTimeout(render, 300); });
     document.getElementById("busca").addEventListener("input", () => {
       clearTimeout(tBusca);
       tBusca = setTimeout(() => tabelaAparelhos(base().filter((r) => passa(r))), 200);
     });
     const campoNf = document.getElementById("fImei");
-    campoNf.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); clearTimeout(tImei); pesquisarNf(campoNf.value); } });
+    campoNf.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); clearTimeout(tImei); render(); } });
     document.getElementById("btnNfHist").addEventListener("click", () => { if (nfUnica) abrirNf(nfUnica); });
+    ["dateStart", "dateEnd"].forEach((id) => document.getElementById(id).addEventListener("change", () => {
+      const { de, ate } = filtroData();
+      if (de && ate && de > ate) { setStatus("A data inicial não pode ser maior que a data final.", true); return; }
+      render();
+    }));
+    document.getElementById("btnToday").addEventListener("click", () => {
+      const hoje = SkylineDash.todayISO();
+      document.getElementById("dateStart").value = hoje;
+      document.getElementById("dateEnd").value = hoje;
+      render();
+    });
+    document.getElementById("btnReload").addEventListener("click", () => { todosCache = null; loadData(); });
     document.getElementById("btnLimpar").addEventListener("click", () => {
       FILTROS.forEach((f) => { document.getElementById(f.id).value = ""; });
       document.getElementById("fImei").value = "";
       document.getElementById("busca").value = "";
+      document.getElementById("dateStart").value = "";
+      document.getElementById("dateEnd").value = "";
       if (nfBusca) { limparPesquisaNf(); return; }
       render();
     });
@@ -1510,13 +1517,6 @@
       const alvo = sel.value === NOME_ETAPA.carregamento ? "" : NOME_ETAPA.carregamento;
       if (alvo && ![...sel.options].some((op) => op.value === alvo)) sel.add(new Option(alvo, alvo));
       sel.value = alvo;
-      render();
-    });
-    document.getElementById("btnTudo").addEventListener("click", () => {
-      filtroDatas = false;
-      if (nfBusca) { nfBusca = null; nfUnica = null; linhasNf = []; }
-      if (!linhasTodos.length) setStatus("Carregando todo o histórico… (1 a 2 min na primeira vez)");
-      carregarTodos().then(() => render()).catch((err) => setStatus(`Histórico indisponível: ${err.message}`, true));
       render();
     });
     document.querySelectorAll(".consolidado .aba").forEach((btn) => btn.addEventListener("click", () => {
@@ -1547,7 +1547,9 @@
     document.getElementById("modal").addEventListener("click", (ev) => { if (ev.target.id === "modal") fecharModal(); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharModal(); });
 
-    SkylineDash.bindDateFilters({ onChange: aoMudarPeriodo, onReload: loadData, autoRefreshMs: AUTO_MS });
+    // carga inicial = todos os dados do sistema (sem filtro de data) e recarga automática
+    loadData();
+    setInterval(() => { if (!document.hidden) loadData(); }, AUTO_MS);
   </script>
 </body>
 </html>
