@@ -1464,8 +1464,8 @@
       });
     }
 
-    // atualização automática a cada 1 min, sempre com dados novos da API
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 60000 });
+    // atualização automática a cada 5 min, sempre com dados novos da API
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 300000 });
 
     if (DEBUG_MODE) {
       document.getElementById("dbgCopy")?.addEventListener("click", async () => {
@@ -1492,6 +1492,24 @@
         if (allRows.length) renderDashboard();
       }, 60 * 1000);
     }
+
+    /* Mantém a tela da TV acesa enquanto o dashboard estiver aberto (Screen Wake Lock — Chrome/Edge/Smart TVs com suporte).
+       Não impede o "desligamento automático" da própria TV: esse precisa ser desativado no menu da TV. */
+    (function manterTelaAcesa() {
+      let lock = null;
+      async function pedir() {
+        try {
+          if ("wakeLock" in navigator && document.visibilityState === "visible" && !lock) {
+            lock = await navigator.wakeLock.request("screen");
+            lock.addEventListener("release", () => { lock = null; });
+          }
+        } catch (_) { /* navegador sem suporte ou sem permissão */ }
+      }
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pedir(); });
+      ["click", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, pedir, { passive: true }));
+      pedir();
+      setInterval(pedir, 60000);
+    })();
   </script>
 </body>
 </html>

@@ -1360,7 +1360,7 @@
       }
 
       try {
-        const json = await SkylineDash.fetchWebhook(API_URL);
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { force: true }); // dados novos a cada atualização
         if (seq !== loadSeq) return;
         const first = ingestPayload(json);
         let rawAll = first.rawList.slice();
@@ -1384,7 +1384,7 @@
 
         // Catálogo completo de peças (1 OS pode ter N itens; reparo só traz o último).
         try {
-          const pecasJson = await SkylineDash.fetchWebhook(API_PECAS);
+          const pecasJson = await SkylineDash.fetchWebhook(API_PECAS, undefined, { force: true });
           if (seq !== loadSeq) return;
           rows = expandRowsWithPecasCatalog(rows, pecasJson);
         } catch (_) { /* mantém linhas do reparo */ }
@@ -1430,7 +1430,8 @@
     });
 
     restoreSession();
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    // atualização automática a cada 5 min, sempre com dados novos da API
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 300000 });
 
     if (DEBUG_MODE) {
       document.getElementById("dbgCopy")?.addEventListener("click", async () => {
@@ -1457,6 +1458,24 @@
         renderDashboard();
       }, 60 * 1000);
     }
+
+    /* Mantém a tela da TV acesa enquanto o dashboard estiver aberto (Screen Wake Lock — Chrome/Edge/Smart TVs com suporte).
+       Não impede o "desligamento automático" da própria TV: esse precisa ser desativado no menu da TV. */
+    (function manterTelaAcesa() {
+      let lock = null;
+      async function pedir() {
+        try {
+          if ("wakeLock" in navigator && document.visibilityState === "visible" && !lock) {
+            lock = await navigator.wakeLock.request("screen");
+            lock.addEventListener("release", () => { lock = null; });
+          }
+        } catch (_) { /* navegador sem suporte ou sem permissão */ }
+      }
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pedir(); });
+      ["click", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, pedir, { passive: true }));
+      pedir();
+      setInterval(pedir, 60000);
+    })();
   </script>
 </body>
 </html>

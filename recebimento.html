@@ -997,8 +997,8 @@
     }
 
     applyHomologUi();
-    // atualização automática a cada 1 min (a busca do mês leva ~10 s; 30 s sobrepunha as cargas)
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 60000 });
+    // atualização automática a cada 5 min (a busca do mês leva ~10 s)
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 300000 });
 
     // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
     if (APPLY_MASK) {
@@ -1006,6 +1006,24 @@
         if (allRows.length) renderDashboard();
       }, 60 * 1000);
     }
+
+    /* Mantém a tela da TV acesa enquanto o dashboard estiver aberto (Screen Wake Lock — Chrome/Edge/Smart TVs com suporte).
+       Não impede o "desligamento automático" da própria TV: esse precisa ser desativado no menu da TV. */
+    (function manterTelaAcesa() {
+      let lock = null;
+      async function pedir() {
+        try {
+          if ("wakeLock" in navigator && document.visibilityState === "visible" && !lock) {
+            lock = await navigator.wakeLock.request("screen");
+            lock.addEventListener("release", () => { lock = null; });
+          }
+        } catch (_) { /* navegador sem suporte ou sem permissão */ }
+      }
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pedir(); });
+      ["click", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, pedir, { passive: true }));
+      pedir();
+      setInterval(pedir, 60000);
+    })();
   </script>
 </body>
 </html>
