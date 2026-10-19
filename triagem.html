@@ -1383,7 +1383,8 @@
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await SkylineDash.fetchWebhook(API_URL);
+        // force: busca sempre na API (sem o cache de 10 min do relatório de reparo) — triagem ao vivo
+        const json = await SkylineDash.fetchWebhook(API_URL, undefined, { force: true });
         const novos = SkylineDash.normalizeRows(json);
         if (!novos.length && allRows.length) throw new Error("API devolveu lista vazia");
         lastRawPayload = novos;
@@ -1463,7 +1464,8 @@
       });
     }
 
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    // atualização automática a cada 1 min, sempre com dados novos da API
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 60000 });
 
     if (DEBUG_MODE) {
       document.getElementById("dbgCopy")?.addEventListener("click", async () => {
