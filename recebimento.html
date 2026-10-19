@@ -877,12 +877,18 @@
       return mapa;
     }
 
+    /** API de movimentações fora do ar: não tenta de novo por 10 min (evita esperar a cada recarga). */
+    let movForaAte = 0;
     async function loadBipagens(need) {
-      const [entradas, descPorImei, marcaSku] = await Promise.all([
-        fetchEntradas(need.de, need.ate),
-        marcasPorImei(),
-        marcasPorSkuNF(need.de, need.ate)
-      ]);
+      if (Date.now() < movForaAte) throw new Error("movimentações indisponível (aguardando nova tentativa)");
+      let entradas;
+      try {
+        entradas = await fetchEntradas(need.de, need.ate);
+      } catch (err) {
+        movForaAte = Date.now() + 600000;
+        throw err;
+      }
+      const [descPorImei, marcaSku] = await Promise.all([marcasPorImei(), marcasPorSkuNF(need.de, need.ate)]);
       const vistos = new Set();
       const rows = [];
       entradas.forEach((m) => {
@@ -915,8 +921,14 @@
       return { rows, total: entradas.length };
     }
 
+    let carregando = false;
+    let recarregarDepois = false;
     async function loadData() {
-      SkylineDash.showStatus(statusEl, "Carregando dados…", false);
+      // não empilha cargas: se a anterior ainda não terminou, recarrega assim que ela acabar
+      if (carregando) { recarregarDepois = true; return; }
+      carregando = true;
+      // recarga com dados já na tela: atualiza em segundo plano, sem trocar a tela por "Carregando…"
+      if (!allRows.length) SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         const need = neededRange();
         try {
@@ -978,11 +990,15 @@
         });
         Object.keys(charts).forEach(destroyChart);
         renderHeatmap([]);
+      } finally {
+        carregando = false;
+        if (recarregarDepois) { recarregarDepois = false; setTimeout(loadData, 0); }
       }
     }
 
     applyHomologUi();
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    // atualização automática a cada 1 min (a busca do mês leva ~10 s; 30 s sobrepunha as cargas)
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 60000 });
 
     // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
     if (APPLY_MASK) {
