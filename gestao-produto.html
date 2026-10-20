@@ -9,9 +9,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=89"></script>
+  <script src="skyline-dash.js?v=90"></script>
   <script src="skyline-chaves.js?v=3"></script>
-  <script src="skyline-rastreio.js?v=5"></script>
+  <script src="skyline-rastreio.js?v=6"></script>
   <style>
     :root {
       --gp-page: #694992;
@@ -1319,9 +1319,31 @@
      * (evento GESTAO_PECAS/SOLICITAR) com a data/hora do próprio pedido, inclusive as peças
      * pedidas de novo no retorno do técnico. O relatorio-reparo só guarda 1 pedido por aparelho.
      */
+    const gpAtualizados = new Map(); // aparelho → data do pedido já atualizada no cache
     async function carregarPedidosRastreio() {
       if (typeof SkylineRastreio === "undefined") throw new Error("skyline-rastreio.js não carregado");
-      const itens = await SkylineRastreio.todos({ eventos: true });
+      let itens = await SkylineRastreio.todos({ eventos: true }); // carga completa: no máximo 1x a cada 30 min
+      // Entre as cargas completas: atualiza só os aparelhos com pedido de peça novo (pelo relatório de reparo)
+      try {
+        const desde = (await SkylineRastreio.cacheEm()) || Date.now();
+        const rep = SkylineDash.normalizeRows(await SkylineDash.fetchWebhook(API_URL, undefined, { force: true }));
+        const ids = [];
+        rep.forEach((raw) => {
+          const dp = raw?.DATA_PEDIDO_SANKHYA;
+          if (!dp || new Date(dp).getTime() < desde - 10 * 60000) return;
+          const s = String(raw.serial ?? "").trim();
+          const id = /^\d{14,16}$/.test(s) ? `imei:${s}` : (raw.hu ? `os:${String(raw.hu).trim()}` : null);
+          if (!id || gpAtualizados.get(id) === String(dp)) return;
+          gpAtualizados.set(id, String(dp));
+          ids.push(id);
+        });
+        if (ids.length) {
+          await SkylineRastreio.atualizarAparelhos(ids, { max: 12 });
+          itens = await SkylineRastreio.todos({ eventos: true });
+        }
+      } catch (errInc) {
+        console.warn("[Gestão] atualização dos pedidos novos falhou:", errInc?.message || errInc);
+      }
       return SkylineRastreio.pedidosDePeca(itens).map((p) => ({
         id: p.id,
         nr: p.nr,

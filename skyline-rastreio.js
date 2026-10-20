@@ -123,6 +123,51 @@ const SkylineRastreio = {
     }
   },
 
+  /** Momento da última carga completa em cache (ms) — null se não tem. */
+  async cacheEm({ eventos = true, extra = {} } = {}) {
+    const k = `${eventos ? "ev" : "sem"}|${JSON.stringify(extra)}`;
+    const reg = this._mem[k] || (await this._idbGet(k));
+    return reg && reg.at ? reg.at : null;
+  },
+
+  /**
+   * Atualiza no cache só os aparelhos indicados (1 chamada por IMEI/OS, com pausa entre elas),
+   * sem baixar o rastreio inteiro. ids = ["imei:350...", "os:OS000123"]. Devolve quantos atualizou.
+   */
+  async atualizarAparelhos(ids, { max = 12, intervaloMs = 2500 } = {}) {
+    const k = `ev|${JSON.stringify({})}`;
+    const reg = this._mem[k] || (await this._idbGet(k));
+    if (!reg || !Array.isArray(reg.itens) || !ids?.length) return 0;
+    const key = await this.chave();
+    if (!key) return 0;
+    const idx = new Map(reg.itens.map((x, i) => [String(x.imei || x.os), i]));
+    let n = 0;
+    for (const id of [...new Set(ids)].slice(0, max)) {
+      const p = id.indexOf(":");
+      const tipo = id.slice(0, p), valor = id.slice(p + 1);
+      if (!valor) continue;
+      let j;
+      try {
+        const res = await fetch(`${this.API}?${new URLSearchParams({ [tipo]: valor, limite: "5" })}`, { cache: "no-store", headers: { "x-api-key": key } });
+        if (res.status === 429) break;
+        if (!res.ok) { await new Promise((r) => setTimeout(r, intervaloMs)); continue; }
+        j = await res.json();
+      } catch (_) { break; }
+      const itens = Array.isArray(j?.itens) ? j.itens : [];
+      const x = itens.find((a) => String(a.imei) === valor || String(a.os) === valor) || itens[0];
+      if (x) {
+        const chave = String(x.imei || x.os);
+        if (idx.has(chave)) reg.itens[idx.get(chave)] = x;
+        else { idx.set(chave, reg.itens.length); reg.itens.push(x); }
+        n++;
+      }
+      await new Promise((r) => setTimeout(r, intervaloMs));
+    }
+    this._mem[k] = reg;
+    this._idbSet(k, reg);
+    return n;
+  },
+
   _eventos(x) {
     return (x.eventos || []).filter((e) => e && e.data).sort((a, b) => String(a.data).localeCompare(String(b.data)));
   },

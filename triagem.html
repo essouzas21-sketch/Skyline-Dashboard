@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=89"></script>
+  <script src="skyline-dash.js?v=90"></script>
   <style>
     :root {
       --tr-page: #694992;
@@ -1382,82 +1382,107 @@
 
     /**
      * Quem fez a triagem: o relatório de reparo do sistema novo não traz "Usuário triagem".
-     * Busca no rastreio do WMS (api-rastreio-imei, eventos TRIAGEM) o usuário da
-     * FINALIZAÇÃO (ou do INÍCIO) por IMEI e por OS. Cache de 9 min (limite da API: 30/min).
+     * Busca no rastreio do WMS (api-rastreio-imei) SÓ os aparelhos triados no período, um por vez
+     * (por IMEI/OS, no máximo ~24 por minuto — limite da API: 30/min), e guarda no navegador
+     * quem triou cada aparelho (só busca de novo se a data da triagem mudar). Nada de baixar o rastreio inteiro.
      */
     const API_RASTREIO_WMS = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei";
-    let triagemWmsCache = null, triagemWmsEm = 0, triagemWmsPromise = null;
-    async function usuariosTriagemWms() {
-      if (triagemWmsCache && Date.now() - triagemWmsEm < 540000) return triagemWmsCache;
-      if (triagemWmsPromise) return triagemWmsPromise;
-      triagemWmsPromise = (async () => {
+    const TRI_CACHE_KEY = "skyline_triagem_usuarios_v1";
+    let triCache = {};
+    try { triCache = JSON.parse(localStorage.getItem(TRI_CACHE_KEY) || "{}") || {}; } catch (_) { triCache = {}; }
+    function salvarTriCache() {
+      try {
+        const ent = Object.entries(triCache);
+        if (ent.length > 4000) triCache = Object.fromEntries(ent.slice(-3000));
+        localStorage.setItem(TRI_CACHE_KEY, JSON.stringify(triCache));
+      } catch (_) { /* sem espaço */ }
+    }
+    const chaveTri = (raw) => {
+      const s = String(raw?.serial ?? "").trim();
+      return /^\d{14,16}$/.test(s) ? `imei:${s}` : (String(raw?.hu ?? "").trim() ? `os:${String(raw.hu).trim()}` : null);
+    };
+    function aplicarUsuariosTriagem(lista) {
+      (lista || []).forEach((raw) => {
+        if (!raw || raw["Usuário triagem"]) return;
+        const k = chaveTri(raw);
+        const c = k && triCache[k];
+        if (c && c.u && c.t === String(raw["Data Triagem"] || "")) raw["Usuário triagem"] = c.u;
+      });
+    }
+    function usuarioTriagemDoAparelho(ap) {
+      let fim = null, ini = null;
+      (ap?.eventos || []).forEach((e) => {
+        if (String(e?.etapa || "").toUpperCase() !== "TRIAGEM" || !e.usuario) return;
+        const ev = String(e.evento || "").toUpperCase();
+        if (ev === "FINALIZACAO" && (!fim || String(e.data) > String(fim.data))) fim = e;
+        if (ev === "INICIO" && (!ini || String(e.data) > String(ini.data))) ini = e;
+      });
+      return (fim || ini)?.usuario || null;
+    }
+    let triBuscando = false;
+    async function completarUsuariosTriagem() {
+      if (triBuscando || SkylineDash.useHomologData()) return;
+      triBuscando = true;
+      try {
         try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* chaves */ }
         const key = window.SKYLINE_MOVIMENTACAO_API_KEY;
-        if (!key) throw new Error("chave do WMS ausente");
-        const LIM = 500;
-        const pagina = async (off) => {
-          let erro = null;
-          for (let tentativa = 0; tentativa < 3; tentativa++) {
-            try {
-              const res = await fetch(`${API_RASTREIO_WMS}?limite=${LIM}&offset=${off}`, { cache: "no-store", headers: { "x-api-key": key } });
-              if (res.ok) return res.json();
-              erro = new Error(`rastreio HTTP ${res.status}`);
-            } catch (e) { erro = e; }
-            await new Promise((r) => setTimeout(r, 2500 * (tentativa + 1)));
+        if (!key) return;
+        const range = SkylineDash.getDateRange ? SkylineDash.getDateRange() : {};
+        const hoje = SkylineDash.todayISO();
+        const ini = range.start || hoje, fim = range.end || hoje;
+        const agora = Date.now();
+        const pend = (lastRawPayload || []).filter((raw) => {
+          const dt = raw?.["Data Triagem"];
+          if (!dt || raw["Usuário triagem"]) return false;
+          const dia = SkylineDash.toLocalDateStr(dt);
+          if (dia < ini || dia > fim) return false;
+          const k = chaveTri(raw);
+          if (!k) return false;
+          const c = triCache[k];
+          if (c && c.t === String(dt) && (c.u || agora - (c.em || 0) < 30 * 60000)) return false;
+          return true;
+        }).sort((x, y) => String(y["Data Triagem"]).localeCompare(String(x["Data Triagem"])));
+        let achou = 0;
+        for (const raw of pend.slice(0, 12)) {
+          const k = chaveTri(raw);
+          const [tipo, valor] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)];
+          let res;
+          try {
+            res = await fetch(`${API_RASTREIO_WMS}?${new URLSearchParams({ [tipo]: valor, limite: "5" })}`, { cache: "no-store", headers: { "x-api-key": key } });
+          } catch (_) { break; }
+          if (res.status === 429) { await new Promise((r) => setTimeout(r, 60000)); break; }
+          if (res.ok) {
+            const j = await res.json();
+            const itens = Array.isArray(j?.itens) ? j.itens : [];
+            const ap = itens.find((x) => String(x.imei) === valor || String(x.os) === valor) || itens[0];
+            const u = usuarioTriagemDoAparelho(ap);
+            triCache[k] = { u, t: String(raw["Data Triagem"]), em: Date.now() };
+            if (u) { raw["Usuário triagem"] = u; achou++; }
           }
-          throw erro;
-        };
-        const mapa = new Map();
-        const ler = (j) => (Array.isArray(j?.itens) ? j.itens : []).forEach((ap) => {
-          let fim = null, ini = null;
-          (ap.eventos || []).forEach((e) => {
-            if (String(e?.etapa || "").toUpperCase() !== "TRIAGEM" || !e.usuario) return;
-            const ev = String(e.evento || "").toUpperCase();
-            if (ev === "FINALIZACAO" && (!fim || String(e.data) > String(fim.data))) fim = e;
-            if (ev === "INICIO" && (!ini || String(e.data) > String(ini.data))) ini = e;
-          });
-          const u = (fim || ini)?.usuario;
-          if (!u) return;
-          const imei = String(ap.imei ?? "").trim(), os = String(ap.os ?? "").trim();
-          if (imei) mapa.set(imei, u);
-          if (os) mapa.set("os:" + os, u);
-        });
-        const p1 = await pagina(0);
-        ler(p1);
-        const total = Number(p1?.total) || 0;
-        const offs = [];
-        for (let off = LIM; off < total && offs.length < 40; off += LIM) offs.push(off);
-        for (let i = 0; i < offs.length; i += 2) {
-          const lote = await Promise.all(offs.slice(i, i + 2).map(pagina));
-          lote.forEach(ler);
+          await new Promise((r) => setTimeout(r, 2500));
         }
-        triagemWmsCache = mapa; triagemWmsEm = Date.now();
-        return mapa;
-      })().finally(() => { triagemWmsPromise = null; });
-      return triagemWmsPromise;
+        salvarTriCache();
+        if (achou) redesenharTriagem();
+        if (pend.length > 12) setTimeout(completarUsuariosTriagem, 5000);
+      } finally {
+        triBuscando = false;
+      }
+    }
+    function redesenharTriagem() {
+      allRows = (lastRawPayload || [])
+        .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, { requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO }))
+        .map(mapRow)
+        .filter((r) => r.data_triagem);
+      try { renderDashboard(); } catch (e) { console.error("[Triagem] erro ao redesenhar:", e); }
     }
 
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
         // force: busca sempre na API (sem o cache de 10 min do relatório de reparo) — triagem ao vivo
-        // Usuário da triagem (WMS): usa o mapa já carregado; a 1ª carga roda em segundo plano e redesenha ao terminar
-        const avisoWms = (e) => console.warn("[Triagem] usuário da triagem via WMS indisponível:", e?.message || e);
-        if (!triagemWmsCache) {
-          // 1ª carga: espera saber quem triou cada aparelho antes de desenhar (não mostra nome errado)
-          SkylineDash.showStatus(statusEl, "Carregando quem fez cada triagem (WMS)…", false);
-          await usuariosTriagemWms().catch(avisoWms);
-        } else if (Date.now() - triagemWmsEm >= 540000) {
-          usuariosTriagemWms().catch(avisoWms); // atualiza em segundo plano
-        }
         const json = await SkylineDash.fetchWebhook(API_URL, undefined, { force: true });
         const novos = SkylineDash.normalizeRows(json);
-        const usuariosWms = triagemWmsCache;
-        if (usuariosWms) novos.forEach((raw) => {
-          if (!raw || raw["Usuário triagem"]) return;
-          const u = usuariosWms.get(String(raw.serial ?? "").trim()) || usuariosWms.get("os:" + String(raw.hu ?? "").trim());
-          if (u) raw["Usuário triagem"] = u;
-        });
+        aplicarUsuariosTriagem(novos); // quem triou (guardado no navegador)
         if (!novos.length && allRows.length) throw new Error("API devolveu lista vazia");
         lastRawPayload = novos;
         marcaPorSku.clear();
@@ -1483,6 +1508,7 @@
           renderDebugPanel(buildTriagemDebugReport(lastRawPayload, allRows));
         }
         SkylineDash.showStatus(statusEl, `${allRows.length} registro(s) carregado(s).`, false);
+        setTimeout(completarUsuariosTriagem, 1000); // busca no WMS só quem ainda falta (poucos por vez)
       } catch (err) {
         console.warn("[Triagem] falha ao atualizar:", err);
         // Já tinha dados: NÃO zera a tela (TV). Mantém os últimos números e tenta de novo em 1 min.
