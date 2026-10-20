@@ -12,7 +12,7 @@ const SkylineRastreio = {
   PAGE: 500,
   PARALELO: 2,
   TIMEOUT_MS: 60000,
-  CACHE_MS: 5 * 60 * 1000,
+  CACHE_MS: 4 * 60 * 1000,
   _mem: {},
   _inflight: {},
 

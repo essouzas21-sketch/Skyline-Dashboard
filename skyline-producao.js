@@ -527,7 +527,7 @@ const ProducaoDash = {
   MOV_LIMITE: 5000,
   MOV_MAX_PAGINAS: 120,
   MOV_MAX_DIAS: 93,
-  MOV_CACHE_MS: 300000,
+  MOV_CACHE_MS: 240000,
   _movCache: {},
 
   prodDoEndereco(endereco) {

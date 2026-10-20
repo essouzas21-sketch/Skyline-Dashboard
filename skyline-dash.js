@@ -58,10 +58,10 @@ const SkylineDash = {
   FETCH_CACHE_TTL_MS: 60000,
 
   /** Cache persistente (IndexedDB) — evita baixar ~14 MB de reparo a cada refresh. */
-  FETCH_IDB_TTL_MS: 600000,
+  FETCH_IDB_TTL_MS: 240000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "68",
+  CACHE_VERSION: "69",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
@@ -1088,7 +1088,7 @@ const SkylineDash = {
     }, 60000);
   },
 
-  startAutoRefresh(fn, intervalMs = 30000) {
+  startAutoRefresh(fn, intervalMs = 300000) {
     this.stopAutoRefresh();
     if (!fn || intervalMs <= 0) return;
 
@@ -1139,7 +1139,7 @@ const SkylineDash = {
     }
   },
 
-  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 30000 }) {
+  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 300000 }) {
     const startEl = document.getElementById("dateStart");
     const endEl = document.getElementById("dateEnd");
     const today = this.todayISO();
