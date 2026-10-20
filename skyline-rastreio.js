@@ -8,9 +8,9 @@
  * Os dados ficam em memória e no IndexedDB por CACHE_MS, compartilhados entre as telas.
  */
 const SkylineRastreio = {
-  API: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei",
-  PAGE: 200,
-  PARALELO: 3,
+  API: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei",
+  PAGE: 500,
+  PARALELO: 2,
   TIMEOUT_MS: 60000,
   CACHE_MS: 5 * 60 * 1000,
   _mem: {},

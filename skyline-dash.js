@@ -3,12 +3,12 @@
  */
 const SkylineDash = {
   /** Reparo / triagem / gestão / CQE / produção (campos id, Iniciado_Reparo, decisao…) */
-  API_REPARO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/relatorio-reparo",
+  API_REPARO: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/relatorio-reparo",
   /**
    * Recebimento — função Supabase consulta-recebimentos (GET ?de=AAAA-MM-DD&ate=AAAA-MM-DD&pagina=N).
    * Exige a chave no cabeçalho x-api-key; a chave fica em skyline-chaves.js (fora do Git).
    */
-  API_RECEBIMENTO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/consulta-recebimentos",
+  API_RECEBIMENTO: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/consulta-recebimentos",
   /** Webhook antigo do n8n (parou de atualizar) — mantido só como referência. */
   API_RECEBIMENTO_LEGADO: "https://automacao.skylinemobile.com.br/webhook/f16be280-a545-440c-80f4-9481b1dd06f6",
   /** Quando a tela não informa o período, busca os últimos N dias. */
@@ -61,7 +61,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 600000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "66",
+  CACHE_VERSION: "68",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,

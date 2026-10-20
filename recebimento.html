@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-dash.js?v=84"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -731,7 +731,7 @@
      * Marca: descrição do aparelho na API de reparo (pelo IMEI); se não achar, marca do SKU na NF.
      * Se a API de movimentações não responder, a tela volta para a regra antiga (NF).
      */
-    const API_MOV = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-movimentacao-enderecos";
+    const API_MOV = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-movimentacao-enderecos";
     let fonteDados = "bipagem";
     const MARCAS_CONHECIDAS = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "ASUS", "NOKIA", "REALME", "OPPO", "HUAWEI", "LENOVO", "MULTILASER", "POSITIVO", "INFINIX", "TECNO", "ONEPLUS", "GOOGLE", "SONY", "TCL", "ALCATEL", "ZTE", "HONOR", "VIVO"];
     function marcaDoTexto(texto) {
@@ -755,7 +755,7 @@
       if (!key) throw new Error("chave da API de movimentações ausente");
       const out = [];
       for (let off = 0, i = 0; i < 100; i++) {
-        const qs = new URLSearchParams({ de, ate, endereco: "RECEBIMENTO", limite: "1000", offset: String(off) });
+        const qs = new URLSearchParams({ de, ate, endereco: "RECEBIMENTO", limite: "5000", offset: String(off) });
         const res = await fetch(`${API_MOV}?${qs}`, { cache: "no-store", headers: { "x-api-key": key } });
         if (!res.ok) throw new Error(`movimentações HTTP ${res.status}`);
         const j = await res.json();
@@ -765,13 +765,13 @@
           const destino = String(m?.destino?.endereco ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
           if (destino === "RECEBIMENTO") out.push(m);
         });
-        if (!j.proximo_offset || itens.length < 1000) break;
+        if (!j.proximo_offset || itens.length < 5000) break;
         off = j.proximo_offset;
       }
       return out;
     }
 
-    const API_RASTREIO = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const API_RASTREIO = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei";
 
     /** GET com tempo limite e até 3 tentativas (a API às vezes devolve 500/503 sob carga). */
     async function getJsonApi(url, key) {
@@ -804,15 +804,15 @@
       }
       const key = window.SKYLINE_MOVIMENTACAO_API_KEY;
       if (!key) throw new Error("chave da api-rastreio-imei ausente");
-      const PAGE = 200;
+      const PAGE = 500;
       const url = (off) => `${API_RASTREIO}?${new URLSearchParams({ de: need.de, ate: need.ate, limite: String(PAGE), offset: String(off) })}`;
       const primeira = await getJsonApi(url(0), key);
       const total = Number(primeira.total) || (primeira.itens || []).length;
       const itens = [...(primeira.itens || [])];
       const offsets = [];
       for (let off = PAGE; off < total; off += PAGE) offsets.push(off);
-      for (let i = 0; i < offsets.length; i += 3) {
-        const lote = await Promise.all(offsets.slice(i, i + 3).map((off) => getJsonApi(url(off), key)));
+      for (let i = 0; i < offsets.length; i += 2) {
+        const lote = await Promise.all(offsets.slice(i, i + 2).map((off) => getJsonApi(url(off), key)));
         lote.forEach((j) => itens.push(...(j.itens || [])));
       }
       const vistos = new Set();

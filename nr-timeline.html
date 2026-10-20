@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-dash.js?v=84"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -3697,7 +3697,7 @@
 
     /* ───── Fonte reserva: api-rastreio-imei (quando consulta-recebimentos está fora) ─────
        NR = número da NF de entrada (o relatorio-reparo usa o mesmo número no campo NR). */
-    const API_RASTREIO = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const API_RASTREIO = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei";
     const RASTREIO_CACHE_MS = 10 * 60 * 1000;
     let rastreioCache = null; // { at, itens }
 
@@ -3729,14 +3729,14 @@
     }
 
     async function rastreioTudo(key, extra = {}) {
-      const base = { limite: "200", ...extra };
+      const base = { limite: "500", ...extra };
       const primeira = await rastreioPagina(key, { ...base, offset: "0" });
       const total = Number(primeira.total) || (primeira.itens || []).length;
       const itens = [...(primeira.itens || [])];
       const offs = [];
-      for (let o = 200; o < total; o += 200) offs.push(o);
-      for (let i = 0; i < offs.length; i += 4) {
-        const lote = await Promise.all(offs.slice(i, i + 4).map((o) => rastreioPagina(key, { ...base, offset: String(o) })));
+      for (let o = 500; o < total; o += 500) offs.push(o);
+      for (let i = 0; i < offs.length; i += 2) {
+        const lote = await Promise.all(offs.slice(i, i + 2).map((o) => rastreioPagina(key, { ...base, offset: String(o) })));
         lote.forEach((j) => itens.push(...(j.itens || [])));
       }
       return itens;

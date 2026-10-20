@@ -285,7 +285,7 @@
     <h1>Imprimir Recebimento</h1>
 
     <div class="row">
-      <input id="endpoint" type="text" value="https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei" />
+      <input id="endpoint" type="text" value="https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei" />
       <button id="btnLoadData" type="button">Atualizar dados</button>
     </div>
 
@@ -351,15 +351,15 @@
   </div>
 
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=82"></script>
+  <script src="skyline-dash.js?v=84"></script>
   <script src="skyline-chaves.js?v=3"></script>
-  <script src="skyline-rastreio.js?v=1"></script>
+  <script src="skyline-rastreio.js?v=3"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script>
   (function () {
     "use strict";
 
-    const ENDPOINT_DEFAULT = "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei";
+    const ENDPOINT_DEFAULT = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei";
 
     const state = { rows: [], current: null, loading: false };
     let loadPromise = null;

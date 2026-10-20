@@ -523,8 +523,8 @@ const ProducaoDash = {
    * Só o endereço exato conta — "PROD12 PRONTO" é a caixa de pronto, não recebimento.
    * Sem chave, erro ou nenhuma alocação PROD no período → regra anterior (Iniciado_Reparo).
    */
-  API_MOV_ENDERECOS: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-movimentacao-enderecos",
-  MOV_LIMITE: 1000,
+  API_MOV_ENDERECOS: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-movimentacao-enderecos",
+  MOV_LIMITE: 5000,
   MOV_MAX_PAGINAS: 120,
   MOV_MAX_DIAS: 93,
   MOV_CACHE_MS: 300000,
@@ -650,7 +650,7 @@ const ProducaoDash = {
    * movimentações ({ imei, os, data, destino:{endereco} }).
    * Resultado compacto fica em localStorage por MOV_CACHE_MS e é compartilhado entre as telas de produção.
    */
-  API_RASTREIO: "https://lsinwtsolmmnnnuoziuv.supabase.co/functions/v1/api-rastreio-imei",
+  API_RASTREIO: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei",
   RASTREIO_CACHE_KEY: "skyline_prod_endereco_atual_v3",
   _rastreioPromise: null,
 
@@ -660,7 +660,7 @@ const ProducaoDash = {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 60000);
       try {
-        const qs = new URLSearchParams({ limite: "200", offset: String(offset) });
+        const qs = new URLSearchParams({ limite: "500", offset: String(offset) });
         const res = await fetch(`${this.API_RASTREIO}?${qs}`, { cache: "no-store", headers: { "x-api-key": key }, signal: ctrl.signal });
         if (!res.ok) throw new Error(`api-rastreio-imei HTTP ${res.status}`);
         return await res.json();
@@ -685,9 +685,9 @@ const ProducaoDash = {
       const total = Number(primeira.total) || (primeira.itens || []).length;
       const itens = [...(primeira.itens || [])];
       const offs = [];
-      for (let o = 200; o < total; o += 200) offs.push(o);
-      for (let i = 0; i < offs.length; i += 3) {
-        const lote = await Promise.all(offs.slice(i, i + 3).map((o) => this._rastreioPagina(key, o)));
+      for (let o = 500; o < total; o += 500) offs.push(o);
+      for (let i = 0; i < offs.length; i += 2) {
+        const lote = await Promise.all(offs.slice(i, i + 2).map((o) => this._rastreioPagina(key, o)));
         lote.forEach((j) => itens.push(...(j.itens || [])));
       }
       const fim = (txt) => String(txt || "").split("/").pop().trim();
