@@ -10,9 +10,9 @@
 const SkylineRastreio = {
   API: "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei",
   PAGE: 500,
-  PARALELO: 2,
+  PARALELO: 1,
   TIMEOUT_MS: 60000,
-  CACHE_MS: 4 * 60 * 1000,
+  CACHE_MS: 30 * 60 * 1000, // rastreio completo é pesado para o WMS: no máximo 1 carga a cada 30 min por tela
   _mem: {},
   _inflight: {},
 
