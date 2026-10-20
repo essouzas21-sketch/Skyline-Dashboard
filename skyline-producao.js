@@ -605,10 +605,15 @@ const ProducaoDash = {
     let de = start;
     const maxIni = SkylineDash._isoAddDays ? SkylineDash._isoAddDays(end, -(this.MOV_MAX_DIAS - 1)) : start;
     if (de < maxIni) de = maxIni;
+    // Carga incremental (alivia a API do WMS): a 1ª busca traz a janela toda; as próximas
+    // (por até 3 h) trazem só ontem+hoje e juntam pelo id da movimentação.
+    const base = this._movRaw;
+    const incremental = !!(base && base.de <= de && Date.now() - base.full < 3 * 3600 * 1000);
+    const deBusca = incremental ? SkylineDash._isoAddDays(end, -1) : de;
     const linhas = [];
     try {
       for (let pag = 0; pag < this.MOV_MAX_PAGINAS; pag++) {
-        const qs = new URLSearchParams({ de, ate: end, limite: String(this.MOV_LIMITE), offset: String(pag * this.MOV_LIMITE) });
+        const qs = new URLSearchParams({ de: deBusca, ate: end, limite: String(this.MOV_LIMITE), offset: String(pag * this.MOV_LIMITE) });
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 30000);
         let res;
@@ -628,18 +633,19 @@ const ProducaoDash = {
         linhas.push(...page);
         if (page.length < this.MOV_LIMITE) break;
       }
-      return this.loadMovimentosEndereco(linhas, todos);
-    } catch (err) {
-      console.warn("[Produção] movimentações de endereço indisponíveis, usando api-rastreio-imei:", err?.message || err);
-      // Reserva: endereço ATUAL de cada aparelho pela api-rastreio-imei (todas as telas só precisam do último endereço)
-      if (!todos) return null;
-      try {
-        const atuais = await this.enderecoAtualViaRastreio(key);
-        return atuais ? this.loadMovimentosEndereco(atuais, todos) : null;
-      } catch (err2) {
-        console.warn("[Produção] api-rastreio-imei indisponível:", err2?.message || err2);
-        return null;
+      const idDe = (m) => (m && m.id != null ? `id:${m.id}` : JSON.stringify(m));
+      if (incremental) {
+        linhas.forEach((m) => base.porId.set(idDe(m), m));
+      } else {
+        const porId = new Map();
+        linhas.forEach((m) => porId.set(idDe(m), m));
+        this._movRaw = { de, full: Date.now(), porId };
       }
+      return this.loadMovimentosEndereco([...this._movRaw.porId.values()], todos);
+    } catch (err) {
+      // Sem reserva pesada (não baixa o rastreio inteiro): usa o que já tem em memória
+      console.warn("[Produção] movimentações de endereço indisponíveis:", err?.message || err);
+      return this._movRaw ? this.loadMovimentosEndereco([...this._movRaw.porId.values()], todos) : null;
     }
   },
 

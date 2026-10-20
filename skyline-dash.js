@@ -1,16 +1,21 @@
 /**
  * CHAVE GERAL DA API DO WMS (skywms-api).
- * true  = os dashboards NÃO fazem nenhuma chamada à API do WMS (desligada).
- * false = religa. Depois de mudar, faça Commit + Push.
+ * SKYLINE_WMS_DESLIGADO = true  → só as telas da lista SKYLINE_WMS_LIBERADOS chamam a API do WMS.
+ * SKYLINE_WMS_DESLIGADO = false → todas as telas chamam (religado geral).
+ * SKYLINE_WMS_LIBERADOS = início do nome do arquivo de cada tela liberada (ex.: "producao-" = todas as produções).
+ * Religar 1 dash por vez: acrescente o nome na lista e faça Commit + Push.
  */
 window.SKYLINE_WMS_DESLIGADO = true;
+window.SKYLINE_WMS_LIBERADOS = ["producao-"];
 (function bloquearWms() {
   if (window.__skylineWmsGuard) return;
   window.__skylineWmsGuard = true;
   const original = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const u = String(typeof input === "string" ? input : (input && input.url) || "");
-    if (window.SKYLINE_WMS_DESLIGADO && u.includes("skywms-api")) {
+    const pagina = (location.pathname.split("/").pop() || "index.html").toLowerCase();
+    const liberada = (window.SKYLINE_WMS_LIBERADOS || []).some((p) => pagina.startsWith(String(p).toLowerCase()));
+    if (window.SKYLINE_WMS_DESLIGADO && !liberada && u.includes("skywms-api")) {
       return Promise.reject(new Error("API do WMS desligada nos dashboards"));
     }
     return original(input, init);
