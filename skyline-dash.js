@@ -1,4 +1,23 @@
 /**
+ * CHAVE GERAL DA API DO WMS (skywms-api).
+ * true  = os dashboards NÃO fazem nenhuma chamada à API do WMS (desligada).
+ * false = religa. Depois de mudar, faça Commit + Push.
+ */
+window.SKYLINE_WMS_DESLIGADO = true;
+(function bloquearWms() {
+  if (window.__skylineWmsGuard) return;
+  window.__skylineWmsGuard = true;
+  const original = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const u = String(typeof input === "string" ? input : (input && input.url) || "");
+    if (window.SKYLINE_WMS_DESLIGADO && u.includes("skywms-api")) {
+      return Promise.reject(new Error("API do WMS desligada nos dashboards"));
+    }
+    return original(input, init);
+  };
+})();
+
+/**
  * Utilitários compartilhados dos dashboards Skyline (menu principal).
  */
 const SkylineDash = {
@@ -61,7 +80,7 @@ const SkylineDash = {
   FETCH_IDB_TTL_MS: 240000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
-  CACHE_VERSION: "69",
+  CACHE_VERSION: "70",
 
   /** Payload acima disso: JSON.parse roda em Web Worker. */
   JSON_WORKER_MIN_CHARS: 400000,
