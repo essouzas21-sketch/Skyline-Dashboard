@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=90"></script>
+  <script src="skyline-dash.js?v=91"></script>
   <script src="skyline-chaves.js?v=3"></script>
   <style>
     /* Mesmo visual dos outros dashboards (skyline-dash.css); aqui só liberamos a rolagem,
@@ -333,9 +333,9 @@
 
     const API = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1/api-rastreio-imei";
     const PAGE = 500;            // máximo da API nova (30 chamadas/min)
-    const PARALELO = 2;          // páginas buscadas ao mesmo tempo
+    const PARALELO = 1;          // páginas buscadas ao mesmo tempo
     const MAX_LINHAS = 500;      // linhas exibidas na tabela de aparelhos
-    const AUTO_MS = 300000;      // recarga automática (5 min)
+    const AUTO_MS = 1800000;     // recarga automática (30 min) — histórico completo com eventos é pesado para o WMS
     const NF_DIAS_ANTES = 45;    // NFs importadas até 45 dias antes do período
     const NF_CACHE_MS = 600000;
     const TIMEOUT_MS = 60000;    // tempo máximo de espera por página da API

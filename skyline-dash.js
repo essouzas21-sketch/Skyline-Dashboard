@@ -6,7 +6,7 @@
  * Religar 1 dash por vez: acrescente o nome na lista e faça Commit + Push.
  */
 window.SKYLINE_WMS_DESLIGADO = true;
-window.SKYLINE_WMS_LIBERADOS = ["producao-", "recebimento", "cqe", "consolidado", "triagem", "gestao-produto"];
+window.SKYLINE_WMS_LIBERADOS = ["producao-", "recebimento", "cqe", "consolidado", "triagem", "gestao-produto", "rastreio-imei", "nr-timeline", "imprimir-recebimento"];
 (function bloquearWms() {
   if (window.__skylineWmsGuard) return;
   window.__skylineWmsGuard = true;
