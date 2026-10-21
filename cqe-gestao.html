@@ -9,9 +9,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=2"></script>
-  <script src="skyline-dash.js?v=92"></script>
+  <script src="skyline-dash.js?v=93"></script>
   <script src="skyline-fluxo-tecnico.js?v=8"></script>
-  <script src="skyline-producao.js?v=53"></script>
+  <script src="skyline-producao.js?v=55"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -1121,19 +1121,19 @@
     <div class="gm-view" id="viewFluxo" hidden>
       <section class="fx-hero">
         <div class="gm-kpi">
-          <div class="kpi-head"><span class="kpi-label">Acumulado anterior</span><span class="kpi-icon">⧗</span></div>
+          <div class="kpi-head"><span class="kpi-label">Receb. Dia</span><span class="kpi-icon">⇩</span></div>
           <div class="kpi-value" id="fxAnterior">0</div>
-          <div class="kpi-hint" id="fxAnteriorHint">Iniciados antes e ainda não finalizados</div>
+          <div class="kpi-hint" id="fxAnteriorHint">Transferidos para as PRODs no período</div>
         </div>
         <div class="gm-kpi">
-          <div class="kpi-head"><span class="kpi-label"><span class="fx-swatch" style="background:#694992"></span>Iniciados</span><span class="kpi-icon">▶</span></div>
+          <div class="kpi-head"><span class="kpi-label"><span class="fx-swatch" style="background:#694992"></span>Em reparo · Pausa</span><span class="kpi-icon">▶</span></div>
           <div class="kpi-value" id="fxIniciados">0</div>
-          <div class="kpi-hint">Reparos iniciados no período</div>
+          <div class="kpi-hint" id="fxIniciadosHint">Na bancada agora (igual à Produção)</div>
         </div>
         <div class="gm-kpi">
           <div class="kpi-head"><span class="kpi-label"><span class="fx-swatch" style="background:#1f9e89"></span>Finalizados</span><span class="kpi-icon">✓</span></div>
           <div class="kpi-value" id="fxFinalizados">0</div>
-          <div class="kpi-hint">Reparos finalizados no período</div>
+          <div class="kpi-hint">Fin. no período (igual à Produção)</div>
         </div>
         <div class="gm-kpi">
           <div class="kpi-head"><span class="kpi-label">Inspecionados CQE</span><span class="kpi-icon">📋</span></div>
@@ -1141,7 +1141,7 @@
           <div class="kpi-hint" id="fxInspecionadosHint">Aprovados + reprovados</div>
         </div>
         <div class="gm-kpi fx-acum">
-          <div class="kpi-head"><span class="kpi-label">Acumulado atual</span><span class="kpi-icon">Σ</span></div>
+          <div class="kpi-head"><span class="kpi-label">Σ na produção</span><span class="kpi-icon">Σ</span></div>
           <div class="kpi-value" id="fxAcumulado">0</div>
           <div class="kpi-formula" id="fxFormula">—</div>
         </div>
@@ -1180,13 +1180,13 @@
                 <tr>
                   <th>PROD</th>
                   <th>Técnico</th>
-                  <th title="Aparelhos que o técnico já tinha em aberto antes do período">Acumulado</th>
-                  <th title="Reparos iniciados no período (somam ao que ele tem pendente)">+ Iniciados</th>
-                  <th title="Reparos finalizados no período (saem do pendente)">− Finalizados</th>
-                  <th title="Aparelhos reprovados no CQE que voltaram ao técnico (em reparo ou pausados). Não entram no Acumulado nem nos Iniciados.">+ Retrabalho</th>
-                  <th title="Pendentes que estão em reparo agora">Em reparo</th>
-                  <th title="Pendentes que estão pausados (ex.: aguardando peça)">Pausados</th>
-                  <th title="Em reparo + Pausados (= Acumulado + Iniciados − Finalizados + Retrabalho)">= Pendentes</th>
+                  <th title="Transferidos para o endereço PROD do técnico no período (igual à Produção)">Receb. Dia</th>
+                  <th title="Na bancada (PROD n), ainda não iniciado, entrou em dias anteriores (igual à Produção)">Acumulado</th>
+                  <th title="Em reparo agora (igual à Produção)">Reparo</th>
+                  <th title="Pausados na bancada do técnico (igual à Produção)">Pausa</th>
+                  <th title="Reparos finalizados no período (igual à Produção)">Fin.</th>
+                  <th title="Finalizados ainda na bancada esperando ir para o CQE (igual à Produção)">Pronto</th>
+                  <th title="Acumulado + Reparo + Pausa + Pronto (igual à Produção)">Σ</th>
                   <th title="Tempo trabalhado no período (expediente)">Trabalhado</th>
                   <th title="Iniciados e finalizados no mesmo dia ÷ iniciados">% Fin. do dia</th>
                 </tr>
@@ -1195,7 +1195,7 @@
               <tfoot id="fxTableFoot"></tfoot>
             </table>
           </div>
-          <p class="fx-note">Somente os técnicos designados da produção. Conta de cada técnico: Acumulado + Iniciados − Finalizados + Retrabalho = Pendentes, e Pendentes = Em reparo + Pausados (situação ao fim do período). Retrabalho = reprovado no CQE que voltou ao técnico; não é contado de novo no Acumulado. Clique em um técnico para ver os aparelhos pendentes.</p>
+          <p class="fx-note">Mesmos números e mesmas regras das telas de Produção (PROD 1–18): Receb. Dia, Acumulado, Reparo, Pausa, Fin., Pronto e Σ = Acumulado + Reparo + Pausa + Pronto. Clique em um técnico para ver os aparelhos pendentes.</p>
         </div>
       </section>
     </div>
@@ -2191,7 +2191,10 @@
     async function loadData() {
       SkylineDash.showStatus(statusEl, "Carregando dados…", false);
       try {
-        const json = await SkylineDash.fetchWebhook(API_URL);
+        const [json] = await Promise.all([
+          SkylineDash.fetchWebhook(API_URL),
+          typeof ProducaoDash !== "undefined" && ProducaoDash.preCarregarMovimentos ? ProducaoDash.preCarregarMovimentos().catch(() => {}) : null
+        ]);
         const rawRows = SkylineDash.normalizeRows(json);
         fxProducaoRows = typeof ProducaoDash !== "undefined" ? ProducaoDash.loadRows(json) : [];
         flowRows = typeof SkylineFluxoTecnico !== "undefined"
@@ -2439,18 +2442,21 @@
       fxLast = { res, start, end, tecnico };
       const t = res.total;
 
-      document.getElementById("fxAnterior").textContent = fxNum(t.anterior);
-      document.getElementById("fxAnteriorHint").textContent = `Iniciados antes de ${start.split("-").reverse().join("/")} e ainda abertos`;
-      document.getElementById("fxIniciados").textContent = fxNum(t.iniciados);
-      document.getElementById("fxFinalizados").textContent = fxNum(t.finalizados);
+      // Cards = totais da tabela (mesma conta das telas de Produção)
+      const prodStats = fxProducaoPorPosicao(start, end, tecnico, res);
+      fxLast.prodStats = prodStats;
+      const pt = prodStats.total;
+      document.getElementById("fxAnterior").textContent = fxNum(pt.recebido);
+      document.getElementById("fxAnteriorHint").textContent = `Acumulado na bancada: ${fxNum(pt.acumulado)}`;
+      document.getElementById("fxIniciados").textContent = `${fxNum(pt.andamento)} · ${fxNum(pt.pausado)}`;
+      document.getElementById("fxFinalizados").textContent = fxNum(pt.finalizado);
       document.getElementById("fxInspecionados").textContent = fxNum(cqeMetrics?.total || 0);
       document.getElementById("fxInspecionadosHint").textContent = cqeMetrics
         ? `${fxNum(cqeMetrics.aprovado)} aprov. · ${fxNum(cqeMetrics.reprovado)} reprov.`
         : "Aprovados + reprovados";
-      document.getElementById("fxAcumulado").innerHTML = `${fxNum(t.acumulado)} ${fxDelta(t.variacao)}`;
+      document.getElementById("fxAcumulado").textContent = fxNum(pt.total);
       document.getElementById("fxFormula").textContent =
-        `${fxNum(t.anterior)} anterior + ${fxNum(t.iniciados)} iniciados − ${fxNum(t.finalizados)} finalizados` +
-        (t.retrabalho ? ` + ${fxNum(t.retrabalho)} retrabalho` : "");
+        `${fxNum(pt.acumulado)} acumulado + ${fxNum(pt.andamento)} reparo + ${fxNum(pt.pausado)} pausa + ${fxNum(pt.pronto)} pronto`;
       document.getElementById("fxPct").textContent = fxPctText(t.pctDia);
       document.getElementById("fxPctHint").textContent = t.pctDia == null
         ? "Nenhum reparo iniciado no período"
@@ -2464,20 +2470,18 @@
         : "Evolução do acumulado — por dia";
 
       // Produtividade por técnico: SEMPRE PROD 1 → PROD 18 (ProducaoDash.POSICOES)
-      const prodStats = fxProducaoPorPosicao(start, end, tecnico, res);
-      fxLast.prodStats = prodStats;
       const tbody = document.getElementById("fxTableBody");
       tbody.innerHTML = prodStats.linhas.map((r, i) => `
           <tr data-idx="${i}" class="${r.match ? "" : "fx-vaga"}">
             <td>PROD ${r.prod}</td>
             <td>${escapeHtml(r.nome)}</td>
-            <td>${fxNum(r.anterior)}</td>
-            <td>${fxNum(r.iniciados)}</td>
-            <td>${fxNum(r.finalizado)}</td>
-            <td>${fxNum(r.retrabalho)}</td>
+            <td>${fxNum(r.recebido)}</td>
+            <td>${r.acumulado == null ? "—" : fxNum(r.acumulado)}</td>
             <td>${fxNum(r.andamento)}</td>
             <td>${fxNum(r.pausado)}</td>
-            <td class="fx-acum-cell" title="${fxNum(r.andamento)} em reparo + ${fxNum(r.pausado)} pausados">${fxNum(r.pendentes)}</td>
+            <td>${fxNum(r.finalizado)}</td>
+            <td>${fxNum(r.pronto)}</td>
+            <td class="fx-acum-cell">${fxNum(r.total)}</td>
             <td>${r.workMs ? SkylineDash.formatDuration(r.workMs) : "—"}</td>
             <td>${fxPctCell(r.pctDia)}</td>
           </tr>`).join("") ||
@@ -2486,13 +2490,13 @@
       document.getElementById("fxTableFoot").innerHTML = `
         <tr>
           <td colspan="2">Total${tecnico ? ` (${escapeHtml(tecnico)})` : " PROD 1–18"}</td>
-          <td>${fxNum(tt.anterior)}</td>
-          <td>${fxNum(tt.iniciados)}</td>
-          <td>${fxNum(tt.finalizado)}</td>
-          <td>${fxNum(tt.retrabalho)}</td>
+          <td>${fxNum(tt.recebido)}</td>
+          <td>${fxNum(tt.acumulado)}</td>
           <td>${fxNum(tt.andamento)}</td>
           <td>${fxNum(tt.pausado)}</td>
-          <td>${fxNum(tt.pendentes)}</td>
+          <td>${fxNum(tt.finalizado)}</td>
+          <td>${fxNum(tt.pronto)}</td>
+          <td>${fxNum(tt.total)}</td>
           <td>${tt.workMs ? SkylineDash.formatDuration(tt.workMs) : "—"}</td>
           <td>${fxPctCell(tt.pctDia)}</td>
         </tr>`;
@@ -2522,46 +2526,51 @@
     function fxProducaoPorPosicao(start, end, tecnico, res) {
       let posicoes = ProducaoDash.POSICOES.slice().sort((a, b) => a.prod - b.prod);
       if (tecnico) posicoes = posicoes.filter((p) => p.match && ProducaoDash.matchesUserFilter(tecnico, [p.match]));
-      const filtro = posicoes.map((p) => p.match).filter(Boolean);
-      const linhas = posicoes.map((p) => ({
-        prod: p.prod, nome: p.nome || "Sem técnico definido", match: p.match,
-        anterior: 0, iniciados: 0, total: 0, finalizado: 0, retrabalho: 0, andamento: 0, pausado: 0,
-        pendentes: 0, workMs: 0, mesmoDia: 0, pctDia: null
-      }));
-      const linhaDe = (nome) => linhas.find((l) => l.match && ProducaoDash.matchesUserFilter(nome, [l.match]));
-
-      // Fluxo do período (mesma base dos cards): anterior, iniciados, finalizados, pendentes
-      (res?.porTecnico || []).forEach((t) => {
-        const l = linhaDe(t.nome);
-        if (!l) return;
-        l.anterior += t.anterior;
-        l.iniciados += t.iniciados;
-        l.finalizado += t.finalizados;
-        l.retrabalho += t.retrabalho || 0;
-        l.mesmoDia += t.finalizadosMesmoDia;
-        l.pendentes += t.acumulado;
-      });
-      // Pendentes ao fim do período, separados em Reparo x Pausa (soma = Pendentes)
-      const ateTs = new Date(`${end}T23:59:59.999`).getTime();
-      (res?.pendentesFim || []).forEach((r) => {
-        const l = linhaDe(r.tecnico);
-        if (!l) return;
-        if (SkylineFluxoTecnico.situacaoEm(r.raw, ateTs) === "pausado") l.pausado += 1;
-        else l.andamento += 1;
-      });
-      // Tempo trabalhado no período (mesma regra das telas de Produção)
-      if (filtro.length) {
-        ProducaoDash.filterRows(fxProducaoRows, start, end, "android", filtro).forEach((r) => {
-          const l = linhaDe(r.user);
-          if (l) l.workMs += ProducaoDash.calcShiftWorkMsInPeriod(r._workRaw, start, end);
+      // Mesma conta das telas de Produção (ProducaoDash: marco zero, endereços PROD, foto de agora)
+      const users = posicoes.map((p) => ({ label: p.nome || "Sem técnico definido", match: p.match, prod: p.prod }));
+      const userFilter = users.map((u) => u.match).filter(Boolean);
+      const prodRows = ProducaoDash.aPartirDoMarco(fxProducaoRows);
+      const filtered = ProducaoDash.filterRowsPeriodo(prodRows, start, end, userFilter);
+      const naProd = ProducaoDash.noEnderecoProdAgora(() => renderDashboard());
+      const prods = users.map((u) => u.prod);
+      const recebidos = naProd?.length
+        ? naProd.filter((r) => prods.includes(r.prod))
+        : ProducaoDash.recebidosNoPeriodo(prodRows, start, end, userFilter);
+      const list = ProducaoDash.aggregatePanelUsers(filtered, users, start, end, recebidos);
+      list.forEach((u) => { u.acumulado = null; });
+      if (end >= SkylineDash.todayISO()) {
+        const foto = ProducaoDash.fotoAgora(prodRows, () => renderDashboard());
+        list.forEach((u, i) => {
+          const pu = users[i];
+          const doTec = (r) => !!pu.match && ProducaoDash.matchesUserFilter(r.user, [pu.match]);
+          if (foto.recebidosDia) u.recebido = foto.recebidosDia.filter((r) => r.prod === pu.prod).length;
+          if (foto.recebidos) u.acumulado = foto.recebidos.filter((r) => r.prod === pu.prod).length;
+          u.andamento = foto.reparo.filter((r) => r.status === "andamento" && doTec(r)).length;
+          u.pausado = foto.reparo.filter((r) => r.status === "pausado" && doTec(r)).length;
+          if (foto.prontos) u.pronto = foto.prontos.filter((r) => r.prod === pu.prod).length;
+          u.total = (u.acumulado != null ? u.acumulado : u.recebido) + u.andamento + u.pausado + u.pronto;
         });
       }
-      const total = { anterior: 0, iniciados: 0, total: 0, finalizado: 0, retrabalho: 0, andamento: 0, pausado: 0, pendentes: 0, workMs: 0, mesmoDia: 0 };
-      linhas.forEach((l) => {
-        l.total = l.anterior + l.iniciados;
-        l.pctDia = l.iniciados ? (l.mesmoDia / l.iniciados) * 100 : null;
-        Object.keys(total).forEach((k) => { total[k] += l[k]; });
+      // % Fin. do dia: iniciados e finalizados no mesmo dia (fluxo do período)
+      const mesmo = new Map();
+      (res?.porTecnico || []).forEach((t) => {
+        const i = users.findIndex((u) => u.match && ProducaoDash.matchesUserFilter(t.nome, [u.match]));
+        if (i < 0) return;
+        const m = mesmo.get(i) || { ini: 0, mesmo: 0 };
+        m.ini += t.iniciados; m.mesmo += t.finalizadosMesmoDia;
+        mesmo.set(i, m);
       });
+      const linhas = list.map((u, i) => {
+        const m = mesmo.get(i) || { ini: 0, mesmo: 0 };
+        return {
+          prod: users[i].prod, nome: users[i].label, match: users[i].match,
+          recebido: u.recebido, acumulado: u.acumulado, andamento: u.andamento, pausado: u.pausado,
+          finalizado: u.finalizado, pronto: u.pronto, total: u.total, workMs: u.workMs,
+          iniciados: m.ini, mesmoDia: m.mesmo, pctDia: m.ini ? (m.mesmo / m.ini) * 100 : null
+        };
+      });
+      const total = { recebido: 0, acumulado: 0, andamento: 0, pausado: 0, finalizado: 0, pronto: 0, total: 0, workMs: 0, iniciados: 0, mesmoDia: 0 };
+      linhas.forEach((l) => { Object.keys(total).forEach((k) => { total[k] += l[k] || 0; }); });
       total.pctDia = total.iniciados ? (total.mesmoDia / total.iniciados) * 100 : null;
       return { linhas, total };
     }
@@ -2572,17 +2581,17 @@
       const sep = ";";
       const lines = [
         ["Período", `${start} a ${end}`, tecnico ? `Técnico: ${tecnico}` : ""].join(sep),
-        ["PROD", "Técnico", "Acumulado", "Iniciados", "Finalizados", "Retrabalho", "Em reparo", "Pausados", "Pendentes", "Trabalhado (min)", "% Fin. do dia"].join(sep),
+        ["PROD", "Técnico", "Receb. Dia", "Acumulado", "Reparo", "Pausa", "Fin.", "Pronto", "Σ", "Trabalhado (min)", "% Fin. do dia"].join(sep),
         ...(fxLast.prodStats ? fxLast.prodStats.linhas.concat([{ prod: "", nome: "Total", ...fxLast.prodStats.total }]) : []).map((r) => [
           r.prod === "" ? "" : `PROD ${r.prod}`,
           `"${String(r.nome).replace(/"/g, '""')}"`,
-          r.anterior,
-          r.iniciados,
-          r.finalizado,
-          r.retrabalho,
+          r.recebido,
+          r.acumulado ?? "",
           r.andamento,
           r.pausado,
-          r.pendentes,
+          r.finalizado,
+          r.pronto,
+          r.total,
           Math.round((r.workMs || 0) / 60000),
           r.pctDia == null ? "" : r.pctDia.toFixed(1).replace(".", ",")
         ].join(sep))
