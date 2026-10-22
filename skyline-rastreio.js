@@ -26,7 +26,7 @@ const SkylineRastreio = {
 
   async _pagina(key, params) {
     let ultimo = null;
-    for (let t = 1; t <= 3; t++) {
+    for (let t = 1; t <= 4; t++) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), this.TIMEOUT_MS);
       try {
@@ -35,6 +35,7 @@ const SkylineRastreio = {
           headers: { "x-api-key": key },
           signal: ctrl.signal
         });
+        if (res.status === 429) { ultimo = new Error("api-rastreio-imei HTTP 429"); await new Promise((r) => setTimeout(r, 20000 * t)); continue; }
         if (!res.ok) throw new Error(`api-rastreio-imei HTTP ${res.status}`);
         return await res.json();
       } catch (err) {
@@ -118,6 +119,13 @@ const SkylineRastreio = {
     })();
     try {
       return await this._inflight[k];
+    } catch (err) {
+      const velho = this._mem[k] || (await this._idbGet(k));
+      if (velho && Array.isArray(velho.itens) && Date.now() - velho.at < 24 * 3600 * 1000) {
+        console.warn("[Rastreio] carga falhou, usando a última guardada:", err?.message || err);
+        return velho.itens;
+      }
+      throw err;
     } finally {
       delete this._inflight[k];
     }
@@ -130,11 +138,58 @@ const SkylineRastreio = {
     return reg && reg.at ? reg.at : null;
   },
 
+  /** Busca 1 aparelho no WMS. id = "imei:350..." ou "os:OS000123". null = não achou. Lança "429" se estourar o limite. */
+  async buscarAparelho(id, key) {
+    const p = id.indexOf(":");
+    const tipo = id.slice(0, p), valor = id.slice(p + 1);
+    if (!valor) return null;
+    key = key || (await this.chave());
+    const res = await fetch(`${this.API}?${new URLSearchParams({ [tipo]: valor, limite: "5" })}`, { cache: "no-store", headers: { "x-api-key": key } });
+    if (res.status === 429) throw new Error("429");
+    if (!res.ok) return null;
+    const j = await res.json();
+    const itens = Array.isArray(j?.itens) ? j.itens : [];
+    return itens.find((a) => String(a.imei) === valor || String(a.os) === valor) || itens[0] || null;
+  },
+
+  /**
+   * Aparelhos que tiveram movimentação de endereço desde "desdeMs" (1 chamada leve na
+   * api-movimentacao-enderecos). → { ids (mais antigo primeiro), datas, ate }
+   */
+  async aparelhosMovidosDesde(desdeMs) {
+    const key = await this.chave();
+    if (!key) return { ids: [], datas: [], ate: Date.now() };
+    const ate = Date.now();
+    const de = SkylineDash.toLocalDateStr(new Date(desdeMs - 10 * 60000).toISOString());
+    const hoje = SkylineDash.todayISO();
+    const api = this.API.replace("api-rastreio-imei", "api-movimentacao-enderecos");
+    const movs = [];
+    for (let off = 0, i = 0; i < 4; i++) {
+      const res = await fetch(`${api}?${new URLSearchParams({ de, ate: hoje, limite: "5000", offset: String(off) })}`, { cache: "no-store", headers: { "x-api-key": key } });
+      if (!res.ok) throw new Error(`movimentações HTTP ${res.status}`);
+      const j = await res.json();
+      const itens = Array.isArray(j?.itens) ? j.itens : [];
+      movs.push(...itens);
+      if (!j.proximo_offset || itens.length < 5000) break;
+      off = j.proximo_offset;
+    }
+    const ult = new Map();
+    movs.forEach((m) => {
+      const t = new Date(m?.data).getTime();
+      if (!t || t < desdeMs - 2 * 60000) return;
+      const id = m.imei ? `imei:${String(m.imei).trim()}` : (m.os ? `os:${String(m.os).trim()}` : null);
+      if (!id) return;
+      if (!ult.has(id) || t > ult.get(id)) ult.set(id, t);
+    });
+    const lista = [...ult.entries()].sort((x, y) => x[1] - y[1]);
+    return { ids: lista.map((x) => x[0]), datas: lista.map((x) => x[1]), ate };
+  },
+
   /**
    * Atualiza no cache só os aparelhos indicados (1 chamada por IMEI/OS, com pausa entre elas),
    * sem baixar o rastreio inteiro. ids = ["imei:350...", "os:OS000123"]. Devolve quantos atualizou.
    */
-  async atualizarAparelhos(ids, { max = 12, intervaloMs = 2500 } = {}) {
+  async atualizarAparelhos(ids, { max = 12, intervaloMs = 3000 } = {}) {
     const k = `ev|${JSON.stringify({})}`;
     const reg = this._mem[k] || (await this._idbGet(k));
     if (!reg || !Array.isArray(reg.itens) || !ids?.length) return 0;
@@ -143,18 +198,8 @@ const SkylineRastreio = {
     const idx = new Map(reg.itens.map((x, i) => [String(x.imei || x.os), i]));
     let n = 0;
     for (const id of [...new Set(ids)].slice(0, max)) {
-      const p = id.indexOf(":");
-      const tipo = id.slice(0, p), valor = id.slice(p + 1);
-      if (!valor) continue;
-      let j;
-      try {
-        const res = await fetch(`${this.API}?${new URLSearchParams({ [tipo]: valor, limite: "5" })}`, { cache: "no-store", headers: { "x-api-key": key } });
-        if (res.status === 429) break;
-        if (!res.ok) { await new Promise((r) => setTimeout(r, intervaloMs)); continue; }
-        j = await res.json();
-      } catch (_) { break; }
-      const itens = Array.isArray(j?.itens) ? j.itens : [];
-      const x = itens.find((a) => String(a.imei) === valor || String(a.os) === valor) || itens[0];
+      let x = null;
+      try { x = await this.buscarAparelho(id, key); } catch (_) { break; }
       if (x) {
         const chave = String(x.imei || x.os);
         if (idx.has(chave)) reg.itens[idx.get(chave)] = x;
@@ -165,6 +210,23 @@ const SkylineRastreio = {
     }
     this._mem[k] = reg;
     this._idbSet(k, reg);
+    return n;
+  },
+
+  /**
+   * Atualização de 5 em 5 min sem baixar o rastreio inteiro: pega os aparelhos que se
+   * movimentaram desde a última verificação e busca só esses (até "max" por vez).
+   */
+  _ultimaVerif: 0,
+  async atualizarRecentes({ max = 15 } = {}) {
+    const k = `ev|${JSON.stringify({})}`;
+    const reg = this._mem[k] || (await this._idbGet(k));
+    if (!reg || !reg.at) return 0;
+    const desde = Math.max(this._ultimaVerif || 0, reg.at);
+    const r = await this.aparelhosMovidosDesde(desde);
+    const ids = r.ids.slice(0, max);
+    const n = ids.length ? await this.atualizarAparelhos(ids, { max }) : 0;
+    this._ultimaVerif = r.ids.length > max ? r.datas[max - 1] : r.ate;
     return n;
   },
 

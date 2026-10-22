@@ -11,7 +11,7 @@
   <script src="skyline-version.js?v=2"></script>
   <script src="skyline-dash.js?v=92"></script>
   <script src="skyline-chaves.js?v=3"></script>
-  <script src="skyline-rastreio.js?v=6"></script>
+  <script src="skyline-rastreio.js?v=10"></script>
   <style>
     :root {
       --gp-page: #694992;
@@ -617,7 +617,7 @@
       <div class="gp-kpi">
         <div class="label">Peças hoje</div>
         <div class="value" id="kpiHoje">0</div>
-        <div class="hint" id="kpiHojeHint">Pedidos do dia</div>
+        <div class="hint" id="kpiHojeHint">Todas as peças das OS com pedido hoje</div>
       </div>
       <div class="gp-kpi">
         <div class="label">Aparelhos no período</div>
@@ -1002,7 +1002,7 @@
 
     function saveSession() {
       try {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows: allRows }));
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ at: Date.now(), rows: allRows, rastreio: fonteRastreio }));
       } catch { /* ignore */ }
     }
 
@@ -1013,6 +1013,7 @@
         const parsed = JSON.parse(raw);
         if (!parsed?.rows?.length || Date.now() - parsed.at > SESSION_TTL_MS) return false;
         allRows = parsed.rows;
+        fonteRastreio = !!parsed.rastreio;
         renderDashboard();
         return true;
       } catch {
@@ -1102,11 +1103,23 @@
       return base.concat(extras);
     }
 
+    /**
+     * Peças do período: toda OS que teve pedido de peça no período entra com TODAS as peças
+     * já pedidas para ela (inclusive as de dias anteriores, até o fim do período).
+     * Ex.: OS com 3 peças pedidas antes + 1 hoje → aparece com 4.
+     */
     function rowsForPeriod(rows, start, end) {
+      const osNoPeriodo = new Set();
+      const dias = rows.map((r) => SkylineDash.toLocalDateStr(r.data_pedido_sankhya));
+      for (let i = 0; i < rows.length; i++) {
+        const os = rows[i].id != null ? String(rows[i].id).trim() : "";
+        if (os && dias[i] >= start && dias[i] <= end) osNoPeriodo.add(os);
+      }
       const out = [];
       for (let i = 0; i < rows.length; i++) {
-        const local = SkylineDash.toLocalDateStr(rows[i].data_pedido_sankhya);
-        if (local >= start && local <= end) out.push(rows[i]);
+        if (!dias[i] || dias[i] > end) continue;
+        const os = rows[i].id != null ? String(rows[i].id).trim() : "";
+        if (dias[i] >= start || (os && osNoPeriodo.has(os))) out.push(rows[i]);
       }
       return out;
     }
@@ -1288,7 +1301,7 @@
       document.getElementById("kpiHoje").textContent = baseHoje.length;
       document.getElementById("kpiAparelhos").textContent = kPeriod.aparelhos;
       document.getElementById("kpiAparelhosHint").textContent = "OS distintas";
-      document.getElementById("kpiPeriodoHint").textContent = "Cada peça solicitada";
+      document.getElementById("kpiPeriodoHint").textContent = "Todas as peças pedidas das OS do período";
 
       const agora = new Date().toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -1319,6 +1332,7 @@
      * (evento GESTAO_PECAS/SOLICITAR) com a data/hora do próprio pedido, inclusive as peças
      * pedidas de novo no retorno do técnico. O relatorio-reparo só guarda 1 pedido por aparelho.
      */
+    let fonteRastreio = false; // true = allRows veio do rastreio (cada peça pedida = 1 linha)
     const gpAtualizados = new Map(); // aparelho → data do pedido já atualizada no cache
     async function carregarPedidosRastreio() {
       if (typeof SkylineRastreio === "undefined") throw new Error("skyline-rastreio.js não carregado");
@@ -1337,10 +1351,9 @@
           gpAtualizados.set(id, String(dp));
           ids.push(id);
         });
-        if (ids.length) {
-          await SkylineRastreio.atualizarAparelhos(ids, { max: 12 });
-          itens = await SkylineRastreio.todos({ eventos: true });
-        }
+        let mudou = ids.length ? await SkylineRastreio.atualizarAparelhos(ids, { max: 12 }) : 0;
+        mudou += await SkylineRastreio.atualizarRecentes({ max: 12 }); // aparelhos que se movimentaram
+        if (mudou) itens = await SkylineRastreio.todos({ eventos: true });
       } catch (errInc) {
         console.warn("[Gestão] atualização dos pedidos novos falhou:", errInc?.message || errInc);
       }
@@ -1366,6 +1379,7 @@
           const rowsRastreio = await carregarPedidosRastreio();
           if (seq !== loadSeq) return;
           if (rowsRastreio.length) {
+            fonteRastreio = true;
             allRows = rowsRastreio;
             saveSession();
             renderDashboard();
@@ -1373,7 +1387,13 @@
             return;
           }
         } catch (errRas) {
-          console.warn("[Gestão] api-rastreio-imei indisponível, usando relatorio-reparo:", errRas?.message || errRas);
+          console.warn("[Gestão] api-rastreio-imei indisponível:", errRas?.message || errRas);
+          // Já tem os pedidos peça a peça na tela: mantém (não troca pela contagem de 1 por aparelho)
+          if (fonteRastreio && allRows.length) {
+            renderDashboard();
+            SkylineDash.showStatus(statusEl, `${allRows.length} peça(s) · rastreio indisponível agora — mostrando a última carga; nova tentativa na próxima atualização.`, true);
+            return;
+          }
         }
       }
       const hadData = allRows.length > 0;
@@ -1413,6 +1433,7 @@
 
         lastRawPayload = rawAll;
         allRows = rows;
+        fonteRastreio = false;
         saveSession();
         renderDashboard();
         if (DEBUG_MODE) {
