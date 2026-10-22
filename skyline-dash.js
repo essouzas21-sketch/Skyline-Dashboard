@@ -18,7 +18,21 @@ window.SKYLINE_WMS_LIBERADOS = ["producao-", "recebimento", "cqe", "consolidado"
     if (window.SKYLINE_WMS_DESLIGADO && !liberada && u.includes("skywms-api")) {
       return Promise.reject(new Error("API do WMS desligada nos dashboards"));
     }
-    return original(input, init);
+    if (!u.includes("skywms-api")) return original(input, init);
+    // Toda consulta ao WMS vai com a chave da API (x-api-key). Se a tela já mandou uma
+    // (ex.: consulta-recebimentos com a chave do recebimento), mantém a dela.
+    return (async () => {
+      const headers = new Headers((init && init.headers) || (input && typeof input !== "string" && input.headers) || undefined);
+      if (!headers.has("x-api-key")) {
+        let key = window.SKYLINE_MOVIMENTACAO_API_KEY;
+        if (!key && typeof SkylineDash !== "undefined" && SkylineDash.getRecebimentoApiKey) {
+          try { await SkylineDash.getRecebimentoApiKey(); } catch (_) { /* sem chaves */ }
+          key = window.SKYLINE_MOVIMENTACAO_API_KEY;
+        }
+        if (key) headers.set("x-api-key", key);
+      }
+      return original(input, { ...(init || {}), headers });
+    })();
   };
 })();
 

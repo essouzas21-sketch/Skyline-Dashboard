@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
     <script src="skyline-auth.js?v=6"></script>
+    <script src="skyline-chaves.js?v=3"></script>
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Busca Serial + Etiqueta</title>
@@ -900,7 +901,9 @@
         const LEGADO = "https://automacao.skylinemobile.com.br/webhook/fi";
         const fontes = /relatorio-reparo/.test(endpoint) ? [LEGADO, endpoint] : [endpoint];
         const res = await Promise.allSettled(fontes.map(async (url) => {
-          const response = await fetch(url, { cache: "no-store" });
+          const headers = {};
+          if (String(url).includes("skywms-api") && window.SKYLINE_MOVIMENTACAO_API_KEY) headers["x-api-key"] = window.SKYLINE_MOVIMENTACAO_API_KEY;
+          const response = await fetch(url, { cache: "no-store", headers });
           if (!response.ok) throw new Error(`Erro HTTP ${response.status}`);
           return extractRows(await response.json());
         }));
