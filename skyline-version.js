@@ -18,7 +18,14 @@ const SkylineVersion = {
         return;
       }
       if (this._current !== version) {
-        location.reload();
+        // abre o endereço com a versão nova na URL: o navegador não reaproveita a página antiga do cache
+        try {
+          const u = new URL(location.href);
+          u.searchParams.set("_v", version);
+          location.replace(u.toString());
+        } catch (_) {
+          location.reload();
+        }
       }
     } catch (_) {
       /* rede offline — ignora */
