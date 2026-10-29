@@ -25,7 +25,13 @@ const SkylineFluxoTecnico = {
    * match = início do nome como aparece no sistema (sem acento, maiúsc./minúsc. tanto faz).
    * PROD13 está sem técnico definido.
    */
-  EQUIPE: [
+  TROCA_EQUIPE_EM: "2026-10-30",
+  get EQUIPE() {
+    const d = new Date();
+    const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return hoje >= this.TROCA_EQUIPE_EM ? this.EQUIPE_NOVA : this.EQUIPE_ATE_29_10;
+  },
+  EQUIPE_ATE_29_10: [
     { prod: "PROD1", match: "victor" },
     { prod: "PROD2", match: "noemi" },
     { prod: "PROD3", match: "andre" },
@@ -39,6 +45,25 @@ const SkylineFluxoTecnico = {
     { prod: "PROD11", match: "moises" },
     { prod: "PROD12", match: "claudia" },
     { prod: "PROD14", match: "rafael pereira|rafael.pereira" },
+    { prod: "PROD15", match: "vinicius rodrigues|vinicius.rodrigues" },
+    { prod: "PROD16", match: "almir" },
+    { prod: "PROD17", match: "thais mazoline|thais.mazoline|tais mazoline" },
+    { prod: "PROD18", match: "kaua" }
+  ],
+  EQUIPE_NOVA: [
+    { prod: "PROD1", match: "ronny|ronny.gomez" },
+    { prod: "PROD2", match: "noemi" },
+    { prod: "PROD3", match: "allef|allef.moises" },
+    { prod: "PROD4", match: "fernanda" },
+    { prod: "PROD5", match: "fran dias" },
+    { prod: "PROD6", match: "jorge" },
+    { prod: "PROD7", match: "karol" },
+    { prod: "PROD8", match: "felipe|fellipe" },
+    { prod: "PROD9", match: "diego" },
+    { prod: "PROD10", match: "joao" },
+    { prod: "PROD11", match: "andre guilherme|andre.guilherme" },
+    { prod: "PROD12", match: "claudia" },
+    { prod: "PROD14", match: "moises souza|moises.souza" },
     { prod: "PROD15", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: "PROD16", match: "almir" },
     { prod: "PROD17", match: "thais mazoline|thais.mazoline|tais mazoline" },

@@ -7,7 +7,17 @@ const ProducaoDash = {
    * match = início do nome no sistema (sem acento); use "|" para grafias alternativas.
    * Para trocar alguém de posição, altere só esta lista.
    */
-  POSICOES: [
+  /**
+   * Equipe por posição PROD. A partir de TROCA_EQUIPE_EM vale POSICOES_NOVAS
+   * (Ronny na PROD1, Allef na PROD3, André na PROD11, Moisés na PROD14); antes disso, a equipe antiga.
+   * "desde" = só conta registros desse técnico a partir dessa data (contas novas).
+   */
+  TROCA_EQUIPE_EM: "2026-10-30",
+  get POSICOES() {
+    const hoje = typeof SkylineDash !== "undefined" ? SkylineDash.todayISO() : new Date().toISOString().slice(0, 10);
+    return hoje >= this.TROCA_EQUIPE_EM ? this.POSICOES_NOVAS : this.POSICOES_ATE_29_10;
+  },
+  POSICOES_ATE_29_10: [
     { prod: 1, nome: "Victor", match: "victor guilherme|victor.guilherme" }, // só "victor" pegava também o "Joao Victor" (PROD10)
     { prod: 2, nome: "Noemi", match: "noemi" },
     { prod: 3, nome: "André", match: "andre" },
@@ -22,6 +32,26 @@ const ProducaoDash = {
     { prod: 12, nome: "Claudia", match: "claudia" },
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Rafael", match: "rafael pereira|rafael.pereira" },
+    { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
+    { prod: 16, nome: "Almir", match: "almir" },
+    { prod: 17, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" },
+    { prod: 18, nome: "Kauan", match: "kaua" }
+  ],
+  POSICOES_NOVAS: [
+    { prod: 1, nome: "Ronny", match: "ronny|ronny.gomez", desde: "2026-10-30" }, // ronny.gomez@gruposkytech.com.br
+    { prod: 2, nome: "Noemi", match: "noemi" },
+    { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
+    { prod: 4, nome: "Fernanda", match: "fernanda" },
+    { prod: 5, nome: "Fran", match: "fran dias" },
+    { prod: 6, nome: "Jorge", match: "jorge" },
+    { prod: 7, nome: "Karol", match: "karol" },
+    { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
+    { prod: 9, nome: "Diego", match: "diego" },
+    { prod: 10, nome: "João", match: "joao" },
+    { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
+    { prod: 12, nome: "Claudia", match: "claudia" },
+    { prod: 13, nome: null, match: null },
+    { prod: 14, nome: "Moisés", match: "moises souza|moises.souza" }, // "moises" sozinho pegaria o Allef Moises
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: 16, nome: "Almir", match: "almir" },
     { prod: 17, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" },
@@ -347,10 +377,15 @@ const ProducaoDash = {
     const desde = this.MARCO_ZERO;
     if (!desde) return rows;
     const campos = ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno", "Fim do Reparo"];
-    return (rows || []).filter((r) => campos.some((c) => {
-      const d = this.parseDt(r?._workRaw?.[c]);
-      return !!d && SkylineDash.toLocalDateStr(d.toISOString()) >= desde;
-    }));
+    const comDesde = this.POSICOES.filter((pos) => pos.desde && pos.match);
+    return (rows || []).filter((r) => {
+      const pos = comDesde.find((q) => this.matchesUserFilter(r.user, [q.match]));
+      const inicio = pos && pos.desde > desde ? pos.desde : desde;
+      return campos.some((c) => {
+        const d = this.parseDt(r?._workRaw?.[c]);
+        return !!d && SkylineDash.toLocalDateStr(d.toISOString()) >= inicio;
+      });
+    });
   },
 
   loadRows(json) {
@@ -1169,3 +1204,13 @@ const ProducaoDash = {
     const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
   }
 };
+
+// Virada para a equipe nova (TROCA_EQUIPE_EM): a TV que ficou aberta recarrega sozinha
+(function trocaDeEquipe() {
+  if (typeof window === "undefined" || typeof SkylineDash === "undefined") return;
+  const antes = SkylineDash.todayISO() < ProducaoDash.TROCA_EQUIPE_EM;
+  if (!antes) return;
+  setInterval(() => {
+    if (SkylineDash.todayISO() >= ProducaoDash.TROCA_EQUIPE_EM) location.reload();
+  }, 60000);
+})();
