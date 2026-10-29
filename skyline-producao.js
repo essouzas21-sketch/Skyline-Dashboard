@@ -14,8 +14,8 @@ const ProducaoDash = {
    */
   TROCA_EQUIPE_EM: "2026-10-30",
   get POSICOES() {
-    const hoje = typeof SkylineDash !== "undefined" ? SkylineDash.todayISO() : new Date().toISOString().slice(0, 10);
-    return hoje >= this.TROCA_EQUIPE_EM ? this.POSICOES_NOVAS : this.POSICOES_ATE_29_10;
+    // Nomes novos já valem; Ronny e Allef só contam registros a partir de "desde" (30/10)
+    return this.POSICOES_NOVAS;
   },
   POSICOES_ATE_29_10: [
     { prod: 1, nome: "Victor", match: "victor guilherme|victor.guilherme" }, // só "victor" pegava também o "Joao Victor" (PROD10)
@@ -1205,12 +1205,3 @@ const ProducaoDash = {
   }
 };
 
-// Virada para a equipe nova (TROCA_EQUIPE_EM): a TV que ficou aberta recarrega sozinha
-(function trocaDeEquipe() {
-  if (typeof window === "undefined" || typeof SkylineDash === "undefined") return;
-  const antes = SkylineDash.todayISO() < ProducaoDash.TROCA_EQUIPE_EM;
-  if (!antes) return;
-  setInterval(() => {
-    if (SkylineDash.todayISO() >= ProducaoDash.TROCA_EQUIPE_EM) location.reload();
-  }, 60000);
-})();

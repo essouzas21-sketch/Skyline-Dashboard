@@ -29,7 +29,7 @@ const SkylineFluxoTecnico = {
   get EQUIPE() {
     const d = new Date();
     const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return hoje >= this.TROCA_EQUIPE_EM ? this.EQUIPE_NOVA : this.EQUIPE_ATE_29_10;
+    return hoje >= "0000" ? this.EQUIPE_NOVA : this.EQUIPE_ATE_29_10; // equipe nova já vale
   },
   EQUIPE_ATE_29_10: [
     { prod: "PROD1", match: "victor" },
