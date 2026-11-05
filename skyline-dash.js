@@ -802,7 +802,11 @@ const SkylineDash = {
     { from: "fran romao", to: "Fran Romão" },
     { from: "fran romão", to: "Fran Romão" },
     { from: "sheila", to: "Sheila Ferreira" },
-    { from: "sheila ferreira", to: "Sheila Ferreira" }
+    { from: "sheila ferreira", to: "Sheila Ferreira" },
+    // Allef (PROD3): o login dele é "Allef Moises" — mostra só "Allef" para não confundir com o Moisés (PROD14)
+    { from: "allef moises", to: "Allef" },
+    { from: "allef moisés", to: "Allef" },
+    { from: "allef.moises@gruposkytech.com.br", to: "Allef" }
   ],
 
   normalizeUserName(name) {

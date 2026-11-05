@@ -51,7 +51,7 @@ const SkylineFluxoTecnico = {
     { prod: "PROD18", match: "kaua" }
   ],
   EQUIPE_NOVA: [
-    { prod: "PROD1", match: "ronny|ronny.gomez" },
+    { prod: "PROD1", match: "thais mazoline|thais.mazoline|tais mazoline" },
     { prod: "PROD2", match: "noemi" },
     { prod: "PROD3", match: "allef|allef.moises" },
     { prod: "PROD4", match: "fernanda" },
@@ -66,7 +66,6 @@ const SkylineFluxoTecnico = {
     { prod: "PROD14", match: "moises souza|moises.souza" },
     { prod: "PROD15", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: "PROD16", match: "almir" },
-    { prod: "PROD17", match: "thais mazoline|thais.mazoline|tais mazoline" },
     { prod: "PROD18", match: "kaua" }
   ],
 
