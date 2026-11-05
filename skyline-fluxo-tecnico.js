@@ -66,6 +66,7 @@ const SkylineFluxoTecnico = {
     { prod: "PROD14", match: "moises souza|moises.souza" },
     { prod: "PROD15", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: "PROD16", match: "almir" },
+    { prod: "PROD17", match: "ronny|ronny.gomez" },
     { prod: "PROD18", match: "kaua" }
   ],
 

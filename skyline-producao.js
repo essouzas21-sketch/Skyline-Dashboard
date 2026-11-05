@@ -54,7 +54,7 @@ const ProducaoDash = {
     { prod: 14, nome: "Moisés", match: "moises souza|moises.souza" }, // "moises" sozinho pegaria o Allef Moises
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: 16, nome: "Almir", match: "almir" },
-    { prod: 17, nome: null, match: null }, // vaga (Thaís foi para a PROD1)
+    { prod: 17, nome: "Ronny", match: "ronny|ronny.gomez", desde: "2026-10-30" }, // ronny.gomez@gruposkytech.com.br (PROD17 desde 05/11)
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
 
