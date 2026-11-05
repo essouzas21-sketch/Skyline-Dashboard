@@ -647,7 +647,7 @@ const ProducaoDash = {
       try {
         const salvo = await SkylineDash._idbGetFetch("mov_raw|v1");
         const d = salvo && salvo.data;
-        if (d && Array.isArray(d.itens) && Date.now() - (d.full || 0) < 3 * 3600 * 1000) {
+        if (d && Array.isArray(d.itens) && Date.now() - (d.full || 0) < 6 * 3600 * 1000) {
           const porId = new Map();
           d.itens.forEach((m) => porId.set(m && m.id != null ? `id:${m.id}` : JSON.stringify(m), m));
           this._movRaw = { de: d.de, full: d.full, porId };
@@ -655,7 +655,7 @@ const ProducaoDash = {
       } catch (_) { /* sem cache */ }
     }
     const base = this._movRaw;
-    const incremental = !!(base && base.de <= de && Date.now() - base.full < 3 * 3600 * 1000);
+    const incremental = !!(base && base.de <= de && Date.now() - base.full < 6 * 3600 * 1000);
     // Sem nada guardado: espera alguns segundos aleatórios (as TVs não batem todas juntas na API)
     if (!incremental && !this._movJitterFeito) {
       this._movJitterFeito = true;
@@ -794,6 +794,19 @@ const ProducaoDash = {
     const k = `${start}|${end}|${todos ? "todos" : "prod"}`;
     const c = this._movCache[k];
     const fresco = c && Date.now() - c.at < this.MOV_CACHE_MS;
+    // Abriu a tela e ainda não tem endereços: mostra na hora os que ficaram guardados na TV
+    // (até 6 h) enquanto busca os novos no WMS — assim Acumulado/Pausa/Pronto não ficam "—".
+    if (!(c && c.data) && !this._movIdbLido && SkylineDash._idbGetFetch) {
+      this._movIdbLido = true;
+      SkylineDash._idbGetFetch("mov_raw|v1").then((salvo) => {
+        const d = salvo && salvo.data;
+        if (!d || !Array.isArray(d.itens) || Date.now() - (d.full || 0) > 6 * 3600 * 1000) return;
+        const atual = this._movCache[k];
+        if (atual && atual.data) return;
+        this._movCache[k] = { at: atual?.at || 0, data: this.loadMovimentosEndereco(d.itens, todos), loading: !!atual?.loading };
+        if (typeof onReady === "function") onReady();
+      }).catch(() => {});
+    }
     if (!fresco && !(c && c.loading)) {
       this._movCache[k] = { at: c?.at || 0, data: c?.data ?? null, loading: true };
       this.fetchMovimentosEndereco(start, end, todos).then((data) => {
