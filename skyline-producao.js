@@ -642,26 +642,45 @@ const ProducaoDash = {
     if (de < maxIni) de = maxIni;
     // Carga incremental (alivia a API do WMS): a 1ª busca traz a janela toda; as próximas
     // (por até 3 h) trazem só ontem+hoje e juntam pelo id da movimentação.
+    // Ao abrir a TV, recupera do aparelho a última carga (assim só busca ontem+hoje: 1 chamada)
+    if (!this._movRaw && SkylineDash._idbGetFetch) {
+      try {
+        const salvo = await SkylineDash._idbGetFetch("mov_raw|v1");
+        const d = salvo && salvo.data;
+        if (d && Array.isArray(d.itens) && Date.now() - (d.full || 0) < 3 * 3600 * 1000) {
+          const porId = new Map();
+          d.itens.forEach((m) => porId.set(m && m.id != null ? `id:${m.id}` : JSON.stringify(m), m));
+          this._movRaw = { de: d.de, full: d.full, porId };
+        }
+      } catch (_) { /* sem cache */ }
+    }
     const base = this._movRaw;
     const incremental = !!(base && base.de <= de && Date.now() - base.full < 3 * 3600 * 1000);
+    // Sem nada guardado: espera alguns segundos aleatórios (as TVs não batem todas juntas na API)
+    if (!incremental && !this._movJitterFeito) {
+      this._movJitterFeito = true;
+      await new Promise((r) => setTimeout(r, Math.random() * 8000));
+    }
     const deBusca = incremental ? SkylineDash._isoAddDays(end, -1) : de;
     const linhas = [];
     try {
       for (let pag = 0; pag < this.MOV_MAX_PAGINAS; pag++) {
         const qs = new URLSearchParams({ de: deBusca, ate: end, limite: String(this.MOV_LIMITE), offset: String(pag * this.MOV_LIMITE) });
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 30000);
+        const timer = setTimeout(() => ctrl.abort(), 120000);
         let res;
-        try {
+        for (let tent = 1; tent <= 4; tent++) {
           res = await fetch(`${this.API_MOV_ENDERECOS}?${qs}`, {
             method: "GET",
             cache: "no-store",
             headers: { "x-api-key": key },
             signal: ctrl.signal
           });
-        } finally {
-          clearTimeout(timer);
+          // Limite da API (10/min) ou instabilidade: espera e tenta de novo em vez de desistir
+          if ((res.status !== 429 && res.status < 500) || tent === 4) break;
+          await new Promise((r) => setTimeout(r, 12000 + Math.random() * 10000));
         }
+        clearTimeout(timer);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const page = Array.isArray(json) ? json : SkylineDash.normalizeRows(json);
@@ -676,7 +695,11 @@ const ProducaoDash = {
         linhas.forEach((m) => porId.set(idDe(m), m));
         this._movRaw = { de, full: Date.now(), porId };
       }
-      return this.loadMovimentosEndereco([...this._movRaw.porId.values()], todos);
+      const itens = [...this._movRaw.porId.values()];
+      if (SkylineDash._idbSetFetch) {
+        SkylineDash._idbSetFetch("mov_raw|v1", { de: this._movRaw.de, full: this._movRaw.full, itens }, Date.now()).catch(() => {});
+      }
+      return this.loadMovimentosEndereco(itens, todos);
     } catch (err) {
       // Sem reserva pesada (não baixa o rastreio inteiro): usa o que já tem em memória
       console.warn("[Produção] movimentações de endereço indisponíveis:", err?.message || err);
