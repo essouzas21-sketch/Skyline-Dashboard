@@ -51,7 +51,7 @@ const ProducaoDash = {
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Claudia", match: "claudia" },
     { prod: 13, nome: null, match: null },
-    { prod: 14, nome: "Moisés", match: "moises souza|moises.souza" }, // "moises" sozinho pegaria o Allef Moises
+    { prod: 14, nome: "Moisés", match: "moises souza|moises.souza", desdeAcumulado: "2026-11-09" }, // Acumulado zerado em 09/11 ("moises" sozinho pegaria o Allef Moises)
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
     { prod: 16, nome: "Almir", match: "almir" },
     { prod: 17, nome: "Ronny", match: "ronny|ronny.gomez", desde: "2026-10-30" }, // ronny.gomez@gruposkytech.com.br (PROD17 desde 05/11)
@@ -928,6 +928,12 @@ const ProducaoDash = {
     const noPeriodo = (iso) => !!iso && iso >= ini && iso <= fimP;
     const DESDE = this.MARCO_ZERO || "0000-00-00";
     const desdeMarco = (data) => !!data && SkylineDash.toLocalDateStr(data) >= DESDE;
+    // Acumulado "zerado" (ex.: PROD14 em 09/11): só conta no Acumulado o que entrou na bancada a partir dessa data
+    const desdeDaProd = (n) => {
+      const pos = n != null ? this.POSICOES.find((q) => q.prod === n) : null;
+      return pos && pos.desdeAcumulado && pos.desdeAcumulado > DESDE ? pos.desdeAcumulado : DESDE;
+    };
+    const desdeNaProd = (n, data) => !!data && SkylineDash.toLocalDateStr(data) >= desdeDaProd(n);
     // última ação do reparo (início, retornos e pausas): precisa ser a partir do marco zero
     const acaoDesdeMarco = (raw) => ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno"]
       .some((c) => { const d = this.parseDt(raw?.[c]); return !!d && desdeMarco(d.toISOString()); });
@@ -1001,7 +1007,7 @@ const ProducaoDash = {
       // entrou no endereço no período (hoje) → já está no Receb. Dia; entrou em dias anteriores → ACUMULADO
       const item = { ...m, prod: n, _row: row, user: `PROD ${n}` };
       if (noPeriodo(SkylineDash.toLocalDateStr(m.created_at))) recebidosNovos.push(item);
-      else recebidos.push(item);
+      else if (desdeNaProd(n, m.created_at) || entradas.some((e) => e.prod === n && desdeNaProd(n, e.data))) recebidos.push(item);
     });
     return { reparo, recebidos, recebidosNovos, recebidosDia, prontos, outraOperacao };
   },
