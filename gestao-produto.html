@@ -3,6 +3,7 @@
 <head>
     <script src="skyline-auth.js?v=6"></script>
 <meta charset="UTF-8" />
+  <meta name="color-scheme" content="only light" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gestão de Produto</title>
   <link rel="stylesheet" href="skyline-dash.css?v=12" />
@@ -14,6 +15,7 @@
   <script src="skyline-rastreio.js?v=10"></script>
   <style>
     :root {
+      color-scheme: only light;
       --gp-page: #694992;
       --gp-card: #ffffff;
       --gp-border: rgba(105, 73, 146, 0.18);
@@ -496,10 +498,14 @@
     .gp-kpi.compra.recusada .value { color: var(--gp-red); }
     .gp-compras {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       gap: 8px;
-      flex: 1 1 0;
+      flex: 1.15 1 0;
       min-height: 0;
+    }
+    .gp-compras .gp-panel { min-height: 0; }
+    @media (max-width: 720px) {
+      .gp-compras { grid-template-columns: 1fr; }
     }
     .gp-compras .gp-panel h2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .gp-compras .gp-panel h2 .agrup { font-weight: 700; text-transform: none; letter-spacing: 0; }
@@ -520,8 +526,13 @@
       .gp-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .gp-mid { grid-template-columns: 1fr; }
     }
-    @media (min-width: 721px) and (max-width: 1099px) {
-      .gp-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* TV/PC (qualquer largura acima de celular): os 7 cards sempre numa linha só */
+    @media (min-width: 721px) {
+      .gp-kpi-row { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+      .gp-kpi { padding: 6px 8px; }
+      .gp-kpi .label { font-size: 0.56rem; }
+      .gp-kpi .value { font-size: 1.15rem; white-space: nowrap; }
+      .gp-kpi .hint { font-size: 0.58rem; }
     }
 
     /* ── TV: tudo em uma tela, sem rolagem e com fonte compacta (mesmo padrão da Triagem) ── */
@@ -688,8 +699,12 @@
 
     <section class="gp-compras">
       <div class="gp-panel">
-        <h2><span>Evolução das compras de peças e gasto (R$)</span><span class="agrup" id="comprasAgrupLabel"></span></h2>
+        <h2><span>Compras de peças</span><span class="agrup" id="comprasAgrupLabel"></span></h2>
         <div class="chart-box"><canvas id="chartCompras"></canvas></div>
+      </div>
+      <div class="gp-panel">
+        <h2><span>Gasto com peças (R$)</span><span class="agrup" id="gastoAgrupLabel"></span></h2>
+        <div class="chart-box"><canvas id="chartGasto"></canvas></div>
       </div>
     </section>
 
@@ -1609,7 +1624,9 @@
         Object.values(ids).forEach((id) => { document.getElementById(id).textContent = "—"; });
         document.getElementById("kpiGasto").textContent = "—";
         document.getElementById("comprasAgrupLabel").textContent = "aguardando dados do WMS…";
+        document.getElementById("gastoAgrupLabel").textContent = "";
         destroyChart("compras");
+        destroyChart("gasto");
         return;
       }
       valorizarCompras(compraRows);
@@ -1654,63 +1671,82 @@
       document.getElementById("comprasAgrupLabel").textContent =
         { hora: "por hora", dia: "por dia", semana: "por semana", mes: "por mês" }[modo];
 
+      const agrupTxt = { hora: "por hora", dia: "por dia", semana: "por semana", mes: "por mês" }[modo];
+      document.getElementById("gastoAgrupLabel").textContent = `${agrupTxt} · total ${fmtBRL(gastoTotal)}`;
+      const poucos = baldes.length <= 20;
+      const eixoX = { grid: { display: false }, ticks: { color: "#4b3a63", font: { size: 11, weight: "700" }, autoSkip: true, maxRotation: 0 } };
+
       destroyChart("compras");
       charts.compras = new Chart(document.getElementById("chartCompras"), {
         type: "bar",
         data: {
           labels: baldes.map((b) => b.label),
           datasets: [
-            { label: "Compradas (recebidas)", data: serie.comprada, backgroundColor: SKY.primary, borderRadius: 3 },
-            { label: "Aceitas", data: serie.aceita, backgroundColor: SKY.green, borderRadius: 3 },
-            { label: "Recusadas (canceladas)", data: serie.recusada, backgroundColor: SKY.red, borderRadius: 3 },
-            {
-              type: "line",
-              label: "Gasto (R$)",
-              data: gasto.map((v) => Math.round(v * 100) / 100),
-              yAxisID: "y1",
-              borderColor: "#b45309",
-              backgroundColor: "#b45309",
-              borderWidth: 2,
-              pointRadius: 3,
-              tension: 0.25,
-              order: 0,
-              datalabels: {
-                align: "top",
-                anchor: "end",
-                color: "#b45309",
-                font: { weight: "800", size: 10 },
-                display: (ctx) => baldes.length <= 16 && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
-                formatter: (v) => fmtBRLCurto(v)
-              }
-            }
+            { label: "Compradas", data: serie.comprada, backgroundColor: SKY.primary, borderRadius: 3, maxBarThickness: 26 },
+            { label: "Aceitas", data: serie.aceita, backgroundColor: SKY.green, borderRadius: 3, maxBarThickness: 26 },
+            { label: "Recusadas", data: serie.recusada, backgroundColor: SKY.red, borderRadius: 3, maxBarThickness: 26 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
+          layout: { padding: { top: 4 } },
           scales: {
-            x: { ticks: { font: { size: 10 }, autoSkip: true, maxRotation: 0 } },
-            y: { beginAtZero: true, grace: "12%", ticks: { precision: 0, font: { size: 10 } }, title: { display: true, text: "Peças", font: { size: 10 } } },
-            y1: {
-              position: "right",
-              beginAtZero: true,
-              grace: "15%",
-              grid: { drawOnChartArea: false },
-              ticks: { font: { size: 10 }, callback: (v) => fmtBRLCurto(v) },
-              title: { display: true, text: "Gasto", font: { size: 10 } }
-            }
+            x: eixoX,
+            y: { beginAtZero: true, grace: "18%", ticks: { precision: 0, color: "#4b3a63", font: { size: 10 } }, grid: { color: "rgba(105,73,146,0.12)" } }
           },
           plugins: {
-            legend: { position: "top", labels: { boxWidth: 12, font: { size: 11, weight: "700" } } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ctx.dataset.yAxisID === "y1"
-                  ? `Gasto: ${fmtBRL(ctx.parsed.y)}`
-                  : `${ctx.dataset.label}: ${ctx.parsed.y}`
-              }
-            },
-            datalabels: { ...dataLabelCount, color: "#2d1f42", font: { weight: "700", size: 10 }, display: (ctx) => baldes.length <= 31 && Number(ctx.dataset.data[ctx.dataIndex]) > 0 }
+            legend: { position: "top", align: "end", labels: { boxWidth: 10, color: "#2d1f42", font: { size: 11, weight: "700" } } },
+            datalabels: {
+              anchor: "end",
+              align: "end",
+              offset: 1,
+              clamp: true,
+              color: "#2d1f42",
+              font: { weight: "800", size: 10 },
+              display: (ctx) => poucos && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+              formatter: (v) => v
+            }
+          }
+        }
+      });
+
+      destroyChart("gasto");
+      charts.gasto = new Chart(document.getElementById("chartGasto"), {
+        type: "bar",
+        data: {
+          labels: baldes.map((b) => b.label),
+          datasets: [{
+            label: "Gasto",
+            data: gasto.map((v) => Math.round(v * 100) / 100),
+            backgroundColor: "#b45309",
+            borderRadius: 3,
+            maxBarThickness: 30
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          layout: { padding: { top: 4 } },
+          scales: {
+            x: eixoX,
+            y: { beginAtZero: true, grace: "18%", ticks: { color: "#4b3a63", font: { size: 10 }, callback: (v) => fmtBRLCurto(v) }, grid: { color: "rgba(105,73,146,0.12)" } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Gasto: ${fmtBRL(ctx.parsed.y)}` } },
+            datalabels: {
+              anchor: "end",
+              align: "end",
+              offset: 1,
+              clamp: true,
+              color: "#7c3a06",
+              font: { weight: "800", size: 9 },
+              display: (ctx) => poucos && Number(ctx.dataset.data[ctx.dataIndex]) > 0,
+              formatter: (v) => fmtBRLCurto(v).replace("R$ ", "")
+            }
           }
         }
       });
