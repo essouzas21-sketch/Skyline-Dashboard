@@ -632,6 +632,16 @@
      * conta aparelhos que já seguiram para a próxima etapa no mesmo dia.
      */
     const ETAPAS = Object.assign(new Set(["todas"]), { has: () => true });
+    /**
+     * Só conta a triagem FINALIZADA: enquanto está "em triagem" o WMS grava em "Data Triagem" a hora
+     * do início; quando a pessoa finaliza, a "Data Triagem" passa a ser a hora da finalização.
+     * Então o aparelho entra na contagem no momento em que a triagem é finalizada.
+     */
+    const STATUS_TRIAGEM_ABERTA = new Set(["em_triagem", "aguardando_triagem"]);
+    function triagemFinalizada(raw) {
+      const st = String(raw?.status ?? "").trim().toLowerCase();
+      return !STATUS_TRIAGEM_ABERTA.has(st);
+    }
     /** Conta também Sankhya erro / outros (não exige sucesso). */
     const REQUIRE_SANKHYA_SUCESSO = false;
     const TOP_N = 8;
@@ -671,6 +681,7 @@
       if (!raw || typeof raw !== "object") return "payload_invalido";
       const dataTriagem = raw["Data Triagem"] || raw.data_triagem || null;
       if (!dataTriagem) return "sem_data_triagem";
+      if (!triagemFinalizada(raw)) return "triagem_nao_finalizada";
       const op = SkylineDash.resolveOperacao(raw);
       if (!ETAPAS.has(op)) return `operacao_fora(${op || "vazia"})`;
       if (REQUIRE_SANKHYA_SUCESSO) {
@@ -1417,7 +1428,7 @@
         if (ev === "FINALIZACAO" && (!fim || String(e.data) > String(fim.data))) fim = e;
         if (ev === "INICIO" && (!ini || String(e.data) > String(ini.data))) ini = e;
       });
-      return (fim || ini)?.usuario || null;
+      return (fim || ini)?.usuario || null; // quem FINALIZOU a triagem
     }
     let triBuscando = false;
     async function completarUsuariosTriagem() {
@@ -1433,7 +1444,7 @@
         const agora = Date.now();
         const pend = (lastRawPayload || []).filter((raw) => {
           const dt = raw?.["Data Triagem"];
-          if (!dt || raw["Usuário triagem"]) return false;
+          if (!dt || raw["Usuário triagem"] || !triagemFinalizada(raw)) return false;
           const dia = SkylineDash.toLocalDateStr(dt);
           if (dia < ini || dia > fim) return false;
           const k = chaveTri(raw);
@@ -1470,7 +1481,7 @@
     }
     function redesenharTriagem() {
       allRows = (lastRawPayload || [])
-        .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, { requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO }))
+        .filter((raw) => triagemFinalizada(raw) && SkylineDash.passesTriagemRaw(raw, ETAPAS, { requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO }))
         .map(mapRow)
         .filter((r) => r.data_triagem);
       try { renderDashboard(); } catch (e) { console.error("[Triagem] erro ao redesenhar:", e); }
@@ -1492,7 +1503,7 @@
           if (m && sku && !marcaPorSku.has(sku)) marcaPorSku.set(sku, m);
         });
         allRows = lastRawPayload
-          .filter((raw) => SkylineDash.passesTriagemRaw(raw, ETAPAS, {
+          .filter((raw) => triagemFinalizada(raw) && SkylineDash.passesTriagemRaw(raw, ETAPAS, {
             requireSankhyaSucesso: REQUIRE_SANKHYA_SUCESSO
           }))
           .map(mapRow)
