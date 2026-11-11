@@ -38,7 +38,7 @@ const ProducaoDash = {
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
   POSICOES_NOVAS: [
-    { prod: 1, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD17 em 05/11
+    { prod: 1, nome: "Diego", match: "diego" }, // veio da PROD9 em 11/11
     { prod: 2, nome: "Noemi", match: "noemi" },
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
@@ -46,7 +46,7 @@ const ProducaoDash = {
     { prod: 6, nome: "Jorge", match: "jorge" },
     { prod: 7, nome: "Karol", match: "karol" },
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
-    { prod: 9, nome: "Diego", match: "diego" },
+    { prod: 9, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD1 em 11/11
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Claudia", match: "claudia" },
