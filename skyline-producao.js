@@ -139,7 +139,133 @@ const ProducaoDash = {
     if (b > a) intervals.push({ start: a, end: b });
   },
 
+  /**
+   * Intervalos de trabalho do aparelho. O relatório de reparo só guarda 3 pausas/retornos e junta
+   * reparos refeitos (ex.: voltou do CQE) num registro só — aí parece que o aparelho ficou "em reparo"
+   * dias seguidos (2 aparelhos assim davam 16 h num dia). Quando um intervalo atravessa dias, busca no
+   * WMS (api-rastreio-imei) os eventos reais do reparo (início, pausa, retomada, fim) e usa esses.
+   */
   getWorkIntervals(raw, nowMs = Date.now()) {
+    if (!raw) return [];
+    const os = String(raw.hu || "").trim();
+    const c = os ? this._ivWmsGet(os) : null;
+    if (c && c.sig === this._ivSig(raw)) {
+      return c.iv
+        .map((x) => ({ start: x.start, end: Math.min(x.end == null ? Date.now() : x.end, nowMs) }))
+        .filter((x) => x.end > x.start);
+    }
+    const iv = this._getWorkIntervalsRelatorio(raw, nowMs);
+    if (os && this._ivSuspeito(iv)) this._ivAgendar(raw);
+    return iv;
+  },
+
+  _ivWms: null,
+  _ivFila: [],
+  _ivNaFila: new Set(),
+  _ivRodando: false,
+  _ivPausaAte: 0,
+  IV_CACHE_KEY: "skyline_prod_intervalos_wms_v1",
+  IV_CACHE_MS: 6 * 3600 * 1000,
+  _ivSig(raw) {
+    return [raw["Iniciado_Reparo"], raw["Fim do Reparo"], raw["3 Retorno"], raw.status].map((v) => String(v ?? "")).join("|");
+  },
+  _ivCarregar() {
+    if (this._ivWms) return;
+    try { this._ivWms = JSON.parse(localStorage.getItem(this.IV_CACHE_KEY) || "{}") || {}; } catch (_) { this._ivWms = {}; }
+  },
+  _ivWmsGet(os) {
+    this._ivCarregar();
+    const c = this._ivWms[os];
+    return c && Date.now() - (c.em || 0) < this.IV_CACHE_MS ? c : null;
+  },
+  _ivSalvar() {
+    try {
+      const ent = Object.entries(this._ivWms || {}).filter(([, c]) => Date.now() - (c.em || 0) < this.IV_CACHE_MS);
+      this._ivWms = Object.fromEntries(ent.slice(-400));
+      localStorage.setItem(this.IV_CACHE_KEY, JSON.stringify(this._ivWms));
+    } catch (_) { /* sem espaço */ }
+  },
+  /** Intervalo que atravessa dias e que pesa nos últimos 2 dias (o que aparece na TV). */
+  _ivSuspeito(iv) {
+    const limite = Date.now() - 2 * 86400000;
+    return iv.some((x) => x.end > limite && this.localDayStartMs(x.start) !== this.localDayStartMs(x.end - 1));
+  },
+  _ivAgendar(raw) {
+    const os = String(raw.hu || "").trim();
+    if (!os || this._ivNaFila.has(os)) return;
+    this._ivNaFila.add(os);
+    this._ivFila.push(raw);
+    if (!this._ivRodando) setTimeout(() => this._ivProcessar(), 1500);
+  },
+  /** Monta os intervalos a partir dos eventos REPARO do WMS (INICIO/RETOMADA → PAUSA/FINALIZACAO). */
+  _ivDosEventos(ap, raw) {
+    const evs = (ap?.eventos || [])
+      .filter((e) => e && e.data && String(e.etapa || "").toUpperCase() === "REPARO")
+      .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    const iv = [];
+    let aberto = null;
+    evs.forEach((e) => {
+      const ev = String(e.evento || "").toUpperCase();
+      const t = new Date(e.data).getTime();
+      if (!Number.isFinite(t)) return;
+      if (ev === "INICIO" || ev === "RETOMADA") {
+        if (aberto == null) aberto = t;
+      } else if (ev === "PAUSA" || ev === "FINALIZACAO") {
+        if (aberto != null && t > aberto) iv.push({ start: aberto, end: t });
+        aberto = null;
+      }
+    });
+    const st = String(raw.status || "").toLowerCase();
+    if (aberto != null && st === "em_execucao") iv.push({ start: aberto, end: null }); // ainda em reparo agora
+    return iv;
+  },
+  async _ivProcessar() {
+    if (this._ivRodando) return;
+    this._ivRodando = true;
+    let mudou = 0;
+    try {
+      const key = await this._movApiKey();
+      if (!key) return;
+      let n = 0;
+      while (this._ivFila.length && n < 15) {
+        if (Date.now() < this._ivPausaAte) break;
+        const raw = this._ivFila.shift();
+        const os = String(raw.hu || "").trim();
+        const s = String(raw.serial || "").trim();
+        const qs = /^\d{14,16}$/.test(s) ? { imei: s } : { os };
+        n++;
+        try {
+          const res = await fetch(`${this.API_RASTREIO}?${new URLSearchParams({ ...qs, limite: "5" })}`, { cache: "no-store", headers: { "x-api-key": key } });
+          if (res.status === 429) {
+            this._ivPausaAte = Date.now() + 90000;
+            this._ivFila.unshift(raw);
+            break;
+          }
+          if (res.ok) {
+            const j = await res.json();
+            const itens = Array.isArray(j?.itens) ? j.itens : [];
+            const ap = itens.find((x) => String(x.os) === os) || itens.find((x) => String(x.imei) === s) || null;
+            if (ap) {
+              this._ivCarregar();
+              this._ivWms[os] = { em: Date.now(), sig: this._ivSig(raw), iv: this._ivDosEventos(ap, raw) };
+              mudou++;
+            }
+          }
+        } catch (_) { /* tenta na próxima atualização */ }
+        this._ivNaFila.delete(os);
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    } finally {
+      this._ivRodando = false;
+      if (mudou) {
+        this._ivSalvar();
+        try { this._ultimoOnReady?.(); } catch (_) { /* tela fechada */ }
+      }
+      if (this._ivFila.length) setTimeout(() => this._ivProcessar(), Math.max(5000, this._ivPausaAte - Date.now()));
+    }
+  },
+
+  _getWorkIntervalsRelatorio(raw, nowMs = Date.now()) {
     const inicio = this.parseDt(raw["Iniciado_Reparo"]);
     if (!inicio) return [];
 
@@ -284,6 +410,36 @@ const ProducaoDash = {
       }
     }
     return total;
+  },
+
+  /** Intervalos de reparo do aparelho recortados ao período (e até agora). */
+  workIntervalsInPeriod(raw, periodStart, periodEnd, nowMs = Date.now()) {
+    if (!raw || !periodStart || !periodEnd) return [];
+    const bounds = this.periodBoundsMs(periodStart, periodEnd);
+    const capEnd = Math.min(nowMs, bounds.end);
+    const out = [];
+    for (const { start, end } of this.getWorkIntervals(raw, capEnd)) {
+      const a = Math.max(start, bounds.start);
+      const b = Math.min(end, bounds.end);
+      if (b > a) out.push({ start: a, end: b });
+    }
+    return out;
+  },
+
+  /**
+   * "Trabalhado" do técnico: junta os intervalos de TODOS os aparelhos dele e conta o tempo
+   * uma vez só. Dois aparelhos abertos ao mesmo tempo não somam em dobro (antes 2 aparelhos
+   * "em reparo" o dia inteiro davam 16 h num expediente de 8 h).
+   */
+  unionShiftMs(intervals, cfg = this.SHIFT_REPAIR) {
+    const iv = (intervals || []).filter((x) => x && x.end > x.start).sort((a, b) => a.start - b.start);
+    const merged = [];
+    for (const x of iv) {
+      const last = merged[merged.length - 1];
+      if (last && x.start <= last.end) last.end = Math.max(last.end, x.end);
+      else merged.push({ start: x.start, end: x.end });
+    }
+    return this.sumShiftIntervalsMs(merged, cfg);
   },
 
   /** Tempo em reparo no expediente, recortado ao período (evita aparelho aberto somar dias futuros). */
@@ -475,7 +631,8 @@ const ProducaoDash = {
       andamento: 0,
       pausado: 0,
       total: 0,
-      workMs: 0
+      workMs: 0,
+      _iv: []
     }));
 
     filtered.forEach((row) => {
@@ -485,8 +642,9 @@ const ProducaoDash = {
       target[row.status]++;
       if (!prontos && row.status === "finalizado" && this.ehPronto(row._workRaw)) target.pronto++;
       target.total++;
-      target.workMs += this.calcShiftWorkMsInPeriod(row._workRaw, start, end);
+      target._iv.push(...this.workIntervalsInPeriod(row._workRaw, start, end));
     });
+    rows.forEach((r) => { r.workMs = this.unionShiftMs(r._iv); delete r._iv; });
     recebidos.forEach((row) => {
       // Alocação por endereço (PROD n) conta pela posição; início de reparo conta pelo técnico
       const idx =
@@ -905,6 +1063,7 @@ const ProducaoDash = {
    * recebidos = acumulado; recebidosDia = Receb. Dia. null = sem dados de endereço (a tela usa a regra antiga).
    */
   fotoAgora(allRows, onReady) {
+    if (typeof onReady === "function") this._ultimoOnReady = onReady; // redesenha quando os intervalos do WMS chegam
     const st = (r) => String(r?._workRaw?.status || "").toLowerCase();
     let reparo = allRows
       .filter((r) => st(r) === "em_execucao" || st(r) === "pausado")

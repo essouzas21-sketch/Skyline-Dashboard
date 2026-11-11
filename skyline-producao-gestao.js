@@ -470,8 +470,9 @@ const ProducaoGestao = {
         if (s[r.status] != null) s[r.status]++;
         if (ehPronto(r)) s.pronto++;
         s.total++;
-        s.workMs += rowWorkMs(r, start, end);
+        (s._iv = s._iv || []).push(...ProducaoDash.workIntervalsInPeriod(r.raw, start, end));
       });
+      stats.forEach((s) => { s.workMs = ProducaoDash.unionShiftMs(s._iv); delete s._iv; });
       return stats;
     }
 
@@ -560,8 +561,9 @@ const ProducaoGestao = {
         const s = stats[idx];
         if (s[r.status] != null) s[r.status]++;
         s.total++;
-        s.workMs += rowWorkMs(r, start, end);
+        (s._iv = s._iv || []).push(...ProducaoDash.workIntervalsInPeriod(r.raw, start, end));
       });
+      stats.forEach((s) => { s.workMs = ProducaoDash.unionShiftMs(s._iv); delete s._iv; });
       const hoje = SkylineDash.todayISO();
       if (APPLY_MASK && start <= hoje && end >= hoje) {
         const maxMs = maxWorkMsFromSevenToNow();
