@@ -49,7 +49,8 @@ const ProducaoDash = {
     { prod: 9, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD1 em 11/11
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
-    { prod: 12, nome: "Claudia", match: "claudia" },
+    // pausaFisica: conferência física da bancada (12/11) — a coluna Pausa da PROD12 mostra SÓ estes IMEIs
+    { prod: 12, nome: "Claudia", match: "claudia", pausaFisica: ["353111071575516", "357104092810943", "357070097134516", "354624111114913", "354143100893411", "350547663673313"] },
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Moisés", match: "moises souza|moises.souza", desdeAcumulado: "2026-11-09" }, // Acumulado zerado em 09/11 ("moises" sozinho pegaria o Allef Moises)
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
@@ -263,6 +264,40 @@ const ProducaoDash = {
       }
       if (this._ivFila.length) setTimeout(() => this._ivProcessar(), Math.max(5000, this._ivPausaAte - Date.now()));
     }
+  },
+
+  /**
+   * Conferência física (POSICOES[].pausaFisica): a Pausa da PROD mostra exatamente os IMEIs
+   * conferidos na bancada, mesmo que o endereço/status no WMS esteja diferente. Os outros pausados
+   * do técnico saem da Pausa, e os conferidos não contam de novo em Acumulado/Pronto.
+   */
+  _aplicarPausaFisica(allRows, reparo, outrasListas) {
+    this.POSICOES.forEach((pos) => {
+      if (!pos?.match || !Array.isArray(pos.pausaFisica) || !pos.pausaFisica.length) return;
+      const lista = new Set(pos.pausaFisica.map((s) => String(s).trim()));
+      const serialDe = (r) => String(r?._workRaw?.serial ?? r?.serial ?? "").trim();
+      const doTec = (r) => this.matchesUserFilter(r.user, [pos.match]);
+      // tira da Pausa do técnico o que não está na conferência
+      for (let i = reparo.length - 1; i >= 0; i--) {
+        const r = reparo[i];
+        if (r.status === "pausado" && doTec(r) && !lista.has(serialDe(r))) reparo.splice(i, 1);
+      }
+      // coloca na Pausa os conferidos (qualquer status no WMS)
+      lista.forEach((s) => {
+        const idx = reparo.findIndex((r) => serialDe(r) === s);
+        if (idx >= 0) {
+          reparo[idx] = { ...reparo[idx], status: "pausado", user: doTec(reparo[idx]) ? reparo[idx].user : pos.nome, conferenciaFisica: true };
+          return;
+        }
+        const row = allRows.find((r) => serialDe(r) === s);
+        if (row) reparo.push({ ...row, status: "pausado", user: pos.nome, conferenciaFisica: true });
+      });
+      // não conta de novo em Acumulado / Receb. / Pronto
+      (outrasListas || []).forEach((l) => {
+        if (!Array.isArray(l)) return;
+        for (let i = l.length - 1; i >= 0; i--) if (lista.has(String(l[i]?.serial ?? "").trim())) l.splice(i, 1);
+      });
+    });
   },
 
   _getWorkIntervalsRelatorio(raw, nowMs = Date.now()) {
@@ -1073,7 +1108,10 @@ const ProducaoDash = {
         user: SkylineDash.normalizeUserName(r._workRaw["Usuário reparo"] || r.user || "—")
       }));
     const ult = this.ultimoEnderecoPorAparelho(onReady);
-    if (!ult) return { reparo, recebidos: null, recebidosDia: null, prontos: null, outraOperacao: [] };
+    if (!ult) {
+      this._aplicarPausaFisica(allRows, reparo, []);
+      return { reparo, recebidos: null, recebidosDia: null, prontos: null, outraOperacao: [] };
+    }
     const porSerial = new Map();
     allRows.forEach((r) => {
       const s = String(r._workRaw?.serial ?? "").trim();
@@ -1168,6 +1206,7 @@ const ProducaoDash = {
       if (noPeriodo(SkylineDash.toLocalDateStr(m.created_at))) recebidosNovos.push(item);
       else if (desdeNaProd(n, m.created_at) || entradas.some((e) => e.prod === n && desdeNaProd(n, e.data))) recebidos.push(item);
     });
+    this._aplicarPausaFisica(allRows, reparo, [recebidos, recebidosNovos, prontos]);
     return { reparo, recebidos, recebidosNovos, recebidosDia, prontos, outraOperacao };
   },
 
