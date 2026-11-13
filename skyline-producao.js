@@ -49,8 +49,7 @@ const ProducaoDash = {
     { prod: 9, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD1 em 11/11
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
-    // pausaFisica: conferência física da bancada (12/11) — a coluna Pausa da PROD12 mostra SÓ estes IMEIs
-    { prod: 12, nome: "Claudia", match: "claudia", pausaFisica: ["353111071575516", "357104092810943", "357070097134516", "354624111114913", "354143100893411", "350547663673313"] },
+    { prod: 12, nome: "Claudia", match: "claudia" },
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Moisés", match: "moises souza|moises.souza", desdeAcumulado: "2026-11-09" }, // Acumulado zerado em 09/11 ("moises" sozinho pegaria o Allef Moises)
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
@@ -1040,6 +1039,8 @@ const ProducaoDash = {
    * Tudo de antes fica de fora (sistema "zerado"). Para mudar o início, altere só esta data (AAAA-MM-DD).
    */
   MARCO_ZERO: "2026-10-16",
+  /** Pausa zerada em 13/11: só conta na coluna Pausa o aparelho com ação de reparo (pausa/retomada/início) a partir desta data. */
+  PAUSA_DESDE: "2026-11-13",
   noEnderecoProdAgora(onReady) {
     const hoje = SkylineDash.todayISO();
     const de = SkylineDash._isoAddDays(hoje, -(this.MOV_JANELA_DIAS - 1));
@@ -1135,6 +1136,11 @@ const ProducaoDash = {
     const acaoDesdeMarco = (raw) => ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno"]
       .some((c) => { const d = this.parseDt(raw?.[c]); return !!d && desdeMarco(d.toISOString()); });
     reparo = reparo.filter((r) => acaoDesdeMarco(r._workRaw));
+    // PAUSA zerada (PAUSA_DESDE): pausado antigo sai da coluna Pausa de todos
+    const pausaDesde = this.PAUSA_DESDE || DESDE;
+    const pausaRecente = (raw) => ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno"]
+      .some((c) => { const d = this.parseDt(raw?.[c]); return !!d && SkylineDash.toLocalDateStr(d.toISOString()) >= pausaDesde; });
+    reparo = reparo.filter((r) => r.status !== "pausado" || pausaRecente(r._workRaw));
 
     /** Aparelhos fora da bancada do técnico (outra operação). */
     const outraOperacao = [];
