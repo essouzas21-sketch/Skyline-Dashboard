@@ -299,6 +299,102 @@ const ProducaoDash = {
     });
   },
 
+  /**
+   * PRONTO pelo WMS: a lista de aparelhos com status AGUARDANDO_CQE (api-rastreio-imei, 1 chamada leve)
+   * diz o que está pronto e ONDE está (estoque.endereco). Tira do Pronto o que já saiu "pelo sistema"
+   * (foi para o Cofre por transferência, saiu do estoque, voltou do CQE p/ retrabalho...) e coloca o
+   * que está pronto na bancada mas não apareceu nas movimentações de endereço.
+   */
+  CQE_CACHE_KEY: "skyline_prod_aguardando_cqe_v1",
+  CQE_CACHE_MS: 110000,
+  _cqe: null,
+  _cqeBuscando: false,
+  aguardandoCqeAgora(onReady) {
+    if (!this._cqe) {
+      try {
+        const c = JSON.parse(localStorage.getItem(this.CQE_CACHE_KEY) || "null");
+        if (c && Array.isArray(c.itens)) this._cqe = c;
+      } catch (_) { /* sem cache */ }
+    }
+    const fresco = this._cqe && Date.now() - this._cqe.at < this.CQE_CACHE_MS;
+    if (!fresco && !this._cqeBuscando) {
+      this._cqeBuscando = true;
+      (async () => {
+        try {
+          const key = await this._movApiKey();
+          if (!key) return;
+          const itens = [];
+          for (let off = 0, i = 0; i < 6; i++) {
+            const qs = new URLSearchParams({ status: "AGUARDANDO_CQE", eventos: "false", limite: "500", offset: String(off) });
+            const res = await fetch(`${this.API_RASTREIO}?${qs}`, { cache: "no-store", headers: { "x-api-key": key } });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const j = await res.json();
+            const lote = Array.isArray(j?.itens) ? j.itens : [];
+            lote.forEach((x) => itens.push({ imei: x.imei ? String(x.imei).trim() : null, os: x.os ? String(x.os).trim() : null, end: x.estoque?.endereco ? String(x.estoque.endereco).trim() : null, em: x.estoque?.entrada_em || null }));
+            if (lote.length < 500 || !j.proximo_offset) break;
+            off = j.proximo_offset;
+          }
+          this._cqe = { at: Date.now(), itens };
+          try { localStorage.setItem(this.CQE_CACHE_KEY, JSON.stringify(this._cqe)); } catch (_) { /* sem espaço */ }
+          if (typeof onReady === "function") onReady();
+        } catch (err) {
+          console.warn("[Produção] lista AGUARDANDO_CQE indisponível:", err?.message || err);
+        } finally {
+          this._cqeBuscando = false;
+        }
+      })();
+    }
+    // até 30 min de idade ainda serve (a API pode estar com limite); mais velho que isso não usa
+    return this._cqe && Date.now() - this._cqe.at < 30 * 60000 ? this._cqe : null;
+  },
+
+  _confirmarProntosWms(onReady, prontos, outrasListas, porSerial, hojeISO) {
+    const cq = this.aguardandoCqeAgora(onReady);
+    if (!cq) return; // sem a lista do WMS: mantém a regra das movimentações
+    const prodDe = (end) => this.prodDoEndereco(end) ?? this.prodProntoDoEndereco(end);
+    const porChave = new Map();
+    cq.itens.forEach((x) => {
+      const n = prodDe(x.end);
+      if (x.imei) porChave.set(`i:${x.imei}`, { ...x, n });
+      if (x.os) porChave.set(`o:${x.os}`, { ...x, n });
+    });
+    const achar = (a) => {
+      const s = String(a?.serial ?? "").trim();
+      const os = String(a?.hu ?? a?._row?._workRaw?.hu ?? "").trim();
+      return (s && porChave.get(`i:${s}`)) || (os && porChave.get(`o:${os}`)) || null;
+    };
+    // 1) tira do Pronto o que o WMS não tem como "aguardando CQE" nesta PROD
+    for (let i = prontos.length - 1; i >= 0; i--) {
+      const x = achar(prontos[i]);
+      if (!x || x.n !== prontos[i].prod) prontos.splice(i, 1);
+    }
+    // 2) coloca o que o WMS diz que está pronto na bancada (PROD n / PROD n PRONTO) e faltou
+    const ja = new Set();
+    prontos.forEach((a) => {
+      const s = String(a?.serial ?? "").trim();
+      const os = String(a?.hu ?? a?._row?._workRaw?.hu ?? "").trim();
+      if (s) ja.add(`i:${s}`);
+      if (os) ja.add(`o:${os}`);
+    });
+    const novos = new Set();
+    cq.itens.forEach((x) => {
+      const n = prodDe(x.end);
+      if (n == null) return;
+      if ((x.imei && ja.has(`i:${x.imei}`)) || (x.os && ja.has(`o:${x.os}`))) return;
+      const row = (x.imei && porSerial.get(x.imei)) || null;
+      prontos.push({ serial: x.imei, hu: x.os, endereco: x.end, created_at: x.em, prod: n, _row: row, user: `PROD ${n}`, diaPronto: hojeISO, raw: { status_wms: "AGUARDANDO_CQE" } });
+      if (x.imei) novos.add(x.imei);
+    });
+    // não conta o mesmo aparelho também no Acumulado / Receb. novos
+    (outrasListas || []).forEach((l) => {
+      if (!Array.isArray(l)) return;
+      for (let i = l.length - 1; i >= 0; i--) {
+        const x = achar(l[i]);
+        if (x && x.n != null) l.splice(i, 1);
+      }
+    });
+  },
+
   _getWorkIntervalsRelatorio(raw, nowMs = Date.now()) {
     const inicio = this.parseDt(raw["Iniciado_Reparo"]);
     if (!inicio) return [];
@@ -754,7 +850,7 @@ const ProducaoDash = {
   MOV_LIMITE: 5000,
   MOV_MAX_PAGINAS: 120,
   MOV_MAX_DIAS: 93,
-  MOV_CACHE_MS: 240000,
+  MOV_CACHE_MS: 110000, // atualização das telas de 2 em 2 min
   _movCache: {},
 
   prodDoEndereco(endereco) {
@@ -1212,6 +1308,7 @@ const ProducaoDash = {
       if (noPeriodo(SkylineDash.toLocalDateStr(m.created_at))) recebidosNovos.push(item);
       else if (desdeNaProd(n, m.created_at) || entradas.some((e) => e.prod === n && desdeNaProd(n, e.data))) recebidos.push(item);
     });
+    this._confirmarProntosWms(onReady, prontos, [recebidos, recebidosNovos], porSerial, hojeISO);
     this._aplicarPausaFisica(allRows, reparo, [recebidos, recebidosNovos, prontos]);
     return { reparo, recebidos, recebidosNovos, recebidosDia, prontos, outraOperacao };
   },
@@ -1355,7 +1452,7 @@ const ProducaoDash = {
       }
     };
 
-    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 });
   },
 
   computeTotals(filtered) {
@@ -1447,7 +1544,19 @@ const ProducaoDash = {
       }
     };
 
-    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    const { reload } = SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 });
   }
 };
 
+/**
+ * Telas de Produção / CQE / Consolidado: atualizam de 2 em 2 min.
+ * Tira estas telas do rodízio de 30 s × 11 telas (≈5,5 min) e encurta o cache do relatório de reparo.
+ */
+(function atualizarDeDoisEmDoisMin() {
+  if (typeof SkylineDash === "undefined") return;
+  const pagina = (location.pathname.split("/").pop() || "").split("?")[0];
+  if (Array.isArray(SkylineDash.REFRESH_CYCLE_PAGES)) {
+    SkylineDash.REFRESH_CYCLE_PAGES = SkylineDash.REFRESH_CYCLE_PAGES.filter((p) => p !== pagina);
+  }
+  SkylineDash.FETCH_IDB_TTL_MS = Math.min(SkylineDash.FETCH_IDB_TTL_MS || 110000, 110000);
+})();

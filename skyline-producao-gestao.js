@@ -969,7 +969,7 @@ const ProducaoGestao = {
       document.getElementById(id).addEventListener("change", renderDashboard);
     });
 
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 }); // de 2 em 2 min
 
     if (APPLY_MASK) {
       setInterval(() => {

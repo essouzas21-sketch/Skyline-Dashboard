@@ -11,7 +11,7 @@
   <script src="skyline-version.js?v=3"></script>
   <script src="skyline-dash.js?v=98"></script>
   <script src="skyline-fluxo-tecnico.js?v=14"></script>
-  <script src="skyline-producao.js?v=69"></script>
+  <script src="skyline-producao.js?v=70"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -2715,7 +2715,7 @@
       document.getElementById(id).addEventListener("change", renderDashboard);
     });
 
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 }); // de 2 em 2 min
 
     if (APPLY_MASK) {
       setInterval(() => {

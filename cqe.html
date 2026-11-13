@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
   <script src="skyline-dash.js?v=98"></script>
-  <script src="skyline-producao.js?v=69"></script>
+  <script src="skyline-producao.js?v=70"></script>
   <style>
     :root {
       --gm-page: #694992;
@@ -2341,7 +2341,7 @@
       });
     }
 
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData });
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 }); // de 2 em 2 min
 
     if (APPLY_MASK) {
       setInterval(() => {
