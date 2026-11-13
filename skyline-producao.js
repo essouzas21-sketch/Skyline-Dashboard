@@ -197,6 +197,23 @@ const ProducaoDash = {
     this._ivFila.push(raw);
     if (!this._ivRodando) setTimeout(() => this._ivProcessar(), 1500);
   },
+  /** Quem iniciou/retomou o reparo por último (técnico que está com o aparelho agora). */
+  _ultimoTecnicoDosEventos(ap) {
+    const evs = (ap?.eventos || [])
+      .filter((e) => e && e.data && String(e.etapa || "").toUpperCase() === "REPARO" && ["INICIO", "RETOMADA"].includes(String(e.evento || "").toUpperCase()) && e.usuario)
+      .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    return evs.length ? String(evs[evs.length - 1].usuario) : null;
+  },
+  /** Aparelho "em reparo": confirma no WMS quem está com ele (o relatório guarda o 1º ciclo do reparo). */
+  tecnicoAtual(raw) {
+    const os = String(raw?.hu || "").trim();
+    if (!os) return null;
+    const c = this._ivWmsGet(os);
+    if (c && c.sig === this._ivSig(raw)) return c.ultUser || null;
+    this._ivAgendar(raw);
+    return null;
+  },
+
   /** Monta os intervalos a partir dos eventos REPARO do WMS (INICIO/RETOMADA → PAUSA/FINALIZACAO). */
   _ivDosEventos(ap, raw) {
     const evs = (ap?.eventos || [])
@@ -247,7 +264,7 @@ const ProducaoDash = {
             const ap = itens.find((x) => String(x.os) === os) || itens.find((x) => String(x.imei) === s) || null;
             if (ap) {
               this._ivCarregar();
-              this._ivWms[os] = { em: Date.now(), sig: this._ivSig(raw), iv: this._ivDosEventos(ap, raw) };
+              this._ivWms[os] = { em: Date.now(), sig: this._ivSig(raw), iv: this._ivDosEventos(ap, raw), ultUser: this._ultimoTecnicoDosEventos(ap) };
               mudou++;
             }
           }
@@ -1240,6 +1257,22 @@ const ProducaoDash = {
 
     /** Aparelhos fora da bancada do técnico (outra operação). */
     const outraOperacao = [];
+
+    // EM REPARO: conta na PROD onde o aparelho está agora. O relatório guarda só o 1º técnico do reparo
+    // (ex.: Fernanda iniciou em out/26 e o Moisés retomou em 12/11 na PROD14 → conta na PROD14).
+    reparo = reparo.filter((r) => {
+      if (r.status !== "andamento") return true;
+      // quem iniciou/retomou por último no WMS (ex.: OS004421 — relatório diz Allef, quem iniciou hoje foi a Fernanda)
+      const atual = this.tecnicoAtual(r._workRaw);
+      if (atual) r.user = SkylineDash.normalizeUserName(atual);
+      const serial = String(r._workRaw?.serial ?? "").trim();
+      const end = serial ? enderecoPorSerial.get(serial) : null;
+      const n = end ? (this.prodDoEndereco(end) ?? this.prodProntoDoEndereco(end)) : null;
+      const pos = n != null ? this.POSICOES.find((p) => p.prod === n) : null;
+      // está na bancada de uma PROD: conta nessa PROD; fora de bancada: fica com quem está reparando
+      if (pos?.match && !this.matchesUserFilter(r.user, [pos.match])) r.user = pos.nome || r.user;
+      return true;
+    });
 
     // PAUSA: só conta se o aparelho ainda está na bancada do técnico (PROD n / PROD n PRONTO).
     reparo = reparo.filter((r) => {
