@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
   <script src="skyline-dash.js?v=99"></script>
-  <script src="skyline-producao.js?v=80"></script>
+  <script src="skyline-producao.js?v=84"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -1995,7 +1995,7 @@
               imei: x.imei ? String(x.imei).trim() : "", os: x.os ? String(x.os).trim() : "",
               status: x.status || "", desc: x.status_descricao || x.status || "",
               arm: x.estoque?.armazem || "", end: x.estoque?.endereco ? String(x.estoque.endereco).trim() : "",
-              entrada: x.estoque?.entrada_em || null, modelo: x.produto || [x.marca, x.modelo].filter(Boolean).join(" ")
+              entrada: x.estoque?.entrada_em || null, fim: x.reparo_fim || null, modelo: x.produto || [x.marca, x.modelo].filter(Boolean).join(" ")
             }));
             if (lote.length < 500 || !j.proximo_offset) break;
             off = j.proximo_offset;
@@ -2031,8 +2031,8 @@
         const pz = PD.POSICOES.find((q) => q.prod === n);
         if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
         if (w.status === "AGUARDANDO_CQE") { // pronto: só o transferido a partir de PRONTO_DESDE / prontoZeradoEm
-          const zp = Math.max(PD.PRONTO_DESDE ? new Date(PD.PRONTO_DESDE).getTime() : -Infinity, pz && pz.prontoZeradoEm ? new Date(pz.prontoZeradoEm).getTime() : -Infinity);
-          if (Number.isFinite(zp) && !(w.entrada && new Date(w.entrada).getTime() >= zp)) return;
+          const zp = Math.max(PD.prontoDesdeMs ? PD.prontoDesdeMs() : -Infinity, pz && pz.prontoZeradoEm ? new Date(pz.prontoZeradoEm).getTime() : -Infinity);
+          return; // pronto só vem da foto (transferido para PROD n PRONTO a partir de PRONTO_DESDE)
         }
         let d = (w.imei && idx.get(`i:${w.imei}`)) || (w.os && idx.get(`o:${w.os}`));
         if (d) { if (d.prod == null) d.prod = n; d.naBancada = d.prod === n; return; }

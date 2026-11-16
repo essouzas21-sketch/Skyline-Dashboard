@@ -38,9 +38,9 @@ const ProducaoDash = {
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
   POSICOES_NOVAS: [
-    { prod: 1, nome: "Diego", match: "diego", prontoZeradoEm: "2026-11-16T09:31:00-03:00" }, // veio da PROD9 em 11/11 · só o PRONTO zerado em 16/11 09:31
-    { prod: 2, nome: "Noemi", match: "noemi", prontoZeradoEm: "2026-11-16T00:00:00-03:00" }, // 16/11: Pronto só o de hoje em diante
-    { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30", prontoZeradoEm: "2026-11-16T00:00:00-03:00" }, // allef.moises@gruposkytech.com.br · 16/11: Pronto só o de hoje em diante
+    { prod: 1, nome: "Diego", match: "diego" }, // veio da PROD9 em 11/11
+    { prod: 2, nome: "Noemi", match: "noemi" },
+    { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
     { prod: 5, nome: "Fran", match: "fran dias" },
     { prod: 6, nome: "Alan", match: "alan|teste1|teste 1", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
@@ -1173,8 +1173,16 @@ const ProducaoDash = {
   MARCO_ZERO: "2026-10-16",
   /** Pausa zerada em 13/11: só conta na coluna Pausa o aparelho com ação de reparo (pausa/retomada/início) a partir desta data. */
   PAUSA_DESDE: "2026-11-13",
-  /** PRONTO: só conta aparelho transferido para a bancada/pronto a partir desta hora (todas as PROD; 16/11). */
+  /**
+   * PRONTO: só aparelho que a pessoa TRANSFERIU para "PROD n PRONTO" a partir de 16/11 (todas as PROD);
+   * continua aparecendo até ser enviado para teste (sair do PROD n PRONTO).
+   */
   PRONTO_DESDE: "2026-11-16T00:00:00-03:00",
+  /** ACUMULADO: só conta o que entrou na bancada a partir de 16/11 (todas as PROD). */
+  ACUMULADO_DESDE: "2026-11-16",
+  prontoDesdeMs() {
+    return new Date(this.PRONTO_DESDE).getTime();
+  },
   noEnderecoProdAgora(onReady) {
     const hoje = SkylineDash.todayISO();
     const de = SkylineDash._isoAddDays(hoje, -(this.MOV_JANELA_DIAS - 1));
@@ -1263,7 +1271,8 @@ const ProducaoDash = {
     // Acumulado "zerado" (ex.: PROD14 em 09/11): só conta no Acumulado o que entrou na bancada a partir dessa data
     const desdeDaProd = (n) => {
       const pos = n != null ? this.POSICOES.find((q) => q.prod === n) : null;
-      return pos && pos.desdeAcumulado && pos.desdeAcumulado > DESDE ? pos.desdeAcumulado : DESDE;
+      const base = this.ACUMULADO_DESDE && this.ACUMULADO_DESDE > DESDE ? this.ACUMULADO_DESDE : DESDE;
+      return pos && pos.desdeAcumulado && pos.desdeAcumulado > base ? pos.desdeAcumulado : base;
     };
     const desdeNaProd = (n, data) => !!data && SkylineDash.toLocalDateStr(data) >= desdeDaProd(n);
     // PROD "zerada" num horário (zeradoEm, ex.: PROD6/PROD9 em 16/11): só conta o que entrou na bancada depois disso
@@ -1382,15 +1391,17 @@ const ProducaoDash = {
     this._aplicarPausaFisica(allRows, reparo, [recebidos, recebidosNovos, prontos]);
     // PRONTO: só conta o que foi TRANSFERIDO para a bancada/pronto a partir de PRONTO_DESDE (todas as PROD)
     // ou do prontoZeradoEm da PROD, se for mais tarde (ex.: PROD1 em 16/11 09:31)
-    const prontoGeral = this.PRONTO_DESDE ? new Date(this.PRONTO_DESDE).getTime() : NaN;
+    const prontoGeral = this.prontoDesdeMs();
     for (let i = prontos.length - 1; i >= 0; i--) {
       const a = prontos[i];
       const pos = this.POSICOES.find((q) => q.prod === a.prod);
       const zPos = pos && pos.prontoZeradoEm ? new Date(pos.prontoZeradoEm).getTime() : NaN;
       const z = Math.max(Number.isFinite(prontoGeral) ? prontoGeral : -Infinity, Number.isFinite(zPos) ? zPos : -Infinity);
       if (!Number.isFinite(z)) continue;
+      // só o que está no endereço "PROD n PRONTO" e foi transferido para lá a partir de PRONTO_DESDE
       const mov = a.created_at ? new Date(a.created_at).getTime() : NaN;
-      if (!(Number.isFinite(mov) && mov >= z)) prontos.splice(i, 1);
+      const noPronto = this.prodProntoDoEndereco(a.endereco) === a.prod;
+      if (!(noPronto && Number.isFinite(mov) && mov >= z)) prontos.splice(i, 1);
     }
     return { reparo, recebidos, recebidosNovos, recebidosDia, prontos, outraOperacao };
   },
