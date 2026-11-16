@@ -38,7 +38,7 @@ const ProducaoDash = {
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
   POSICOES_NOVAS: [
-    { prod: 1, nome: "Diego", match: "diego", zeradoEm: "2026-11-16T09:31:00-03:00" }, // veio da PROD9 em 11/11 · bancada zerada em 16/11 09:31
+    { prod: 1, nome: "Diego", match: "diego", prontoZeradoEm: "2026-11-16T09:31:00-03:00" }, // veio da PROD9 em 11/11 · só o PRONTO zerado em 16/11 09:31
     { prod: 2, nome: "Noemi", match: "noemi" },
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
@@ -1374,6 +1374,17 @@ const ProducaoDash = {
     });
     this._confirmarProntosWms(onReady, prontos, [recebidos, recebidosNovos], porSerial, hojeISO);
     this._aplicarPausaFisica(allRows, reparo, [recebidos, recebidosNovos, prontos]);
+    // PRONTO zerado (prontoZeradoEm, ex.: PROD1 em 16/11 09:31): só conta pronto finalizado ou bipado na bancada depois disso
+    for (let i = prontos.length - 1; i >= 0; i--) {
+      const a = prontos[i];
+      const pos = this.POSICOES.find((q) => q.prod === a.prod);
+      if (!pos || !pos.prontoZeradoEm) continue;
+      const z = new Date(pos.prontoZeradoEm).getTime();
+      const row = a._row || (a.serial ? porSerial.get(String(a.serial).trim()) : null);
+      const fim = this.parseDt(row?._workRaw?.["Fim do Reparo"]);
+      const mov = a.created_at ? new Date(a.created_at).getTime() : NaN;
+      if (!((fim && fim.getTime() >= z) || (Number.isFinite(mov) && mov >= z))) prontos.splice(i, 1);
+    }
     return { reparo, recebidos, recebidosNovos, recebidosDia, prontos, outraOperacao };
   },
 
