@@ -394,6 +394,8 @@ const ProducaoDash = {
       if (os) ja.add(`o:${os}`);
     });
     const novos = new Set();
+    const movPorSerial = new Map();
+    (this.ultimoEnderecoPorAparelho() || []).forEach((m) => { if (m.serial) movPorSerial.set(String(m.serial).trim(), m.created_at); if (m.hu) movPorSerial.set(String(m.hu).trim(), m.created_at); });
     // PROD zerada (zeradoEm, ex.: PROD6/PROD9 em 16/11): só entra pronto que foi bipado na bancada depois do zero
     const antesDoZero = (n, data) => {
       const pos = this.POSICOES.find((q) => q.prod === n);
@@ -404,10 +406,12 @@ const ProducaoDash = {
     cq.itens.forEach((x) => {
       const n = prodDe(x.end);
       if (n == null) return;
-      if (antesDoZero(n, x.em)) return;
+      if (antesDoZero(n, (x.imei && movPorSerial.get(x.imei)) || x.em)) return;
       if ((x.imei && ja.has(`i:${x.imei}`)) || (x.os && ja.has(`o:${x.os}`))) return;
       const row = (x.imei && porSerial.get(x.imei)) || null;
-      prontos.push({ serial: x.imei, hu: x.os, endereco: x.end, created_at: x.em, prod: n, _row: row, user: `PROD ${n}`, diaPronto: hojeISO, raw: { status_wms: "AGUARDANDO_CQE" } });
+      // hora da última transferência (o entrada_em do WMS fica com a 1ª entrada no estoque)
+      const ultMov = (x.imei && movPorSerial.get(x.imei)) || (x.os && movPorSerial.get(x.os)) || null;
+      prontos.push({ serial: x.imei, hu: x.os, endereco: x.end, created_at: ultMov || x.em, prod: n, _row: row, user: `PROD ${n}`, diaPronto: hojeISO, raw: { status_wms: "AGUARDANDO_CQE" } });
       if (x.imei) novos.add(x.imei);
     });
     // não conta o mesmo aparelho também no Acumulado / Receb. novos
