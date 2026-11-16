@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
-  <script src="skyline-dash.js?v=98"></script>
+  <script src="skyline-dash.js?v=99"></script>
   <style>
     .recebimento-page .dash-title h1 {
       font-size: 1.1rem;
@@ -997,8 +997,8 @@
     }
 
     applyHomologUi();
-    // atualização automática a cada 5 min (a busca do mês leva ~10 s)
-    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 300000 });
+    // atualização automática a cada 2 min (a busca do mês leva ~10 s)
+    SkylineDash.bindDateFilters({ onChange: renderDashboard, onReload: loadData, autoRefreshMs: 120000 });
 
     // Hora atual: sobe a máscara no refresh a cada minuto (ticks de 5 min até 80).
     if (APPLY_MASK) {

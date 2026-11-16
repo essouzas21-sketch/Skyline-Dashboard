@@ -78,25 +78,14 @@ const SkylineDash = {
   REFRESH_SLOT_MS: 30000,
 
   /** Ordem do ciclo — alinhada ao menu; cada página recarrega a cada N × 30s. */
-  REFRESH_CYCLE_PAGES: [
-    "recebimento.html",
-    "triagem.html",
-    "gestao-produto.html",
-    "producao-diversas-1.html",
-    "producao-diversas-2.html",
-    "producao-diversas-3.html",
-    "producao-diversas-4.html",
-    "producao-diversas-5.html",
-    "producao-iphone.html",
-    "cqe.html",
-    "consolidado.html"
-  ],
+  // Sem rodízio: cada tela atualiza no próprio intervalo (2 min) para as TVs não apagarem.
+  REFRESH_CYCLE_PAGES: [],
 
   /** TTL padrão para APIs leves (recebimento). Reparo usa cache estendido. */
   FETCH_CACHE_TTL_MS: 60000,
 
   /** Cache persistente (IndexedDB) — evita baixar ~14 MB de reparo a cada refresh. */
-  FETCH_IDB_TTL_MS: 240000,
+  FETCH_IDB_TTL_MS: 110000,
 
   /** Bump força limpeza de IndexedDB/local nas TVs após troca de endpoint. */
   CACHE_VERSION: "70",
@@ -1095,7 +1084,7 @@ const SkylineDash = {
       el.textContent =
         `Atualizado às ${now} · ciclo 30s (${meta.index + 1}/${meta.total}) · recarga a cada ${everyMin} min`;
     } else {
-      el.textContent = `Atualizado às ${now} · auto 30s`;
+      el.textContent = `Atualizado às ${now} · atualiza a cada ${Math.round((this._autoRefreshMs || 120000) / 60000)} min`;
     }
   },
 
@@ -1130,9 +1119,10 @@ const SkylineDash = {
     }, 60000);
   },
 
-  startAutoRefresh(fn, intervalMs = 300000) {
+  startAutoRefresh(fn, intervalMs = 120000) {
     this.stopAutoRefresh();
     if (!fn || intervalMs <= 0) return;
+    this._autoRefreshMs = intervalMs;
 
     this._ensureRefreshClock();
     const cycleMeta = this.getRefreshCycleMeta();
@@ -1181,7 +1171,7 @@ const SkylineDash = {
     }
   },
 
-  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 300000 }) {
+  bindDateFilters({ onChange, onToday, onReload, autoRefreshMs = 120000 }) {
     const startEl = document.getElementById("dateStart");
     const endEl = document.getElementById("dateEnd");
     const today = this.todayISO();

@@ -43,18 +43,18 @@ const ProducaoDash = {
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
     { prod: 5, nome: "Fran", match: "fran dias" },
-    { prod: 6, nome: "Jorge", match: "jorge" },
+    { prod: 6, nome: "Alan", match: "alan", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
     { prod: 7, nome: "Karol", match: "karol" },
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
-    { prod: 9, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD1 em 11/11
+    { prod: 9, nome: "Anderson", match: "anderson", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Claudia", match: "claudia" },
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Moisés", match: "moises souza|moises.souza", desdeAcumulado: "2026-11-09" }, // Acumulado zerado em 09/11 ("moises" sozinho pegaria o Allef Moises)
     { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
-    { prod: 16, nome: "Almir", match: "almir" },
-    { prod: 17, nome: "Ronny", match: "ronny|ronny.gomez", desde: "2026-10-30" }, // ronny.gomez@gruposkytech.com.br (PROD17 desde 05/11)
+    { prod: 16, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD9 em 16/11
+    { prod: 17, nome: "Jorge", match: "jorge" }, // veio da PROD6 em 16/11
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
 
@@ -1245,6 +1245,18 @@ const ProducaoDash = {
       return pos && pos.desdeAcumulado && pos.desdeAcumulado > DESDE ? pos.desdeAcumulado : DESDE;
     };
     const desdeNaProd = (n, data) => !!data && SkylineDash.toLocalDateStr(data) >= desdeDaProd(n);
+    // PROD "zerada" num horário (zeradoEm, ex.: PROD6/PROD9 em 16/11): só conta o que entrou na bancada depois disso
+    const zeroDaProd = (n) => {
+      const pos = n != null ? this.POSICOES.find((q) => q.prod === n) : null;
+      const t = pos && pos.zeradoEm ? new Date(pos.zeradoEm).getTime() : NaN;
+      return Number.isFinite(t) ? t : null;
+    };
+    const depoisDoZero = (n, data) => {
+      const z = zeroDaProd(n);
+      if (z == null) return true;
+      const t = data ? new Date(data).getTime() : NaN;
+      return Number.isFinite(t) && t >= z;
+    };
     // última ação do reparo (início, retornos e pausas): precisa ser a partir do marco zero
     const acaoDesdeMarco = (raw) => ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno"]
       .some((c) => { const d = this.parseDt(raw?.[c]); return !!d && desdeMarco(d.toISOString()); });
@@ -1270,7 +1282,8 @@ const ProducaoDash = {
       const n = end ? (this.prodDoEndereco(end) ?? this.prodProntoDoEndereco(end)) : null;
       const pos = n != null ? this.POSICOES.find((p) => p.prod === n) : null;
       // está na bancada de uma PROD: conta nessa PROD; fora de bancada: fica com quem está reparando
-      if (pos?.match && !this.matchesUserFilter(r.user, [pos.match])) r.user = pos.nome || r.user;
+      // (PROD zerada — ex.: PROD6/PROD9 em 16/11 — não herda o reparo de quem saiu da bancada)
+      if (pos?.match && !pos.zeradoEm && !this.matchesUserFilter(r.user, [pos.match])) r.user = pos.nome || r.user;
       return true;
     });
 
@@ -1307,6 +1320,7 @@ const ProducaoDash = {
       const ultEntrada = new Map();
       entradas.forEach((e) => {
         if (!desdeMarco(e.data) || !noPeriodo(SkylineDash.toLocalDateStr(e.data))) return;
+        if (!depoisDoZero(e.prod, e.data)) return;
         ultEntrada.set(e.prod, e);
       });
       const fimReparo = status === "finalizado" ? this.parseDt(row?._workRaw?.["Fim do Reparo"]) : null;
@@ -1324,6 +1338,8 @@ const ProducaoDash = {
       // Marco zero: só o que entrou na bancada (PROD n) a partir da data de início
       const entrouDesdeMarco = desdeMarco(m.created_at) || entradas.some((e) => e.prod === n && desdeMarco(e.data));
       if (!entrouDesdeMarco) return;
+      // PROD zerada: só aparelhos bipados para a bancada depois do horário do zero
+      if (zeroDaProd(n) != null && !(depoisDoZero(n, m.created_at) || entradas.some((e) => e.prod === n && depoisDoZero(n, e.data)))) return;
       if (status === "em_execucao" || status === "pausado") return; // conta em Reparo/Pausa
       if (!row && wms === "REPARO_PAUSADO") return;
       // Já passou pelo CQE (aprovado / aguardando NF): não é mais "pronto aguardando CQE"

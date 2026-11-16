@@ -10,8 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
-  <script src="skyline-dash.js?v=98"></script>
-  <script src="skyline-producao.js?v=72"></script>
+  <script src="skyline-dash.js?v=99"></script>
+  <script src="skyline-producao.js?v=73"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -2141,7 +2141,7 @@
       document.getElementById("appState").hidden = true;
       document.getElementById("dash").hidden = false;
       const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      setTxt("lastUpdate", `${SD.formatPeriodBR(start, end)} · ${hora} · auto 5 min${modelo.temMovs ? "" : " · carregando movimentações…"}`);
+      setTxt("lastUpdate", `${SD.formatPeriodBR(start, end)} · ${hora} · auto 2 min${modelo.temMovs ? "" : " · carregando movimentações…"}`);
       if (devSel && !document.getElementById("deviceDetail").hidden) {
         const d = modelo.devs.find((x) => x.k === devSel);
         if (d) renderDetalheLocal(d);
@@ -2295,8 +2295,8 @@
       const per = qs.get("periodo");
       if (per === "semana" || per === "mes") { aplicarPreset(per); marcaPreset(per === "semana" ? "btnSemana" : "btnMes"); }
     })();
-    // atualização automática a cada 5 min
-    SD.bindDateFilters({ onChange: renderizar, onReload: loadData, autoRefreshMs: 300000 });
+    // atualização automática a cada 2 min
+    SD.bindDateFilters({ onChange: renderizar, onReload: loadData, autoRefreshMs: 120000 });
   </script>
 </body>
 </html>
