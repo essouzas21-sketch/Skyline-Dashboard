@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
   <script src="skyline-dash.js?v=99"></script>
-  <script src="skyline-producao.js?v=73"></script>
+  <script src="skyline-producao.js?v=75"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -2028,6 +2028,8 @@
       wms.itens.forEach((w) => {
         const n = prodDe(w.end);
         if (n == null || !modelo.porProd.has(n)) return;
+        const pz = PD.POSICOES.find((q) => q.prod === n);
+        if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
         let d = (w.imei && idx.get(`i:${w.imei}`)) || (w.os && idx.get(`o:${w.os}`));
         if (d) { if (d.prod == null) d.prod = n; d.naBancada = d.prod === n; return; }
         const row = relat.get(w.imei) || relat.get(`os:${w.os}`) || null;

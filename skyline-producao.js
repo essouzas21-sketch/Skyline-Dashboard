@@ -38,7 +38,7 @@ const ProducaoDash = {
     { prod: 18, nome: "Kauan", match: "kaua" }
   ],
   POSICOES_NOVAS: [
-    { prod: 1, nome: "Diego", match: "diego" }, // veio da PROD9 em 11/11
+    { prod: 1, nome: "Diego", match: "diego", zeradoEm: "2026-11-16T09:31:00-03:00" }, // veio da PROD9 em 11/11 · bancada zerada em 16/11 09:31
     { prod: 2, nome: "Noemi", match: "noemi" },
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
@@ -394,9 +394,17 @@ const ProducaoDash = {
       if (os) ja.add(`o:${os}`);
     });
     const novos = new Set();
+    // PROD zerada (zeradoEm, ex.: PROD6/PROD9 em 16/11): só entra pronto que foi bipado na bancada depois do zero
+    const antesDoZero = (n, data) => {
+      const pos = this.POSICOES.find((q) => q.prod === n);
+      if (!pos || !pos.zeradoEm) return false;
+      const t = data ? new Date(data).getTime() : NaN;
+      return !Number.isFinite(t) || t < new Date(pos.zeradoEm).getTime();
+    };
     cq.itens.forEach((x) => {
       const n = prodDe(x.end);
       if (n == null) return;
+      if (antesDoZero(n, x.em)) return;
       if ((x.imei && ja.has(`i:${x.imei}`)) || (x.os && ja.has(`o:${x.os}`))) return;
       const row = (x.imei && porSerial.get(x.imei)) || null;
       prontos.push({ serial: x.imei, hu: x.os, endereco: x.end, created_at: x.em, prod: n, _row: row, user: `PROD ${n}`, diaPronto: hojeISO, raw: { status_wms: "AGUARDANDO_CQE" } });
@@ -681,9 +689,16 @@ const ProducaoDash = {
     if (!desde) return rows;
     const campos = ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno", "Fim do Reparo"];
     const comDesde = this.POSICOES.filter((pos) => pos.desde && pos.match);
+    const comZero = this.POSICOES.filter((pos) => pos.zeradoEm && pos.match);
     return (rows || []).filter((r) => {
       const pos = comDesde.find((q) => this.matchesUserFilter(r.user, [q.match]));
       const inicio = pos && pos.desde > desde ? pos.desde : desde;
+      // técnico com bancada zerada num horário (zeradoEm): só reparos com ação depois disso
+      const zer = comZero.find((q) => this.matchesUserFilter(r.user, [q.match]));
+      if (zer) {
+        const z = new Date(zer.zeradoEm).getTime();
+        return campos.some((c) => { const d = this.parseDt(r?._workRaw?.[c]); return !!d && d.getTime() >= z; });
+      }
       return campos.some((c) => {
         const d = this.parseDt(r?._workRaw?.[c]);
         return !!d && SkylineDash.toLocalDateStr(d.toISOString()) >= inicio;
