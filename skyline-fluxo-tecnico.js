@@ -56,10 +56,10 @@ const SkylineFluxoTecnico = {
     { prod: "PROD3", match: "allef|allef.moises" },
     { prod: "PROD4", match: "fernanda" },
     { prod: "PROD5", match: "fran dias" },
-    { prod: "PROD6", match: "alan" },
+    { prod: "PROD6", match: "alan|teste1|teste 1" }, // teste1@gruposkytech.com.br
     { prod: "PROD7", match: "karol" },
     { prod: "PROD8", match: "felipe|fellipe" },
-    { prod: "PROD9", match: "anderson" },
+    { prod: "PROD9", match: "anderson|teste2|teste 2" }, // teste2@gruposkytech.com.br
     { prod: "PROD10", match: "joao" },
     { prod: "PROD11", match: "andre guilherme|andre.guilherme" },
     { prod: "PROD12", match: "claudia" },

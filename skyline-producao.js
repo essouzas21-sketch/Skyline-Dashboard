@@ -43,10 +43,10 @@ const ProducaoDash = {
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30", prontoZeradoEm: "2026-11-16T00:00:00-03:00" }, // allef.moises@gruposkytech.com.br · 16/11: Pronto só o de hoje em diante
     { prod: 4, nome: "Fernanda", match: "fernanda" },
     { prod: 5, nome: "Fran", match: "fran dias" },
-    { prod: 6, nome: "Alan", match: "alan", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
+    { prod: 6, nome: "Alan", match: "alan|teste1|teste 1", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
     { prod: 7, nome: "Karol", match: "karol" },
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
-    { prod: 9, nome: "Anderson", match: "anderson", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
+    { prod: 9, nome: "Anderson", match: "anderson|teste2|teste 2", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Claudia", match: "claudia" },
