@@ -1180,6 +1180,8 @@ const ProducaoDash = {
   PRONTO_DESDE: "2026-11-16T00:00:00-03:00",
   /** ACUMULADO: só conta o que entrou na bancada a partir de 16/11 (todas as PROD). */
   ACUMULADO_DESDE: "2026-11-16",
+  /** PRODs fora da regra de Pronto/Acumulado acima: PROD8 (reparo avançado) mostra tudo que está na bancada, em todas as telas. */
+  REGRA_PRONTO_ISENTAS: [8],
   prontoDesdeMs() {
     return new Date(this.PRONTO_DESDE).getTime();
   },
@@ -1271,7 +1273,8 @@ const ProducaoDash = {
     // Acumulado "zerado" (ex.: PROD14 em 09/11): só conta no Acumulado o que entrou na bancada a partir dessa data
     const desdeDaProd = (n) => {
       const pos = n != null ? this.POSICOES.find((q) => q.prod === n) : null;
-      const base = this.ACUMULADO_DESDE && this.ACUMULADO_DESDE > DESDE ? this.ACUMULADO_DESDE : DESDE;
+      const isenta = n != null && (this.REGRA_PRONTO_ISENTAS || []).includes(n);
+      const base = !isenta && this.ACUMULADO_DESDE && this.ACUMULADO_DESDE > DESDE ? this.ACUMULADO_DESDE : DESDE;
       return pos && pos.desdeAcumulado && pos.desdeAcumulado > base ? pos.desdeAcumulado : base;
     };
     const desdeNaProd = (n, data) => !!data && SkylineDash.toLocalDateStr(data) >= desdeDaProd(n);
@@ -1394,6 +1397,7 @@ const ProducaoDash = {
     const prontoGeral = this.prontoDesdeMs();
     for (let i = prontos.length - 1; i >= 0; i--) {
       const a = prontos[i];
+      if ((this.REGRA_PRONTO_ISENTAS || []).includes(a.prod)) continue; // regra normal (ex.: PROD8 na tela Bancadas)
       const pos = this.POSICOES.find((q) => q.prod === a.prod);
       const zPos = pos && pos.prontoZeradoEm ? new Date(pos.prontoZeradoEm).getTime() : NaN;
       const z = Math.max(Number.isFinite(prontoGeral) ? prontoGeral : -Infinity, Number.isFinite(zPos) ? zPos : -Infinity);

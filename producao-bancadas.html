@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="skyline-version.js?v=3"></script>
   <script src="skyline-dash.js?v=99"></script>
-  <script src="skyline-producao.js?v=84"></script>
+  <script src="skyline-producao.js?v=86"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -1466,6 +1466,9 @@
   <script>
     const PD = ProducaoDash;
     const SD = SkylineDash;
+    // Nesta tela a regra de Pronto (só transferido p/ PROD n PRONTO desde 16/11) e Acumulado (desde 16/11) vale
+    // para todas as bancadas, MENOS a PROD8 (reparo avançado), que segue a regra normal.
+    PD.REGRA_PRONTO_ISENTAS = [8];
     const API_URL = SD.API_REPARO;
     const CIRC = 2 * Math.PI * 65;
     let allRows = [];
@@ -2032,7 +2035,7 @@
         if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
         if (w.status === "AGUARDANDO_CQE") { // pronto: só o transferido a partir de PRONTO_DESDE / prontoZeradoEm
           const zp = Math.max(PD.prontoDesdeMs ? PD.prontoDesdeMs() : -Infinity, pz && pz.prontoZeradoEm ? new Date(pz.prontoZeradoEm).getTime() : -Infinity);
-          return; // pronto só vem da foto (transferido para PROD n PRONTO a partir de PRONTO_DESDE)
+          if (!(PD.REGRA_PRONTO_ISENTAS || []).includes(n)) return; // pronto só vem da foto (transferido para PROD n PRONTO a partir de PRONTO_DESDE)
         }
         let d = (w.imei && idx.get(`i:${w.imei}`)) || (w.os && idx.get(`o:${w.os}`));
         if (d) { if (d.prod == null) d.prod = n; d.naBancada = d.prod === n; return; }
