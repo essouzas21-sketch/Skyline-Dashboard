@@ -1129,12 +1129,15 @@ const SkylineDash = {
     this._refreshCycleMeta = cycleMeta;
 
     const run = async () => {
-      if (this._autoRefreshBusy) return;
+      // atualização anterior travada (rede da TV caiu no meio): não fica parado para sempre
+      if (this._autoRefreshBusy && Date.now() - (this._autoRefreshBusyAt || 0) < 4 * 60000) return;
       this._autoRefreshBusy = true;
+      this._autoRefreshBusyAt = Date.now();
       try {
         if (typeof SkylineVersion !== "undefined") await SkylineVersion.check();
         this.checkDayRollover();
         await Promise.resolve(fn());
+        window.__skylineUltimaAtualizacaoOk = Date.now();
       } catch (err) {
         console.error("[SkylineDash] auto-refresh:", err);
       } finally {
@@ -1818,3 +1821,41 @@ SkylineDash.ensureCacheVersion();
   setInterval(manter, 60000);
 })();
 
+/**
+ * ANTI-CONGELAMENTO das TVs (todas as telas com atualização automática):
+ *  1) recarrega a página inteira a cada 60 min (libera a memória do navegador da TV — os dados vêm do cache, é rápido);
+ *  2) se a tela ficar mais de 10 min sem conseguir atualizar, recarrega;
+ *  3) se a página ficou parada/congelada (relógio interno pulou mais de 90 s), recarrega;
+ *  4) se a memória passar de 75% do limite do navegador, recarrega.
+ * Só age em telas que têm atualização automática (startAutoRefresh) — páginas de consulta não recarregam sozinhas.
+ */
+(function antiCongelamento() {
+  if (typeof window === "undefined" || window.__skylineAntiCongelamento) return;
+  window.__skylineAntiCongelamento = true;
+  const inicio = Date.now();
+  window.__skylineUltimaAtualizacaoOk = window.__skylineUltimaAtualizacaoOk || inicio;
+  let ultimoTick = Date.now();
+  let recarregando = false;
+  const ativo = () => !!(window.SkylineDash && SkylineDash._autoRefreshFn);
+  function recarregar(motivo) {
+    if (recarregando || !ativo()) return;
+    if (/[?&]homolog=1/.test(location.search)) return;
+    recarregando = true;
+    try { console.warn("[SkylineDash] recarregando a tela:", motivo); } catch (_) { /* nada */ }
+    try { sessionStorage.setItem("skylineUltimoReload", `${new Date().toISOString()} · ${motivo}`); } catch (_) { /* sem storage */ }
+    setTimeout(() => location.reload(), 500);
+  }
+  setInterval(() => {
+    const agora = Date.now();
+    const pulo = agora - ultimoTick;
+    ultimoTick = agora;
+    if (!ativo()) return;
+    if (pulo > 90000) return recarregar(`página ficou parada ${Math.round(pulo / 1000)} s`);
+    if (agora - inicio > 60 * 60000) return recarregar("recarga de rotina (60 min)");
+    if (agora - (window.__skylineUltimaAtualizacaoOk || inicio) > 10 * 60000) return recarregar("10 min sem conseguir atualizar");
+    try {
+      const m = performance && performance.memory;
+      if (m && m.jsHeapSizeLimit && m.usedJSHeapSize / m.jsHeapSizeLimit > 0.75) recarregar("memória alta");
+    } catch (_) { /* navegador sem performance.memory */ }
+  }, 15000);
+})();
