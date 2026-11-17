@@ -1137,7 +1137,7 @@
     .bench-list button.active { background: var(--cyan-dim); color: var(--cyan); box-shadow: inset 0 0 0 1px rgba(139, 107, 184, .25); }
     .side-title { font-size: 0.62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 10px; }
     .period-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .preset-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .preset-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
     .preset-row button { appearance: none; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 0; font: inherit; font-size: 0.72rem; font-weight: 700; color: var(--muted); cursor: pointer; }
     .preset-row button.on { background: var(--cyan-dim); color: var(--cyan); border-color: rgba(139, 107, 184, .35); }
     .chart-box { position: relative; height: 250px; }
@@ -1240,7 +1240,8 @@
         </div>
       </div>
       <div class="preset-row">
-        <button type="button" id="btnToday" class="on">Hoje</button>
+        <button type="button" id="btnDesde" class="on" title="Tudo a partir de 16/11 até hoje">Desde 16/11</button>
+        <button type="button" id="btnToday">Hoje</button>
         <button type="button" id="btnSemana">Semana</button>
         <button type="button" id="btnMes">Mês</button>
       </div>
@@ -1469,6 +1470,10 @@
     // Nesta tela a regra de Pronto (só transferido p/ PROD n PRONTO desde 16/11) e Acumulado (desde 16/11) vale
     // para todas as bancadas, MENOS a PROD8 (reparo avançado), que segue a regra normal.
     PD.REGRA_PRONTO_ISENTAS = [8];
+    // Esta tela olha a partir de 16/11: período padrão "Desde 16/11", pausados e aparelhos na bancada só a partir dessa data
+    // (PROD8 — reparo avançado — continua mostrando tudo que está na bancada).
+    const DESDE_BANCADAS = "2026-11-16";
+    PD.PAUSA_DESDE = DESDE_BANCADAS;
     const API_URL = SD.API_REPARO;
     const CIRC = 2 * Math.PI * 65;
     let allRows = [];
@@ -1507,6 +1512,7 @@
     }
     function rangePreset(p) {
       const hoje = SD.todayISO();
+      if (p === "desde16") return { start: DESDE_BANCADAS < hoje ? DESDE_BANCADAS : hoje, end: hoje };
       if (p === "mes") return { start: `${hoje.slice(0, 8)}01`, end: hoje };
       if (p === "semana") {
         const [y, m, d] = hoje.split("-").map(Number);
@@ -2019,6 +2025,9 @@
       if (!wms || !modelo) return;
       const idx = new Map();
       modelo.devs.forEach((d) => { if (d.imei) idx.set(`i:${d.imei}`, d); if (d.os) idx.set(`o:${d.os}`, d); });
+      // última transferência de cada aparelho (o entrada_em do WMS guarda a 1ª entrada no estoque)
+      const ultMov = new Map();
+      (PD.ultimoEnderecoPorAparelho() || []).forEach((m) => { if (m.serial) ultMov.set(String(m.serial).trim(), m.created_at); if (m.hu) ultMov.set(String(m.hu).trim(), m.created_at); });
       const relat = new Map();
       allRows.forEach((r) => { const s = String(r._workRaw?.serial ?? "").trim(); if (s) relat.set(s, r); const o = String(r._workRaw?.hu ?? "").trim(); if (o) relat.set(`os:${o}`, r); });
       modelo.devs.forEach((d) => {
@@ -2032,6 +2041,9 @@
         const n = prodDe(w.end);
         if (n == null || !modelo.porProd.has(n)) return;
         const pz = PD.POSICOES.find((q) => q.prod === n);
+        // só aparelho que chegou na bancada a partir de 16/11 (menos a PROD8, que mostra tudo)
+        const chegou = ultMov.get(w.imei) || ultMov.get(w.os) || null;
+        if (!(PD.REGRA_PRONTO_ISENTAS || []).includes(n) && !(chegou && SD.toLocalDateStr(chegou) >= DESDE_BANCADAS)) return;
         if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
         if (w.status === "AGUARDANDO_CQE") { // pronto: só o transferido a partir de PRONTO_DESDE / prontoZeradoEm
           const zp = Math.max(PD.prontoDesdeMs ? PD.prontoDesdeMs() : -Infinity, pz && pz.prontoZeradoEm ? new Date(pz.prontoZeradoEm).getTime() : -Infinity);
@@ -2291,7 +2303,8 @@
     document.getElementById("btnCloseDevice").addEventListener("click", fecharAparelho);
     document.getElementById("filterStage").addEventListener("change", () => renderTabela(aplicaFiltros(devsDaBancada())));
     document.getElementById("filterSearch").addEventListener("input", () => { clearTimeout(window.__bkT); window.__bkT = setTimeout(() => renderTabela(aplicaFiltros(devsDaBancada())), 250); });
-    const marcaPreset = (p) => ["btnToday", "btnSemana", "btnMes"].forEach((id) => document.getElementById(id).classList.toggle("on", id === p));
+    const marcaPreset = (p) => ["btnDesde", "btnToday", "btnSemana", "btnMes"].forEach((id) => document.getElementById(id).classList.toggle("on", id === p));
+    document.getElementById("btnDesde").addEventListener("click", () => { aplicarPreset("desde16"); marcaPreset("btnDesde"); renderizar(); });
     document.getElementById("btnSemana").addEventListener("click", () => { aplicarPreset("semana"); marcaPreset("btnSemana"); renderizar(); });
     document.getElementById("btnMes").addEventListener("click", () => { aplicarPreset("mes"); marcaPreset("btnMes"); renderizar(); });
     document.getElementById("btnToday").addEventListener("click", () => { aplicarPreset("hoje"); marcaPreset("btnToday"); renderizar(); });
@@ -2303,6 +2316,8 @@
       if (p && /^\d+$/.test(p)) benchSel = p;
       const per = qs.get("periodo");
       if (per === "semana" || per === "mes") { aplicarPreset(per); marcaPreset(per === "semana" ? "btnSemana" : "btnMes"); }
+      else if (per === "hoje") { aplicarPreset("hoje"); marcaPreset("btnToday"); }
+      else { aplicarPreset("desde16"); marcaPreset("btnDesde"); }
     })();
     // atualização automática a cada 2 min
     SD.bindDateFilters({ onChange: renderizar, onReload: loadData, autoRefreshMs: 120000 });
