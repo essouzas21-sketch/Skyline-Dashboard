@@ -1242,8 +1242,8 @@
         </div>
       </div>
       <div class="preset-row">
-        <button type="button" id="btnDesde" class="on" title="Tudo a partir de 16/11 até hoje">Desde 16/11</button>
-        <button type="button" id="btnToday">Hoje</button>
+        <button type="button" id="btnDesde" title="Tudo a partir de 16/11 até hoje">Desde 16/11</button>
+        <button type="button" id="btnToday" class="on">Hoje</button>
         <button type="button" id="btnSemana">Semana</button>
         <button type="button" id="btnMes">Mês</button>
       </div>
@@ -1477,7 +1477,7 @@
     // Esta tela olha a partir de 16/11: período padrão "Desde 16/11", pausados e aparelhos na bancada só a partir dessa data
     // (PROD8 — reparo avançado — continua mostrando tudo que está na bancada).
     const DESDE_BANCADAS = "2026-11-16";
-    PD.PAUSA_DESDE = DESDE_BANCADAS;
+    // (Pausados, Em reparo, Aguardando e Prontos usam exatamente a mesma regra das telas de PROD.)
     const API_URL = SD.API_REPARO;
     const CIRC = 2 * Math.PI * 65;
     let allRows = [];
@@ -1655,6 +1655,7 @@
           const d = pegar(a.serial, a.hu || a._row?._workRaw?.hu);
           if (!d) return;
           d.status = status;
+          d.daFoto = true; // mesmo número das telas de PROD
           d.prod = a.prod;
           d.endAtual = a.endereco;
           if (!d.modelo && a._row) d.modelo = a._row._workRaw?.descricao || "";
@@ -1673,6 +1674,7 @@
           d.tecnico = r.user;
           if (n != null) d.prod = n;
           d.status = r.status === "pausado" ? "pausado" : "andamento";
+          d.daFoto = true; // mesmo número das telas de PROD
           const s = n != null ? agora.get(n) : null;
           if (s) s[r.status === "pausado" ? "pausado" : "andamento"]++;
         });
@@ -2090,6 +2092,7 @@
       const desde = (t) => { const v = ms(t); return Number.isFinite(v) && v >= lim; };
       modelo.devs = modelo.devs.filter((d) => {
         if (d.prod != null && (PD.REGRA_PRONTO_ISENTAS || []).includes(d.prod)) return true;
+        if (d.daFoto) return true; // está contando nas telas de PROD agora (em reparo, pausado, aguardando, pronto)
         const raw = d.row?._workRaw || {};
         const fim = raw["Fim do Reparo"] || d.fim || d.wms?.fim || null;
         // ação do TÉCNICO (iniciar, pausar, retomar, finalizar) a partir de 16/11
@@ -2099,9 +2102,8 @@
           if (["pronto", "finalbanc", "finalizado"].includes(d.status)) return desde(fim);
           return acaoTecnico;
         }
-        // aguardando início / aguardando peça: chegou na bancada a partir de 16/11 e ainda não tinha sido finalizado antes
+        // aguardando início / aguardando peça: chegou na bancada a partir de 16/11
         const chegou = ultMov.get(d.imei) || ultMov.get(d.os) || null;
-        if (fim && !desde(fim)) return false;
         return desde(chegou) || acaoTecnico;
       });
     }
@@ -2362,7 +2364,8 @@
       const per = qs.get("periodo");
       if (per === "semana" || per === "mes") { aplicarPreset(per); marcaPreset(per === "semana" ? "btnSemana" : "btnMes"); }
       else if (per === "hoje") { aplicarPreset("hoje"); marcaPreset("btnToday"); }
-      else { aplicarPreset("desde16"); marcaPreset("btnDesde"); }
+      else if (per === "desde16") { aplicarPreset("desde16"); marcaPreset("btnDesde"); }
+      else { aplicarPreset("hoje"); marcaPreset("btnToday"); } // padrão = Hoje, igual às telas de PROD
     })();
     // atualização automática a cada 2 min
     SD.bindDateFilters({ onChange: renderizar, onReload: loadData, autoRefreshMs: 120000 });
