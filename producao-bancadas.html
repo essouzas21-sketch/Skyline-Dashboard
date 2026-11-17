@@ -1149,6 +1149,8 @@
     .st-andamento { background: var(--blue-dim); color: var(--blue); }
     .st-pausado { background: var(--gold-dim); color: var(--gold); }
     .st-finalizado { background: var(--green-dim); color: var(--green); }
+    .st-pronto { background: #15803d; color: #fff; }
+    .st-finalbanc { background: var(--gold-dim); color: var(--gold); }
     .st-iniciado { background: var(--cyan-dim); color: var(--cyan); }
     .st-saiu { background: var(--violet-dim); color: var(--violet); }
     .st-pecas { background: var(--orange-dim); color: var(--orange); }
@@ -1253,7 +1255,9 @@
           <option value="andamento">Em reparo</option>
           <option value="pausado">Pausado</option>
           <option value="iniciado">Iniciado no período</option>
-          <option value="finalizado">Finalizado / pronto</option>
+          <option value="pronto">Pronto (no PROD n PRONTO)</option>
+          <option value="finalbanc">Finalizado · não foi p/ PRONTO</option>
+          <option value="finalizado">Finalizado (outros)</option>
           <option value="pecas">Aguardando peça</option>
           <option value="saiu">Saiu da bancada</option>
           <option value="atencao">⚠ Precisa de atenção</option>
@@ -1742,14 +1746,14 @@
     const STEP_IDX = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
     const toneColor = (t) => ({ green: "var(--green)", cyan: "var(--cyan)", gold: "var(--gold)", blue: "var(--blue)", orange: "var(--orange)", violet: "var(--violet)" })[t] || "var(--cyan)";
     const HEX = { green: "#15803d", cyan: "#8b6bb8", gold: "#b45309", blue: "#2563eb", violet: "#694992", grey: "#868e9c" };
-    const ST_TXT = { aguardando: "Aguardando", iniciado: "Iniciado", andamento: "Em reparo", pausado: "Pausado", finalizado: "Finalizado", saiu: "Saiu da bancada", pecas: "Aguardando peça" };
+    const ST_TXT = { aguardando: "Aguardando", iniciado: "Iniciado", andamento: "Em reparo", pausado: "Pausado", finalizado: "Finalizado", saiu: "Saiu da bancada", pecas: "Aguardando peça", pronto: "Pronto · PROD n PRONTO", finalbanc: "Finalizado · fora do PRONTO" };
 
     const ultimo = (raw, campo) => [1, 2, 3].map((i) => raw?.[`${i} ${campo}`]).filter(Boolean).sort().pop() || null;
     /** etapa atual do aparelho dentro do fluxo da bancada */
     function etapaAtual(d) {
       const raw = d.row?._workRaw;
       if (d.status === "saiu") return "saida";
-      if (d.status === "finalizado") return "fim";
+      if (d.status === "finalizado" || d.status === "pronto" || d.status === "finalbanc") return "fim";
       if (d.status === "pausado") return "pausa";
       if (d.status === "andamento") {
         const p = ultimo(raw, "Pausa"), r = ultimo(raw, "Retorno");
@@ -1849,6 +1853,9 @@
       setTxt("stAgu", h ? t.acumulado + t.pendente : "—");
       setTxt("stAguSub", h ? `${t.acumulado} acumulados · ${t.pendente} do período` : "—");
       setTxt("stPro", h ? t.pronto : "—");
+      const fb = devs.filter((d) => d.status === "finalbanc").length;
+      const stProSub = document.getElementById("stPro")?.nextElementSibling;
+      if (stProSub) stProSub.textContent = h ? (fb ? `no PROD n PRONTO · +${fb} finalizado(s) fora do PRONTO` : "no PROD n PRONTO") : "—";
       setTxt("ringPct", `${t.pct}%`);
       setTxt("ringSub", `${t.finalizados} finalizados`);
       ring("ringBar", t.pct);
@@ -2043,12 +2050,10 @@
         const pz = PD.POSICOES.find((q) => q.prod === n);
         // só aparelho que chegou na bancada a partir de 16/11 (menos a PROD8, que mostra tudo)
         const chegou = ultMov.get(w.imei) || ultMov.get(w.os) || null;
-        if (!(PD.REGRA_PRONTO_ISENTAS || []).includes(n) && !(chegou && SD.toLocalDateStr(chegou) >= DESDE_BANCADAS)) return;
+        const fimR = relat.get(w.imei)?._workRaw?.["Fim do Reparo"] || w.fim || null;
+        const recente = (chegou && SD.toLocalDateStr(chegou) >= DESDE_BANCADAS) || (w.status === "AGUARDANDO_CQE" && fimR && SD.toLocalDateStr(fimR) >= DESDE_BANCADAS);
+        if (!(PD.REGRA_PRONTO_ISENTAS || []).includes(n) && !recente) return;
         if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
-        if (w.status === "AGUARDANDO_CQE") { // pronto: só o transferido a partir de PRONTO_DESDE / prontoZeradoEm
-          const zp = Math.max(PD.prontoDesdeMs ? PD.prontoDesdeMs() : -Infinity, pz && pz.prontoZeradoEm ? new Date(pz.prontoZeradoEm).getTime() : -Infinity);
-          if (!(PD.REGRA_PRONTO_ISENTAS || []).includes(n)) return; // pronto só vem da foto (transferido para PROD n PRONTO a partir de PRONTO_DESDE)
-        }
         let d = (w.imei && idx.get(`i:${w.imei}`)) || (w.os && idx.get(`o:${w.os}`));
         if (d) { if (d.prod == null) d.prod = n; d.naBancada = d.prod === n; return; }
         const row = relat.get(w.imei) || relat.get(`os:${w.os}`) || null;
@@ -2063,6 +2068,41 @@
         };
         modelo.devs.push(d);
         if (d.k) idx.set(d.k, d);
+      });
+      // Finalizados ainda na bancada aguardando CQE: separa o que foi para "PROD n PRONTO" do que ficou no "PROD n"
+      modelo.devs.forEach((d) => {
+        const w = d.wms;
+        if (!w || w.status !== "AGUARDANDO_CQE" || d.prod == null || prodDe(w.end) !== d.prod) return;
+        d.naBancada = true;
+        d.status = PD.prodProntoDoEndereco(w.end) === d.prod ? "pronto" : "finalbanc";
+        const fimR = d.row?._workRaw?.["Fim do Reparo"] || w.fim;
+        if (fimR && !d.fim) d.fim = fimR;
+      });
+    }
+    /** Listagem: só aparelhos com alguma movimentação/ação a partir de 16/11 (PROD8 — reparo avançado — mostra tudo). */
+    function soDesde16() {
+      if (!modelo) return;
+      const lim = new Date(`${DESDE_BANCADAS}T00:00:00-03:00`).getTime();
+      const ultMov = new Map();
+      (PD.ultimoEnderecoPorAparelho() || []).forEach((m) => { if (m.serial) ultMov.set(String(m.serial).trim(), m.created_at); if (m.hu) ultMov.set(String(m.hu).trim(), m.created_at); });
+      const campos = ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno", "Fim do Reparo"];
+      const ms = (t) => (typeof t === "number" ? t : t ? new Date(t).getTime() : NaN);
+      const desde = (t) => { const v = ms(t); return Number.isFinite(v) && v >= lim; };
+      modelo.devs = modelo.devs.filter((d) => {
+        if (d.prod != null && (PD.REGRA_PRONTO_ISENTAS || []).includes(d.prod)) return true;
+        const raw = d.row?._workRaw || {};
+        const fim = raw["Fim do Reparo"] || d.fim || d.wms?.fim || null;
+        // ação do TÉCNICO (iniciar, pausar, retomar, finalizar) a partir de 16/11
+        const acaoTecnico = campos.some((c) => desde(raw[c])) || [d.inicio, d.pausa, d.retomada].some(desde);
+        // finalizados / prontos / pausados / em reparo / saíram: só se o técnico mexeu a partir de 16/11
+        if (["pronto", "finalbanc", "finalizado", "saiu", "pausado", "andamento", "iniciado"].includes(d.status)) {
+          if (["pronto", "finalbanc", "finalizado"].includes(d.status)) return desde(fim);
+          return acaoTecnico;
+        }
+        // aguardando início / aguardando peça: chegou na bancada a partir de 16/11 e ainda não tinha sido finalizado antes
+        const chegou = ultMov.get(d.imei) || ultMov.get(d.os) || null;
+        if (fim && !desde(fim)) return false;
+        return desde(chegou) || acaoTecnico;
       });
     }
     /** leitura simples de "está ok?" para cada aparelho */
@@ -2083,6 +2123,8 @@
         return { tom: "info", txt: "Pausado · aguardando retomada" };
       }
       if (d.status === "pecas") return { tom: "info", txt: "Aguardando peça" };
+      if (d.status === "pronto") return { tom: "ok", txt: `OK · no ${w?.end || "PROD PRONTO"} aguardando CQE` };
+      if (d.status === "finalbanc") return { tom: "warn", txt: `Finalizado, mas não foi para PROD${d.prod} PRONTO` };
       if (d.status === "finalizado") {
         if (w && w.status === "AGUARDANDO_CQE") return { tom: "ok", txt: "OK · aguardando CQE" };
         if (w) return { tom: "info", txt: `Finalizado · WMS: ${w.desc}` };
@@ -2108,7 +2150,9 @@
         ["pausado", "Pausados", cont((d) => d.status === "pausado")],
         ["aguardando", "Aguardando início", cont((d) => d.status === "pendente")],
         ["pecas", "Aguardando peça", cont((d) => d.status === "pecas")],
-        ["finalizado", "Finalizados", cont((d) => d.status === "finalizado")],
+        ["pronto", "Prontos (PROD n PRONTO)", cont((d) => d.status === "pronto")],
+        ["finalbanc", "Finalizados fora do PRONTO", cont((d) => d.status === "finalbanc")],
+        ["finalizado", "Finalizados (outros)", cont((d) => d.status === "finalizado")],
         ["saiu", "Saíram", cont((d) => d.status === "saiu")],
         ["atencao", "⚠ Atenção", cont((d) => situacao(d).tom === "warn")]
       ];
@@ -2122,7 +2166,7 @@
     }
     function renderTabela(devs) {
       renderChips(devsDaBancada());
-      const ordem = { andamento: 0, pausado: 1, pecas: 2, pendente: 3, iniciado: 4, finalizado: 5, saiu: 6 };
+      const ordem = { andamento: 0, pausado: 1, pecas: 2, pendente: 3, iniciado: 4, finalbanc: 5, pronto: 6, finalizado: 7, saiu: 8 };
       const lista = [...devs].sort((a, b) => (situacao(b).tom === "warn") - (situacao(a).tom === "warn") || (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9) || b.ultimo - a.ultimo);
       setTxt("tableHint", `· ${lista.length} aparelho(s) · clique numa linha para abrir o detalhe`);
       const body = document.getElementById("deviceRows");
@@ -2150,6 +2194,7 @@
       if (!start || !end || !allRows.length) return;
       modelo = montarModelo(start, end);
       juntarWms();
+      soDesde16();
       const lista = [...modelo.porProd.values()].filter((s) => !benchSel || String(s.prod) === benchSel);
       const devs = devsDaBancada();
       renderBenchList();
