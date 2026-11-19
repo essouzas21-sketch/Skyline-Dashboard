@@ -1477,7 +1477,7 @@
     // Esta tela olha a partir de 16/11: período padrão "Desde 16/11", pausados e aparelhos na bancada só a partir dessa data
     // (PROD8 — reparo avançado — continua mostrando tudo que está na bancada).
     const DESDE_BANCADAS = "2026-11-16";
-    // (Pausados, Em reparo, Aguardando e Prontos usam exatamente a mesma regra das telas de PROD.)
+    // Esta tela segue exatamente a mesma regra dos BI de PROD (Em reparo, Pausado, Aguardando, Pronto, Fin.).
     const API_URL = SD.API_REPARO;
     const CIRC = 2 * Math.PI * 65;
     let allRows = [];
@@ -2058,6 +2058,7 @@
         if (pz && pz.zeradoEm && !(w.entrada && new Date(w.entrada).getTime() >= new Date(pz.zeradoEm).getTime())) return; // PROD zerada
         let d = (w.imei && idx.get(`i:${w.imei}`)) || (w.os && idx.get(`o:${w.os}`));
         if (d) { if (d.prod == null) d.prod = n; d.naBancada = d.prod === n; return; }
+        return; // igual ao BI: não inclui aparelho que o BI não está contando
         const row = relat.get(w.imei) || relat.get(`os:${w.os}`) || null;
         const raw = row?._workRaw || {};
         const p = PD.POSICOES.find((q) => q.prod === n);
@@ -2082,30 +2083,13 @@
       });
     }
     /** Listagem: só aparelhos com alguma movimentação/ação a partir de 16/11 (PROD8 — reparo avançado — mostra tudo). */
+    /**
+     * Listagem IGUAL aos BI de PROD: só os aparelhos que o BI está contando agora (Em reparo, Pausado,
+     * Aguardando/Acumulado, Pronto — fotoAgora) + os finalizados no período (coluna Fin.).
+     */
     function soDesde16() {
       if (!modelo) return;
-      const lim = new Date(`${DESDE_BANCADAS}T00:00:00-03:00`).getTime();
-      const ultMov = new Map();
-      (PD.ultimoEnderecoPorAparelho() || []).forEach((m) => { if (m.serial) ultMov.set(String(m.serial).trim(), m.created_at); if (m.hu) ultMov.set(String(m.hu).trim(), m.created_at); });
-      const campos = ["Iniciado_Reparo", "1 Pausa", "1 Retorno", "2 Pausa", "2 Retorno", "3 Pausa", "3 Retorno", "Fim do Reparo"];
-      const ms = (t) => (typeof t === "number" ? t : t ? new Date(t).getTime() : NaN);
-      const desde = (t) => { const v = ms(t); return Number.isFinite(v) && v >= lim; };
-      modelo.devs = modelo.devs.filter((d) => {
-        if (d.prod != null && (PD.REGRA_PRONTO_ISENTAS || []).includes(d.prod)) return true;
-        if (d.daFoto) return true; // está contando nas telas de PROD agora (em reparo, pausado, aguardando, pronto)
-        const raw = d.row?._workRaw || {};
-        const fim = raw["Fim do Reparo"] || d.fim || d.wms?.fim || null;
-        // ação do TÉCNICO (iniciar, pausar, retomar, finalizar) a partir de 16/11
-        const acaoTecnico = campos.some((c) => desde(raw[c])) || [d.inicio, d.pausa, d.retomada].some(desde);
-        // finalizados / prontos / pausados / em reparo / saíram: só se o técnico mexeu a partir de 16/11
-        if (["pronto", "finalbanc", "finalizado", "saiu", "pausado", "andamento", "iniciado"].includes(d.status)) {
-          if (["pronto", "finalbanc", "finalizado"].includes(d.status)) return desde(fim);
-          return acaoTecnico;
-        }
-        // aguardando início / aguardando peça: chegou na bancada a partir de 16/11
-        const chegou = ultMov.get(d.imei) || ultMov.get(d.os) || null;
-        return desde(chegou) || acaoTecnico;
-      });
+      modelo.devs = modelo.devs.filter((d) => d.prod != null && (d.daFoto || d.finalizadoNoPeriodo));
     }
     /** leitura simples de "está ok?" para cada aparelho */
     function situacao(d) {
