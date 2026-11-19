@@ -46,7 +46,7 @@ const ProducaoDash = {
     { prod: 6, nome: "Alan", match: "alan|teste1|teste 1", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
     { prod: 7, nome: "Karol", match: "karol" },
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
-    { prod: 9, nome: "Anderson", match: "anderson|teste2|teste 2", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
+    { prod: 9, nome: "Teste 2", match: "teste2|teste 2|anderson", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Claudia", match: "claudia" },
