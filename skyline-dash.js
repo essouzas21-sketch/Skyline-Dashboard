@@ -6,7 +6,7 @@
  * Religar 1 dash por vez: acrescente o nome na lista e faça Commit + Push.
  */
 window.SKYLINE_WMS_DESLIGADO = true;
-window.SKYLINE_WMS_LIBERADOS = ["producao-", "recebimento", "cqe", "consolidado", "triagem", "gestao-produto", "rastreio-imei", "nr-timeline", "imprimir-recebimento", "tecnico-aparelhos"];
+window.SKYLINE_WMS_LIBERADOS = ["producao-", "recebimento", "cqe", "consolidado", "triagem", "gestao-produto", "rastreio-imei", "nr-timeline", "imprimir-recebimento", "tecnico-aparelhos", "expedicao"];
 (function bloquearWms() {
   if (window.__skylineWmsGuard) return;
   window.__skylineWmsGuard = true;
@@ -1823,10 +1823,10 @@ SkylineDash.ensureCacheVersion();
 
 /**
  * ANTI-CONGELAMENTO das TVs (todas as telas com atualização automática):
- *  1) recarrega a página inteira a cada 60 min (libera a memória do navegador da TV — os dados vêm do cache, é rápido);
- *  2) se a tela ficar mais de 10 min sem conseguir atualizar, recarrega;
- *  3) se a página ficou parada/congelada (relógio interno pulou mais de 90 s), recarrega;
- *  4) se a memória passar de 75% do limite do navegador, recarrega.
+ *  1) se a tela ficar mais de 15 min sem conseguir atualizar, recarrega;
+ *  2) se a página ficou parada/congelada (relógio interno pulou mais de 3 min), recarrega;
+ *  3) se a memória passar de 90% do limite do navegador, recarrega.
+ *  Não recarrega sem internet, nem mais de 1 vez a cada 30 min (evita a TV "sair" da tela toda hora).
  * Só age em telas que têm atualização automática (startAutoRefresh) — páginas de consulta não recarregam sozinhas.
  */
 (function antiCongelamento() {
@@ -1839,6 +1839,12 @@ SkylineDash.ensureCacheVersion();
   const ativo = () => !!(window.SkylineDash && SkylineDash._autoRefreshFn);
   function recarregar(motivo) {
     if (recarregando || !ativo()) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return; // sem internet: recarregar só pioraria
+    try {
+      const ult = Number(localStorage.getItem("skylineUltimoReloadMs") || 0);
+      if (Date.now() - ult < 30 * 60000) return; // no máximo 1 recarga automática a cada 30 min
+      localStorage.setItem("skylineUltimoReloadMs", String(Date.now()));
+    } catch (_) { /* sem storage */ }
     if (/[?&]homolog=1/.test(location.search)) return;
     recarregando = true;
     try { console.warn("[SkylineDash] recarregando a tela:", motivo); } catch (_) { /* nada */ }
@@ -1850,12 +1856,11 @@ SkylineDash.ensureCacheVersion();
     const pulo = agora - ultimoTick;
     ultimoTick = agora;
     if (!ativo()) return;
-    if (pulo > 90000) return recarregar(`página ficou parada ${Math.round(pulo / 1000)} s`);
-    if (agora - inicio > 60 * 60000) return recarregar("recarga de rotina (60 min)");
-    if (agora - (window.__skylineUltimaAtualizacaoOk || inicio) > 10 * 60000) return recarregar("10 min sem conseguir atualizar");
+    if (pulo > 180000) return recarregar(`página ficou parada ${Math.round(pulo / 1000)} s`);
+    if (agora - (window.__skylineUltimaAtualizacaoOk || inicio) > 15 * 60000) return recarregar("15 min sem conseguir atualizar");
     try {
       const m = performance && performance.memory;
-      if (m && m.jsHeapSizeLimit && m.usedJSHeapSize / m.jsHeapSizeLimit > 0.75) recarregar("memória alta");
+      if (m && m.jsHeapSizeLimit && m.usedJSHeapSize / m.jsHeapSizeLimit > 0.9) recarregar("memória alta");
     } catch (_) { /* navegador sem performance.memory */ }
   }, 15000);
 })();
