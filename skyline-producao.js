@@ -43,16 +43,16 @@ const ProducaoDash = {
     { prod: 3, nome: "Allef", match: "allef|allef.moises", desde: "2026-10-30" }, // allef.moises@gruposkytech.com.br
     { prod: 4, nome: "Fernanda", match: "fernanda" },
     { prod: 5, nome: "Fran", match: "fran dias" },
-    { prod: 6, nome: "Alan", match: "alan|teste1|teste 1", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
+    { prod: 6, nome: "Alan", match: "alan farias|alan.farias|alan", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Jorge foi p/ PROD17 — PROD6 zerada (só o que entrar a partir de agora)
     { prod: 7, nome: "Karol", match: "karol" },
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
-    { prod: 9, nome: "Teste 2", match: "teste2|teste 2|anderson", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
+    { prod: 9, nome: "Gustavo", match: "gustavo mendes|gustavo.mendes", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 25/11: gustavo.mendes@gruposkytech.com.br (contas teste removidas) — 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
-    { prod: 12, nome: "Claudia", match: "claudia" },
+    { prod: 12, nome: "Douglas Domingos", match: "douglas domingos|douglas.domingos" }, // 25/11: douglas.domingos@gruposkytech.com.br
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Moisés", match: "moises souza|moises.souza", desdeAcumulado: "2026-11-09" }, // Acumulado zerado em 09/11 ("moises" sozinho pegaria o Allef Moises)
-    { prod: 15, nome: "Vinícius", match: "vinicius rodrigues|vinicius.rodrigues" },
+    { prod: 15, nome: "Erick Rodrigo", match: "erick rodrigo|erick.rodrigo|erik rodrigo" }, // 25/11: erick.rodrigo@gruposkytech.com.br
     { prod: 16, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD9 em 16/11
     { prod: 17, nome: "Jorge", match: "jorge" }, // veio da PROD6 em 16/11
     { prod: 18, nome: "Kauan", match: "kaua" }

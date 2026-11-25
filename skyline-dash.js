@@ -795,7 +795,12 @@ const SkylineDash = {
     // Allef (PROD3): o login dele é "Allef Moises" — mostra só "Allef" para não confundir com o Moisés (PROD14)
     { from: "allef moises", to: "Allef" },
     { from: "allef moisés", to: "Allef" },
-    { from: "allef.moises@gruposkytech.com.br", to: "Allef" }
+    { from: "allef.moises@gruposkytech.com.br", to: "Allef" },
+    // 25/11: contas das bancadas — mostra o nome do técnico (PROD6 Alan, PROD9 Gustavo Mendes, PROD12 Douglas, PROD15 Erick)
+    { from: "alan.farias@gruposkytech.com.br", to: "Alan" },
+    { from: "gustavo.mendes@gruposkytech.com.br", to: "Gustavo Mendes" },
+    { from: "douglas.domingos@gruposkytech.com.br", to: "Douglas Domingos" },
+    { from: "erick.rodrigo@gruposkytech.com.br", to: "Erick Rodrigo" }
   ],
 
   normalizeUserName(name) {
