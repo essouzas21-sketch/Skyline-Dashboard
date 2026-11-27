@@ -666,7 +666,7 @@
       <div class="gp-kpi">
         <div class="label">Peças hoje</div>
         <div class="value" id="kpiHoje">0</div>
-        <div class="hint" id="kpiHojeHint">Todas as peças das OS com pedido hoje</div>
+        <div class="hint" id="kpiHojeHint">Peças pedidas hoje</div>
       </div>
       <div class="gp-kpi">
         <div class="label">Aparelhos no período</div>
@@ -697,7 +697,7 @@
 
     <section class="gp-compras">
       <div class="gp-panel">
-        <h2><span>Compras de peças</span><span class="agrup" id="comprasAgrupLabel"></span></h2>
+        <h2><span>Peças pedidas e compras</span><span class="agrup" id="comprasAgrupLabel"></span></h2>
         <div class="chart-box"><canvas id="chartCompras"></canvas></div>
       </div>
       <div class="gp-panel">
@@ -1188,24 +1188,15 @@
     }
 
     /**
-     * Peças do período: toda OS que teve pedido de peça no período entra com TODAS as peças
-     * já pedidas para ela (inclusive as de dias anteriores, até o fim do período).
-     * Ex.: OS com 3 peças pedidas antes + 1 hoje → aparece com 4.
+     * Peças do período: cada peça conta na data/hora em que FOI PEDIDA (evento SOLICITAR).
+     * 27/11: não traz mais as peças pedidas antes para a mesma OS — às 10h aparece só o que
+     * foi pedido às 10h, às 11h só o das 11h, etc.
      */
     function rowsForPeriod(rows, start, end) {
-      const osNoPeriodo = new Set();
-      const dias = rows.map((r) => SkylineDash.toLocalDateStr(r.data_pedido_sankhya));
-      for (let i = 0; i < rows.length; i++) {
-        const os = rows[i].id != null ? String(rows[i].id).trim() : "";
-        if (os && dias[i] >= start && dias[i] <= end) osNoPeriodo.add(os);
-      }
-      const out = [];
-      for (let i = 0; i < rows.length; i++) {
-        if (!dias[i] || dias[i] > end) continue;
-        const os = rows[i].id != null ? String(rows[i].id).trim() : "";
-        if (dias[i] >= start || (os && osNoPeriodo.has(os))) out.push(rows[i]);
-      }
-      return out;
+      return rows.filter((r) => {
+        const dia = SkylineDash.toLocalDateStr(r.data_pedido_sankhya);
+        return dia && dia >= start && dia <= end;
+      });
     }
 
     function applyUiFilters(rows) {
@@ -1391,7 +1382,7 @@
       document.getElementById("kpiHoje").textContent = baseHoje.length;
       document.getElementById("kpiAparelhos").textContent = kPeriod.aparelhos;
       document.getElementById("kpiAparelhosHint").textContent = "OS distintas";
-      document.getElementById("kpiPeriodoHint").textContent = "Todas as peças pedidas das OS do período";
+      document.getElementById("kpiPeriodoHint").textContent = "Peças pedidas no período (pela hora do pedido)";
 
       const agora = new Date().toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -1660,6 +1651,12 @@
       const pos = new Map(baldes.map((b, i) => [b.key, i]));
       const serie = { comprada: baldes.map(() => 0), aceita: baldes.map(() => 0), recusada: baldes.map(() => 0) };
       const gasto = baldes.map(() => 0);
+      // Pedidas = cada SOLICITAR da Gestão de Peças, na hora exata do pedido
+      const pedidas = baldes.map(() => 0);
+      applyUiFilters(rowsForPeriod(allRows, start, end)).forEach((r) => {
+        const i = pos.get(chaveDe({ data: r.data_pedido_sankhya }));
+        if (i != null) pedidas[i]++;
+      });
       noPeriodo.forEach((r) => {
         const i = pos.get(chaveDe(r));
         if (i == null) return;
@@ -1680,6 +1677,7 @@
         data: {
           labels: baldes.map((b) => b.label),
           datasets: [
+            { label: "Pedidas", data: pedidas, backgroundColor: SKY.accent, borderRadius: 3, maxBarThickness: 26 },
             { label: "Compradas", data: serie.comprada, backgroundColor: SKY.primary, borderRadius: 3, maxBarThickness: 26 },
             { label: "Aceitas", data: serie.aceita, backgroundColor: SKY.green, borderRadius: 3, maxBarThickness: 26 },
             { label: "Recusadas", data: serie.recusada, backgroundColor: SKY.red, borderRadius: 3, maxBarThickness: 26 }
@@ -1760,6 +1758,7 @@
     const gpAtualizados = new Map(); // aparelho → data do pedido já atualizada no cache
     async function carregarPedidosRastreio() {
       if (typeof SkylineRastreio === "undefined") throw new Error("skyline-rastreio.js não carregado");
+      SkylineRastreio.CACHE_MS = 10 * 60 * 1000; // 27/11: pedidos novos aparecem mais rápido (recarga completa a cada 10 min nesta tela)
       let itens = await SkylineRastreio.todos({ eventos: true }); // carga completa: no máximo 1x a cada 30 min
       // Entre as cargas completas: atualiza só os aparelhos com pedido de peça novo (pelo relatório de reparo)
       try {
