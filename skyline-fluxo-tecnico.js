@@ -61,6 +61,7 @@ const SkylineFluxoTecnico = {
     { prod: "PROD8", match: "felipe|fellipe" },
     { prod: "PROD9", match: "gustavo mendes|gustavo.mendes" }, // gustavo.mendes@gruposkytech.com.br
     { prod: "PROD10", match: "joao" },
+    { prod: "PROD11", match: "andre guilherme|andre.guilherme" },
     { prod: "PROD12", match: "douglas domingos|douglas.domingos" },
     { prod: "PROD14", match: "nicolas baldiviezo|nicolas.baldiviezo" }, // 27/11: nicolas.baldiviezo@gruposkytech.com.br
     { prod: "PROD15", match: "erick rodrigo|erick.rodrigo|erik rodrigo" },

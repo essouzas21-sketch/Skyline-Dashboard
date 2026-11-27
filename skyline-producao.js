@@ -48,7 +48,7 @@ const ProducaoDash = {
     { prod: 8, nome: "Fellipe Couto", match: "fellipe couto|fellipe.couto|felipe couto" },
     { prod: 9, nome: "Gustavo", match: "gustavo mendes|gustavo.mendes", zeradoEm: "2026-11-16T07:35:00-03:00" }, // 25/11: gustavo.mendes@gruposkytech.com.br (contas teste removidas) — 16/11: Thaís foi p/ PROD16 — PROD9 zerada (só o que entrar a partir de agora)
     { prod: 10, nome: "João", match: "joao" },
-    { prod: 11, nome: null, match: null }, // 27/11: teste1 removido — PROD11 sem técnico (Nicolas foi p/ PROD14)
+    { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Douglas Domingos", match: "douglas domingos|douglas.domingos" }, // 25/11: douglas.domingos@gruposkytech.com.br
     { prod: 13, nome: null, match: null },
     { prod: 14, nome: "Nicolas", match: "nicolas baldiviezo|nicolas.baldiviezo", desde: "2026-11-27", desdeAcumulado: "2026-11-27", zeradoEm: "2026-11-27T00:00:00-03:00" }, // 27/11: Moisés saiu — nicolas.baldiviezo@gruposkytech.com.br, conta a partir de 27/11
