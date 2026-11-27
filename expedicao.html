@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <script src="skyline-auth.js?v=7"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expedição do dia — Skyline</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="skyline-version.js?v=3"></script>
+  <script src="skyline-dash.js?v=102"></script>
+  <style>
+    :root {
+      --bg: #694992;
+      --card: #ffffff;
+      --text: #2d1f42;
+      --muted: #6b5b7a;
+      --accent: #8b6bb8;
+      --accent-2: #c4a8e8;
+      --green: #15803d;
+      --red: #dc2626;
+      --amber: #b45309;
+      --shadow: 0 4px 16px rgba(45, 31, 66, 0.22);
+      --line: rgba(105, 73, 146, 0.16);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .top {
+      display: flex; align-items: center; gap: 14px; color: #fff; flex-shrink: 0;
+    }
+    .top a.back { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.8rem; opacity: 0.85; }
+    .top h1 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: 0.01em; }
+    .top .sub { font-size: 0.85rem; opacity: 0.85; }
+    .top .clock { margin-left: auto; text-align: right; }
+    .filtro { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.14); padding: 6px 8px; border-radius: 12px; }
+    .filtro button, .filtro input { height: 36px; border-radius: 9px; border: 0; font: inherit; font-weight: 800; font-size: 0.95rem; }
+    .filtro button { background: #fff; color: #694992; padding: 0 12px; cursor: pointer; }
+    .filtro button.on { background: #15803d; color: #fff; }
+    .filtro input { padding: 0 8px; color: #2d1f42; }
+    .aviso-dia { background: #fde68a; color: #7c2d12; font-weight: 800; font-size: 0.8rem; padding: 4px 10px; border-radius: 8px; display: none; }
+    .aviso-dia.on { display: inline-block; }
+    .top .clock b { display: block; font-size: 1.9rem; font-weight: 800; line-height: 1; }
+    .top .clock span { font-size: 0.75rem; opacity: 0.85; }
+
+    .kpis { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr; gap: 10px; flex-shrink: 0; }
+    .kpi {
+      background: var(--card); border-radius: 14px; padding: 12px 16px; box-shadow: var(--shadow);
+      border-top: 5px solid var(--c, var(--accent)); min-width: 0;
+    }
+    .kpi .l { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .kpi .v { font-size: 3rem; font-weight: 900; line-height: 1.05; color: var(--c, var(--text)); white-space: nowrap; }
+    .kpi.big .v { font-size: 4.4rem; }
+    .kpi .h { font-size: 0.82rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .up { color: var(--green); } .down { color: var(--red); }
+    .meta-bar { height: 12px; border-radius: 8px; background: #ece6f4; overflow: hidden; margin-top: 8px; }
+    .meta-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); }
+
+    .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.6fr 1fr 1.25fr; grid-template-rows: 1fr 1fr; gap: 10px; }
+    .card { background: var(--card); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow); min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    .card h2 { margin: 0 0 6px; font-size: 0.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+    .card h2 small { text-transform: none; font-weight: 600; letter-spacing: 0; }
+    .cb { position: relative; flex: 1; min-height: 0; }
+    .span-rows { grid-row: span 2; }
+
+    .lista { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+    .ped {
+      display: grid; grid-template-columns: 58px 1fr auto; gap: 10px; align-items: center;
+      padding: 8px 10px; border-radius: 10px; background: #faf8fc; border: 1px solid var(--line);
+    }
+    .ped.novo { animation: brilho 2.4s ease-out 1; }
+    @keyframes brilho { 0% { background: #dcfce7; } 100% { background: #faf8fc; } }
+    .ped time { font-size: 1.15rem; font-weight: 900; color: var(--accent); }
+    .ped .m { min-width: 0; }
+    .ped .m b { display: block; font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ped .m span { font-size: 0.74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .tag { font-size: 0.7rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; color: #fff; background: var(--accent); white-space: nowrap; }
+    .tag.ml { background: #e0a800; color: #2d1f42; }
+    .tag.loja { background: var(--green); }
+    .vazio { color: var(--muted); font-size: 0.9rem; padding: 20px; text-align: center; }
+    .status { color: #fff; font-size: 0.75rem; opacity: 0.85; flex-shrink: 0; min-height: 1em; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="back" href="menu.html">← Menu</a>
+    <div>
+      <h1>Expedição do dia</h1>
+      <div class="sub" id="sub">Pedidos que saíram do estoque hoje · atualiza a cada 2 min</div>
+    </div>
+    <div class="filtro" title="Escolha o dia para ver">
+      <button type="button" id="btnAnt" title="Dia anterior">◀</button>
+      <input type="date" id="dataSel" />
+      <button type="button" id="btnProx" title="Próximo dia">▶</button>
+      <button type="button" id="btnHoje" class="on">Hoje</button>
+    </div>
+    <span class="aviso-dia" id="avisoDia"></span>
+    <div class="clock"><b id="relogio">--:--</b><span id="hojeTxt"></span></div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi big" style="--c:#694992"><div class="l" id="kPedL">Pedidos expedidos hoje</div><div class="v" id="kPed">—</div><div class="h" id="kPedH">carregando…</div></div>
+    <div class="kpi" style="--c:#8b6bb8"><div class="l">Aparelhos enviados</div><div class="v" id="kAp">—</div><div class="h" id="kApH">&nbsp;</div></div>
+    <div class="kpi" style="--c:#2563eb"><div class="l" id="kOntemL">Dia anterior até esta hora</div><div class="v" id="kOntem">—</div><div class="h" id="kOntemH">&nbsp;</div></div>
+    <div class="kpi" style="--c:#b45309"><div class="l">Média últimos 7 dias</div><div class="v" id="kMedia">—</div><div class="h" id="kMediaH">pedidos por dia</div></div>
+    <div class="kpi" id="kMetaBox" style="--c:#15803d"><div class="l" id="kMetaL">Melhor dia (7 dias)</div><div class="v" id="kMeta">—</div><div class="h" id="kMetaH">&nbsp;</div><div class="meta-bar" id="kMetaBar" hidden><i id="kMetaFill" style="width:0%"></i></div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2><span>Pedidos hora a hora</span><small>barras = hoje · linha = dia anterior</small></h2>
+      <div class="cb"><canvas id="chHora"></canvas></div>
+    </div>
+    <div class="card">
+      <h2><span>Por canal</span><small id="lblCanal"></small></h2>
+      <div class="cb"><canvas id="chCanal"></canvas></div>
+    </div>
+    <div class="card span-rows">
+      <h2><span>Últimos pedidos</span><small id="lblLista"></small></h2>
+      <div class="lista" id="lista"><div class="vazio">Carregando…</div></div>
+    </div>
+    <div class="card">
+      <h2><span id="lbl7">Últimos 7 dias</span><small>pedidos expedidos por dia</small></h2>
+      <div class="cb"><canvas id="chDias"></canvas></div>
+    </div>
+    <div class="card">
+      <h2><span id="lblModT">Modelos mais enviados hoje</span><small id="lblMod"></small></h2>
+      <div class="cb"><canvas id="chMod"></canvas></div>
+    </div>
+  </section>
+  <div class="status" id="status"></div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+    const SD = SkylineDash;
+    const API = "https://skywms-api-265182881354.southamerica-east1.run.app/functions/v1";
+    const params = new URLSearchParams(location.search);
+    const META = Number(params.get("meta")) || 0; // ex.: expedicao.html?meta=60
+    const charts = {};
+    const DIAS_HIST = 7;
+    let ultimosIds = new Set();
+    let primeiraCarga = true;
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const isoDia = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const hojeISO = () => isoDia(new Date());
+    const diaMenos = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); const dt = new Date(y, m - 1, d); dt.setDate(dt.getDate() - n); return isoDia(dt); };
+    const hhmm = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const lsGet = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (_) { return def; } };
+    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* cheio */ } };
+
+    function canalTxt(c) {
+      const s = String(c || "").toUpperCase();
+      if (s.includes("MERCADO")) return "Mercado Livre";
+      if (!s) return "Outros";
+      return s.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (x) => x.toUpperCase());
+    }
+    function modeloCurto(p) {
+      let s = String(p || "").toUpperCase();
+      s = s.replace(/TELEFONE CELULAR|SMARTPHONE|RECERTIFICADO|EAN:?\s*\d+|SM-[A-Z0-9]+|XT\d+-\d+|\s-\s.*$/g, " ");
+      s = s.replace(/\bSAMSUNG\b/, "").replace(/\bMOTOROLA\b/, "MOTO").replace(/\bAPPLE\b/, "").replace(/\s+/g, " ").trim();
+      return s.split(" ").slice(0, 5).join(" ").replace(/(^|\s)\S/g, (x) => x.toUpperCase()).replace(/\b(\d+)GB\b/i, "$1GB") || "—";
+    }
+
+    /** Saídas do estoque para PEDIDO num dia (movimentações tipo SAIDA com destino pedido). */
+    async function saidasDoDia(dia) {
+      const out = [];
+      for (let off = 0, i = 0; i < 6; i++) {
+        const res = await fetch(`${API}/api-movimentacao-enderecos?${new URLSearchParams({ de: dia, ate: dia, limite: "5000", offset: String(off) })}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`WMS ${res.status}`);
+        const j = await res.json();
+        const itens = Array.isArray(j?.itens) ? j.itens : [];
+        itens.forEach((m) => {
+          if (m.tipo !== "SAIDA" || m.destino?.tipo !== "PEDIDO") return;
+          out.push({
+            id: m.id, t: m.data, imei: m.imei || "", os: m.os || "", sku: m.sku || "",
+            pedido: m.destino.pedido || "", ext: m.destino.pedido_externo || "", canal: m.destino.canal || "", st: m.destino.status_pedido || ""
+          });
+        });
+        if (itens.length < 5000 || !j.proximo_offset) break;
+        off = j.proximo_offset;
+      }
+      return out;
+    }
+    /** dias anteriores não mudam: guarda no navegador (1 consulta por dia) */
+    async function historico(base) {
+      const hoje = base || hojeISO();
+      const dias = [];
+      for (let i = DIAS_HIST; i >= 1; i--) dias.push(diaMenos(hoje, i));
+      const res = {};
+      for (const dia of dias) {
+        const key = `skylineExp_${dia}`;
+        let v = lsGet(key, null);
+        if (!v) {
+          try { v = await saidasDoDia(dia); lsSet(key, v); } catch (_) { v = null; }
+          await new Promise((r) => setTimeout(r, 7000)); // API de movimentações: no máx. ~10 consultas/min
+        }
+        res[dia] = v;
+      }
+      // limpa dias antigos
+      try { const lim = diaMenos(hojeISO(), 60); Object.keys(localStorage).filter((k) => k.startsWith("skylineExp_") && k.slice(11) < lim).forEach((k) => localStorage.removeItem(k)); } catch (_) {}
+      return res;
+    }
+
+    /** Modelo de cada aparelho (rastreio por IMEI), guardado no navegador; busca poucos por vez. */
+    const modelos = lsGet("skylineExpModelos", {});
+    let buscandoModelos = false;
+    const modeloDe = (x) => modelos[`sku:${x.sku}`] || modelos[x.imei] || null;
+    async function completarModelos(lista) {
+      if (buscandoModelos) return;
+      // 1 consulta por SKU (vários aparelhos iguais usam o mesmo nome)
+      const porSku = new Map();
+      lista.forEach((x) => { if (x.imei && !modeloDe(x) && !porSku.has(x.sku || x.imei)) porSku.set(x.sku || x.imei, x); });
+      const faltam = [...porSku.values()].slice(0, 12);
+      if (!faltam.length) return;
+      buscandoModelos = true;
+      try {
+        for (const item of faltam) {
+          const imei = item.imei;
+          try {
+            const res = await fetch(`${API}/api-rastreio-imei?${new URLSearchParams({ imei, eventos: "false", limite: "2" })}`, { cache: "no-store" });
+            if (res.ok) {
+              const j = await res.json();
+              const x = (j.itens || []).find((i) => String(i.imei) === imei) || (j.itens || [])[0];
+              if (x) {
+                const nome = x.produto || [x.marca, x.modelo].filter(Boolean).join(" ") || "—";
+                modelos[imei] = nome;
+                if (item.sku) modelos[`sku:${item.sku}`] = nome;
+              }
+            }
+          } catch (_) { /* tenta na próxima */ }
+          await new Promise((r) => setTimeout(r, 2200));
+        }
+        lsSet("skylineExpModelos", modelos);
+        render(); // redesenha com os nomes novos
+      } finally {
+        buscandoModelos = false;
+      }
+    }
+
+    let hoje = [];      // saídas do dia escolhido
+    let hist = {};      // 7 dias antes do dia escolhido
+    let histBase = "";
+    let diaSel = hojeISO();
+    const vendoHoje = () => diaSel === hojeISO();
+    const fmtDia = (d) => { const dt = new Date(`${d}T12:00:00`); return `${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][dt.getDay()]} ${d.slice(8, 10)}/${d.slice(5, 7)}`; };
+    /** saídas de um dia: hoje sempre busca de novo; dias passados ficam guardados no navegador */
+    async function diaDados(dia) {
+      if (dia >= hojeISO()) return saidasDoDia(dia);
+      const key = `skylineExp_${dia}`;
+      const v = lsGet(key, null);
+      if (v) return v;
+      const novo = await saidasDoDia(dia);
+      lsSet(key, novo);
+      return novo;
+    }
+    function porPedido(lista) {
+      const m = new Map();
+      lista.forEach((x) => {
+        const k = x.pedido || x.ext || x.id;
+        if (!m.has(k)) m.set(k, { ...x, itens: [x] });
+        else { const p = m.get(k); p.itens.push(x); if (x.t > p.t) p.t = x.t; }
+      });
+      return [...m.values()];
+    }
+
+    function destruir(k) { if (charts[k]) { charts[k].destroy(); delete charts[k]; } }
+    const fonte = { family: "'Segoe UI', system-ui, sans-serif", size: 13, weight: "700" };
+
+    function render() {
+      const agora = new Date();
+      const hojeIso = diaSel;
+      const pedHoje = porPedido(hoje);
+      const hj = vendoHoje();
+      setTxt("kPedL", hj ? "Pedidos expedidos hoje" : `Pedidos expedidos em ${fmtDia(diaSel)}`);
+      setTxt("lblModT", hj ? "Modelos mais enviados hoje" : `Modelos mais enviados em ${fmtDia(diaSel)}`);
+      setTxt("lbl7", hj ? "Últimos 7 dias" : `7 dias até ${fmtDia(diaSel)}`);
+      setTxt("sub", hj ? "Pedidos que saíram do estoque hoje · atualiza a cada 2 min" : `Vendo o dia ${fmtDia(diaSel)} · volta para hoje sozinho em 10 min`);
+      const aviso = document.getElementById("avisoDia");
+      aviso.textContent = hj ? "" : `📅 ${fmtDia(diaSel)}`;
+      aviso.classList.toggle("on", !hj);
+      setTxt("kPed", pedHoje.length);
+      setTxt("kAp", hoje.length);
+      setTxt("kApH", `${(hoje.length / Math.max(1, pedHoje.length)).toFixed(1).replace(".", ",")} aparelho(s) por pedido`);
+
+      // último dia com expedição (pula domingo/feriado) até a mesma hora
+      const diaAnt = Object.keys(hist).sort().reverse().find((d) => hist[d] && hist[d].length) || null;
+      const ontem = diaAnt ? hist[diaAnt] : null;
+      if (diaAnt) { const dt = new Date(`${diaAnt}T12:00:00`); setTxt("kOntemL", `${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dt.getDay()]} ${diaAnt.slice(8, 10)}/${diaAnt.slice(5, 7)} ${hj ? "até esta hora" : "(dia anterior)"}`); }
+      if (ontem) {
+        const lim = hj ? agora.getHours() * 60 + agora.getMinutes() : 24 * 60; // dia passado: compara o dia inteiro
+        const ate = porPedido(ontem.filter((x) => { const d = new Date(x.t); return d.getHours() * 60 + d.getMinutes() <= lim; })).length;
+        setTxt("kOntem", ate);
+        const dif = pedHoje.length - ate;
+        const el = document.getElementById("kOntemH");
+        el.className = "h " + (dif > 0 ? "up" : dif < 0 ? "down" : "");
+        el.textContent = dif === 0 ? `igual · o dia fechou com ${porPedido(ontem).length}` : `${dif > 0 ? "▲" : "▼"} ${Math.abs(dif)} ${hj ? "hoje" : "no dia escolhido"} · o dia fechou com ${porPedido(ontem).length}`;
+      } else { setTxt("kOntem", "—"); setTxt("kOntemH", "carregando histórico…"); }
+
+      // média e melhor dia (7 dias, só dias com saída)
+      const diasHist = Object.keys(hist).sort();
+      const totais = diasHist.map((d) => (hist[d] ? porPedido(hist[d]).length : null));
+      const validos = totais.filter((n) => n != null && n > 0);
+      const media = validos.length ? validos.reduce((a, b) => a + b, 0) / validos.length : 0;
+      setTxt("kMedia", validos.length ? Math.round(media) : "—");
+      setTxt("kMediaH", validos.length ? `pedidos por dia (${validos.length} dias com expedição)` : "carregando histórico…");
+      if (META > 0) {
+        setTxt("kMetaL", "Meta do dia");
+        setTxt("kMeta", `${Math.round((pedHoje.length / META) * 100)}%`);
+        setTxt("kMetaH", `${pedHoje.length} de ${META} pedidos · faltam ${Math.max(0, META - pedHoje.length)}`);
+        document.getElementById("kMetaBar").hidden = false;
+        document.getElementById("kMetaFill").style.width = `${Math.min(100, (pedHoje.length / META) * 100)}%`;
+      } else {
+        const melhor = Math.max(0, ...validos);
+        let diaMelhor = "";
+        diasHist.forEach((d, i) => { if (totais[i] === melhor && melhor > 0) diaMelhor = d; });
+        setTxt("kMeta", melhor || "—");
+        setTxt("kMetaH", diaMelhor ? `${diaMelhor.slice(8, 10)}/${diaMelhor.slice(5, 7)} · ${hj ? "hoje" : fmtDia(diaSel)} ${pedHoje.length >= melhor && melhor ? "🏆 bateu!" : `${hj ? "faltam" : "ficou a"} ${Math.max(0, melhor - pedHoje.length)}`}` : "carregando…");
+      }
+      setTxt("kPedH", media ? `${pedHoje.length >= media ? "▲ acima" : "▼ abaixo"} da média (${Math.round(media)})` : "pedidos que saíram do estoque");
+
+      // hora a hora
+      const horas = []; for (let h = 7; h <= 19; h++) horas.push(h);
+      const contaHora = (lista) => horas.map((h) => porPedido(lista.filter((x) => { const hh = new Date(x.t).getHours(); return h === 7 ? hh <= 7 : h === 19 ? hh >= 19 : hh === h; })).length);
+      destruir("hora");
+      charts.hora = new Chart(document.getElementById("chHora"), {
+        data: {
+          labels: horas.map((h) => `${pad(h)}h`),
+          datasets: [
+            { type: "bar", label: hj ? "Hoje" : fmtDia(diaSel), data: contaHora(hoje), backgroundColor: "#8b6bb8", borderRadius: 6, maxBarThickness: 34, order: 2 },
+            { type: "line", label: "Dia anterior", data: ontem ? contaHora(ontem) : [], borderColor: "#c4a8e8", borderDash: [6, 4], pointRadius: 2, tension: 0.3, order: 1, datalabels: { display: false } }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { labels: { font: fonte, boxWidth: 12 } }, datalabels: { anchor: "end", align: "end", color: "#2d1f42", font: { ...fonte, size: 14, weight: "900" }, display: (c) => c.dataset.type === "bar" && c.dataset.data[c.dataIndex] > 0 } },
+          scales: { x: { grid: { display: false }, ticks: { font: fonte } }, y: { beginAtZero: true, grace: "18%", ticks: { precision: 0, font: fonte }, grid: { color: "rgba(105,73,146,.12)" } } }
+        }
+      });
+
+      // canal
+      const canais = {};
+      pedHoje.forEach((p) => { const c = canalTxt(p.canal); canais[c] = (canais[c] || 0) + 1; });
+      const cArr = Object.entries(canais).sort((a, b) => b[1] - a[1]);
+      setTxt("lblCanal", cArr.length ? `${cArr.length} canal(is)` : "");
+      destruir("canal");
+      charts.canal = new Chart(document.getElementById("chCanal"), {
+        type: "doughnut",
+        data: { labels: cArr.map((x) => x[0]), datasets: [{ data: cArr.map((x) => x[1]), backgroundColor: ["#e0a800", "#694992", "#15803d", "#2563eb", "#c4a8e8", "#b45309"], borderWidth: 3 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false, cutout: "55%",
+          plugins: { legend: { position: "right", labels: { font: { ...fonte, size: 14 }, boxWidth: 14 } }, datalabels: { color: "#fff", font: { ...fonte, size: 18, weight: "900" }, display: (c) => c.dataset.data[c.dataIndex] > 0 } }
+        }
+      });
+
+      // últimos 7 dias + hoje
+      const labDias = diasHist.concat([hojeIso]);
+      const valDias = totais.concat([pedHoje.length]);
+      destruir("dias");
+      charts.dias = new Chart(document.getElementById("chDias"), {
+        type: "bar",
+        data: {
+          labels: labDias.map((d) => { const dt = new Date(`${d}T12:00:00`); return `${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][dt.getDay()]} ${d.slice(8, 10)}/${d.slice(5, 7)}`; }),
+          datasets: [{ label: "Pedidos", data: valDias.map((v) => v ?? 0), backgroundColor: labDias.map((d) => (d === hojeIso ? "#694992" : "#c4a8e8")), borderRadius: 6, maxBarThickness: 46 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { display: false }, datalabels: { anchor: "end", align: "end", color: "#2d1f42", font: { ...fonte, size: 14, weight: "900" }, display: (c) => c.dataset.data[c.dataIndex] > 0 } },
+          scales: { x: { grid: { display: false }, ticks: { font: { ...fonte, size: 12 } } }, y: { beginAtZero: true, grace: "18%", ticks: { precision: 0, font: fonte }, grid: { color: "rgba(105,73,146,.12)" } } }
+        }
+      });
+
+      // modelos
+      const mods = {};
+      hoje.forEach((x) => { const m = modeloDe(x) ? modeloCurto(modeloDe(x)) : null; if (m) mods[m] = (mods[m] || 0) + 1; });
+      const mArr = Object.entries(mods).sort((a, b) => b[1] - a[1]).slice(0, 7);
+      const semNome = hoje.filter((x) => !modeloDe(x)).length;
+      setTxt("lblMod", semNome ? `identificando ${semNome}…` : `${hoje.length} aparelho(s)`);
+      destruir("mod");
+      charts.mod = new Chart(document.getElementById("chMod"), {
+        type: "bar",
+        data: { labels: mArr.map((x) => x[0]), datasets: [{ data: mArr.map((x) => x[1]), backgroundColor: "#8b6bb8", borderRadius: 6, maxBarThickness: 26 }] },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { display: false }, datalabels: { anchor: "end", align: "end", color: "#2d1f42", font: { ...fonte, size: 14, weight: "900" } } },
+          scales: { x: { beginAtZero: true, grace: "20%", ticks: { precision: 0, font: fonte }, grid: { color: "rgba(105,73,146,.12)" } }, y: { grid: { display: false }, ticks: { font: { ...fonte, size: 13 } } } }
+        }
+      });
+
+      // lista dos últimos pedidos (sem nome do cliente — tela pública)
+      const lista = pedHoje.sort((a, b) => String(b.t).localeCompare(String(a.t))).slice(0, 14);
+      setTxt("lblLista", pedHoje.length ? `${pedHoje.length} ${hj ? "hoje" : "no dia"}` : "");
+      const novosIds = new Set(lista.map((p) => p.pedido || p.ext));
+      document.getElementById("lista").innerHTML = lista.length ? lista.map((p) => {
+        const id = p.pedido || p.ext;
+        const novo = !primeiraCarga && !ultimosIds.has(id);
+        const nomes = [...new Set(p.itens.map((x) => (modeloDe(x) ? modeloCurto(modeloDe(x)) : "…")))];
+        const c = canalTxt(p.canal);
+        return `<div class="ped ${novo ? "novo" : ""}">
+          <time>${hhmm(p.t)}</time>
+          <div class="m"><b>${esc(nomes.join(" + "))}${p.itens.length > 1 ? ` <span style="display:inline;color:var(--accent)">(${p.itens.length} itens)</span>` : ""}</b>
+            <span>${esc(p.pedido)}${p.ext && p.ext !== p.pedido ? ` · ${esc(String(p.ext).slice(-8))}` : ""}</span></div>
+          <span class="tag ${c === "Mercado Livre" ? "ml" : /loja/i.test(c) ? "loja" : ""}">${esc(c)}</span>
+        </div>`;
+      }).join("") : `<div class="vazio">${hj ? "Nenhum pedido expedido ainda hoje." : "Nenhum pedido expedido neste dia."}</div>`;
+      ultimosIds = novosIds;
+      primeiraCarga = false;
+    }
+
+    function relogio() {
+      const d = new Date();
+      setTxt("relogio", d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+      setTxt("hojeTxt", d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }));
+    }
+
+    async function loadData() {
+      if (SD.useHomologData && SD.useHomologData()) { setTxt("status", "Homologação: esta tela só busca dados no site publicado."); return; }
+      try {
+        const dia = diaSel;
+        hoje = await diaDados(dia);
+        if (dia !== diaSel) return; // trocou de dia no meio da busca
+        if (histBase !== dia) hist = {}; // outro dia: o histórico é outro
+        render();
+        setTxt("status", `Atualizado às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${hoje.length} aparelho(s) saíram para pedidos ${vendoHoje() ? "hoje" : "em " + fmtDia(dia)}`);
+        // histórico (7 dias antes do dia escolhido): guardado no navegador; se algum dia falhou (limite da API), tenta de novo
+        if (histBase !== dia || !Object.keys(hist).length || Object.values(hist).some((v) => v === null)) {
+          const h7 = await historico(dia);
+          if (dia === diaSel) { hist = h7; histBase = dia; render(); }
+        }
+        completarModelos(hoje.slice().sort((a, b) => String(b.t).localeCompare(String(a.t))));
+      } catch (err) {
+        setTxt("status", `Não foi possível atualizar agora (${err.message}). Tentando de novo em 2 min.`);
+      }
+    }
+
+    // ── filtro de data ──
+    const inp = document.getElementById("dataSel");
+    let voltaHojeTimer = null;
+    function irPara(dia) {
+      const hojeD = hojeISO();
+      if (!dia || dia > hojeD) dia = hojeD;
+      diaSel = dia;
+      inp.value = dia;
+      inp.max = hojeD;
+      document.getElementById("btnHoje").classList.toggle("on", dia === hojeD);
+      document.getElementById("btnProx").disabled = dia >= hojeD;
+      primeiraCarga = true;
+      hoje = [];
+      clearTimeout(voltaHojeTimer);
+      if (dia !== hojeD) voltaHojeTimer = setTimeout(() => irPara(hojeISO()), 10 * 60000); // TV não fica presa num dia antigo
+      setTxt("status", "Carregando o dia…");
+      render();
+      loadData();
+    }
+    inp.addEventListener("change", () => irPara(inp.value));
+    document.getElementById("btnAnt").addEventListener("click", () => irPara(diaMenos(diaSel, 1)));
+    document.getElementById("btnProx").addEventListener("click", () => irPara(diaMenos(diaSel, -1)));
+    document.getElementById("btnHoje").addEventListener("click", () => irPara(hojeISO()));
+    // virada do dia: se estava vendo "hoje", passa para o novo dia
+    let ultimoHoje = hojeISO();
+    setInterval(() => { const h = hojeISO(); if (h !== ultimoHoje) { const estavaHoje = diaSel === ultimoHoje; ultimoHoje = h; if (estavaHoje) irPara(h); } }, 60000);
+
+    relogio();
+    setInterval(relogio, 15000);
+    const diaUrl = params.get("dia");
+    if (diaUrl && /^\d{4}-\d{2}-\d{2}$/.test(diaUrl)) irPara(diaUrl);
+    else { inp.value = diaSel; inp.max = diaSel; document.getElementById("btnProx").disabled = true; loadData(); }
+    // atualiza de 2 em 2 min (com a proteção anti-congelamento e tela acesa do skyline-dash.js)
+    SD.startAutoRefresh(loadData, 120000);
+  </script>
+</body>
+</html>

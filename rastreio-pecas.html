@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <script src="skyline-auth.js?v=7"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rastreio de Peças — Skyline</title>
+  <script src="skyline-version.js?v=3"></script>
+  <script src="skyline-dash.js?v=107"></script>
+  <script src="skyline-rastreio.js?v=10"></script>
+  <style>
+    :root {
+      --bg: #694992; --card: #ffffff; --text: #2d1f42; --muted: #6b5b7a; --accent: #8b6bb8;
+      --green: #15803d; --red: #dc2626; --amber: #b45309; --blue: #2563eb; --gray: #64748b;
+      --shadow: 0 4px 16px rgba(45, 31, 66, 0.22); --line: rgba(105, 73, 146, 0.16); --soft: #faf8fc;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; padding: 12px 16px 24px; }
+    .top { display: flex; align-items: center; gap: 14px; color: #fff; flex-wrap: wrap; margin-bottom: 10px; }
+    .top a.back { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.8rem; opacity: 0.85; }
+    .top h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
+    .top .sub { font-size: 0.82rem; opacity: 0.85; }
+    .top .st { margin-left: auto; font-size: 0.78rem; opacity: 0.9; text-align: right; }
+    .top button { height: 32px; border: 0; border-radius: 9px; background: #fff; color: #694992; font-weight: 800; padding: 0 12px; cursor: pointer; }
+
+    .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .kpi { background: var(--card); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); border-top: 5px solid var(--c, var(--accent)); cursor: pointer; min-width: 0; }
+    .kpi.sel { outline: 3px solid #fde68a; }
+    .kpi .l { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .kpi .v { font-size: 2.2rem; font-weight: 900; line-height: 1.1; color: var(--c, var(--text)); }
+    .kpi .h { font-size: 0.74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .card { background: var(--card); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); margin-bottom: 10px; }
+    .card h2 { margin: 0 0 8px; font-size: 0.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .card h2 small { text-transform: none; font-weight: 600; letter-spacing: 0; }
+
+    /* Recebimento rápido */
+    .rec { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .rec input { flex: 1 1 260px; height: 44px; font-size: 1.1rem; font-weight: 700; border: 2px solid var(--accent); border-radius: 10px; padding: 0 12px; }
+    .rec button { height: 44px; border: 0; border-radius: 10px; background: var(--bg); color: #fff; font-weight: 800; padding: 0 18px; cursor: pointer; }
+    .rec-out { margin-top: 10px; }
+    .ap { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+    .ap div span { display: block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+    .ap div b { font-size: 0.95rem; overflow-wrap: anywhere; }
+    .ap .imei b { font-size: 1.3rem; color: var(--bg); letter-spacing: 0.02em; white-space: nowrap; overflow-wrap: normal; }
+
+    /* filtros */
+    .filtros { display: grid; grid-template-columns: 2fr 1.3fr 1.3fr 1fr 1fr auto auto; gap: 8px; align-items: end; }
+    .filtros label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+    .filtros input, .filtros select { height: 36px; border: 1px solid #cfc3e0; border-radius: 8px; padding: 0 8px; font: inherit; font-size: 0.9rem; color: var(--text); background: #fff; min-width: 0; }
+    .filtros button { height: 36px; border: 0; border-radius: 8px; padding: 0 12px; font-weight: 800; cursor: pointer; background: #ece6f4; color: var(--bg); }
+    .filtros .chk { flex-direction: row; align-items: center; gap: 6px; height: 36px; text-transform: none; font-size: 0.85rem; color: var(--text); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { position: sticky; top: 0; background: #f3eef9; text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); padding: 7px 6px; cursor: pointer; white-space: nowrap; user-select: none; }
+    td { padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:hover td { background: var(--soft); }
+    td.mono { font-family: Consolas, monospace; font-size: 0.8rem; white-space: nowrap; }
+    td .s { display: block; font-size: 0.72rem; color: var(--muted); }
+    .tw { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    .pill { display: inline-block; font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
+    .p-sol { background: var(--blue); } .p-ace { background: #0891b2; } .p-rec { background: var(--amber); }
+    .p-cas { background: #7c3aed; } .p-apl { background: var(--green); } .p-can { background: var(--red); } .p-nao { background: #cbd5e1; color: #334155; }
+    .atraso { color: var(--red); font-weight: 800; }
+    .vazio { color: var(--muted); padding: 18px; text-align: center; }
+    .nota { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+    a.os { color: var(--bg); font-weight: 800; text-decoration: none; cursor: pointer; }
+    @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } .filtros { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="back" href="menu.html">← Menu</a>
+    <div>
+      <h1>Rastreio de Peças</h1>
+      <div class="sub">Cada peça pedida na Gestão de Peças do WMS: aparelho, onde está e em que etapa parou</div>
+    </div>
+    <div class="st"><div id="status">Carregando o WMS…</div><button type="button" id="btnCsv">Exportar CSV</button></div>
+  </header>
+
+  <section class="kpis" id="kpis">
+    <div class="kpi" data-k="aguardRec" style="--c:#2563eb"><div class="l">Aguardando recebimento</div><div class="v" id="kAgRec">—</div><div class="h" id="kAgRecH">pedidas e ainda não chegaram</div></div>
+    <div class="kpi" data-k="aguardCas" style="--c:#b45309"><div class="l">Recebidas sem casamento</div><div class="v" id="kAgCas">—</div><div class="h" id="kAgCasH">chegaram e não foram vinculadas</div></div>
+    <div class="kpi" data-k="aguardApl" style="--c:#7c3aed"><div class="l">Casadas sem aplicar</div><div class="v" id="kAgApl">—</div><div class="h">vinculadas, falta aplicar</div></div>
+    <div class="kpi" data-k="aplicadas" style="--c:#15803d"><div class="l">Aplicadas no período</div><div class="v" id="kApl">—</div><div class="h">casamento concluído</div></div>
+    <div class="kpi" data-k="canceladas" style="--c:#dc2626"><div class="l">Canceladas no período</div><div class="v" id="kCan">—</div><div class="h">pedido recusado/cancelado</div></div>
+    <div class="kpi" data-k="aparelhos" style="--c:#694992"><div class="l">Aparelhos esperando peça</div><div class="v" id="kApar">—</div><div class="h">OS com peça pendente</div></div>
+  </section>
+
+  <section class="card">
+    <h2><span>Recebimento — conferir peça pela OS</span><small>bipe ou digite a OS ou o IMEI e tecle Enter</small></h2>
+    <div class="rec">
+      <input id="recBusca" placeholder="OS010443 ou IMEI" autocomplete="off" />
+      <button type="button" id="recBtn">Consultar</button>
+    </div>
+    <div class="rec-out" id="recOut"></div>
+  </section>
+
+  <section class="card">
+    <h2><span>Peças</span><small id="lblTotal"></small></h2>
+    <div class="filtros">
+      <label>Buscar (OS, IMEI, código ou nome da peça)<input id="fBusca" placeholder="ex.: OS010443, 3553…, BAT2712, TELA S21" /></label>
+      <label>Localização do aparelho<select id="fLocal"><option value="">Todas</option></select></label>
+      <label>Status da peça<select id="fStatus"><option value="">Todos</option></select></label>
+      <label>Pedido de<input type="date" id="fDe" /></label>
+      <label>até<input type="date" id="fAte" /></label>
+      <label class="chk"><input type="checkbox" id="fPend" /> Só pendentes</label>
+      <button type="button" id="fLimpar">Limpar</button>
+    </div>
+    <div class="nota">O período filtra pela data de solicitação da peça. Com "Só pendentes" marcado, aparecem todas as peças ainda não recebidas ou não casadas, de qualquer data.</div>
+    <div class="tw" style="margin-top:8px">
+      <table>
+        <thead><tr>
+          <th data-s="os">OS</th>
+          <th data-s="imei">IMEI · modelo</th>
+          <th data-s="sku">Peça</th>
+          <th data-s="locPeca">Onde está a peça</th>
+          <th data-s="locAp">Onde está o aparelho</th>
+          <th data-s="ordem">Status</th>
+          <th data-s="dSol">Solicitada</th>
+          <th data-s="dRec">Recebida</th>
+          <th data-s="dCas">Casada</th>
+          <th data-s="espera">Espera</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="10" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="nota" id="notaLimite"></div>
+  </section>
+
+  <script>
+    const SD = SkylineDash;
+    const LIMITE_LINHAS = 600;
+    let pecas = [];        // uma linha por peça (os_peca_id)
+    let mapaCompleto = new Map(); // OS/IMEI → aparelho (para o recebimento)
+    let kpiSel = "";
+    let ordem = { campo: "dSol", dir: -1 };
+
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const fmt = (t) => t ? new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "") : "";
+    const diaDe = (t) => t ? SD.toLocalDateStr(t) : "";
+    const fold = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+    // status da peça (ordem = etapa do fluxo)
+    const ST = {
+      sol: { txt: "Solicitada · aguardando recebimento", cls: "p-sol", ordem: 1, pend: "rec" },
+      ace: { txt: "Aceita · aguardando recebimento", cls: "p-ace", ordem: 2, pend: "rec" },
+      rec: { txt: "Recebida · aguardando casamento", cls: "p-rec", ordem: 3, pend: "cas" },
+      cas: { txt: "Casada · falta aplicar", cls: "p-cas", ordem: 4, pend: "apl" },
+      apl: { txt: "Aplicada no aparelho", cls: "p-apl", ordem: 5, pend: null },
+      can: { txt: "Cancelada", cls: "p-can", ordem: 6, pend: null }
+    };
+
+    function localAparelho(x) {
+      const e = x.estoque;
+      if (e && (e.endereco || e.armazem)) return [e.armazem, e.endereco].filter(Boolean).join(" / ");
+      if (x.pedido && x.pedido.status) return `Fora do estoque · pedido ${x.pedido.pedido || ""} ${String(x.pedido.status).toLowerCase()}`.trim();
+      return "Sem endereço no WMS";
+    }
+
+    /** Monta as peças de cada aparelho a partir dos eventos GESTAO_PECAS (chave = os_peca_id). */
+    function montarPecas(itens, guardarMapa = true) {
+      const out = [];
+      const mapa = new Map();
+      (itens || []).forEach((x) => {
+        const ev = (x.eventos || []).filter((e) => e && e.data).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+        const gp = ev.filter((e) => e.etapa === "GESTAO_PECAS");
+        if (x.os) mapa.set(String(x.os).toUpperCase(), x);
+        if (x.imei) mapa.set(String(x.imei), x);
+        if (!gp.length) return;
+        const envios = gp.filter((e) => e.evento === "ENVIAR_PEDIDO_SKYTECH").map((e) => e.data);
+        const porPeca = new Map();
+        gp.forEach((e) => {
+          const d = e.detalhe || {};
+          if (d.os_peca_id == null) return;
+          const k = String(d.os_peca_id);
+          if (!porPeca.has(k)) porPeca.set(k, { id: k, sku: d.sku_peca || "", peca: d.peca || "", origem: d.origem || "", ev: [] });
+          const p = porPeca.get(k);
+          if (!p.sku && d.sku_peca) p.sku = d.sku_peca;
+          if (!p.peca && d.peca) p.peca = d.peca;
+          if (!p.origem && d.origem) p.origem = d.origem;
+          p.ev.push(e);
+        });
+        const locAp = localAparelho(x);
+        porPeca.forEach((p) => {
+          const primeiro = (tipo) => p.ev.find((e) => e.evento === tipo);
+          const ultimo = (tipo) => [...p.ev].reverse().find((e) => e.evento === tipo);
+          const sol = primeiro("SOLICITAR"), ace = ultimo("ACEITAR"), rec = ultimo("RECEBER");
+          const cas = ultimo("CASAR"), apl = ultimo("APLICAR"), can = ultimo("CANCELAR");
+          const ult = p.ev[p.ev.length - 1];
+          let st;
+          if (can && ult.evento === "CANCELAR") st = "can";
+          else if (apl) st = "apl";
+          else if (cas) st = "cas";
+          else if (rec) st = "rec";
+          else if (ace) st = "ace";
+          else st = "sol";
+          const dSol = sol ? sol.data : p.ev[0].data;
+          const envio = envios.find((t) => t >= dSol) || null;
+          let locPeca;
+          if (st === "can") locPeca = "—";
+          else if (st === "apl" || st === "cas") locPeca = "No aparelho";
+          else if (st === "rec") locPeca = "Gestão de Peças (recebida, não casada)";
+          else locPeca = envio ? `Pedido enviado ao fornecedor${p.origem ? " · " + p.origem : ""}` : `Pedido aberto${p.origem ? " · " + p.origem : ""}`;
+          const solTxt = st === "can" ? "Cancelada" : ace ? "Aceita" : envio ? "Pedido enviado" : "Solicitada";
+          const desdeEspera = st === "rec" ? rec.data : (ST[st].pend === "rec" ? dSol : (st === "cas" ? cas.data : null));
+          out.push({
+            pid: p.id,
+            os: x.os || "", imei: x.imei ? String(x.imei) : "",
+            modelo: x.produto || [x.marca, x.modelo].filter(Boolean).join(" ") || "",
+            statusAp: x.status_descricao || x.status || "",
+            sku: p.sku, peca: p.peca, origem: p.origem,
+            locPeca, locAp,
+            st, ordem: ST[st].ordem, solTxt,
+            recTxt: rec ? "Recebida" : (st === "can" ? "—" : "Pendente"),
+            casTxt: apl ? "Aplicada" : cas ? "Casada" : (st === "can" ? "—" : "Pendente"),
+            dSol, dAce: ace ? ace.data : null, dRec: rec ? rec.data : null, dCas: cas ? cas.data : null, dApl: apl ? apl.data : null, dCan: can ? can.data : null,
+            quemSol: sol ? sol.usuario : "", quemRec: rec ? rec.usuario : "", quemCas: cas ? cas.usuario : "",
+            espera: desdeEspera ? Date.now() - new Date(desdeEspera).getTime() : -1,
+            busca: fold([x.os, x.imei, p.sku, p.peca, x.produto, x.modelo].join(" "))
+          });
+        });
+      });
+      if (guardarMapa) mapaCompleto = mapa;
+      return out;
+    }
+
+    function esperaTxt(ms) {
+      if (ms < 0) return "";
+      const h = ms / 3600000;
+      if (h < 1) return `${Math.max(1, Math.round(ms / 60000))} min`;
+      if (h < 48) return `${Math.round(h)} h`;
+      return `${Math.round(h / 24)} dias`;
+    }
+
+    function preencherSelects() {
+      const locs = [...new Set(pecas.map((p) => p.locAp))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      const sel = document.getElementById("fLocal");
+      const atual = sel.value;
+      sel.innerHTML = `<option value="">Todas</option>` + locs.map((l) => `<option ${l === atual ? "selected" : ""}>${esc(l)}</option>`).join("");
+      const fs = document.getElementById("fStatus");
+      if (fs.options.length <= 1) fs.innerHTML = `<option value="">Todos</option>` + Object.entries(ST).map(([k, v]) => `<option value="${k}">${v.txt}</option>`).join("");
+    }
+
+    function filtrar() {
+      const busca = fold(document.getElementById("fBusca").value.trim());
+      const loc = document.getElementById("fLocal").value;
+      const st = document.getElementById("fStatus").value;
+      const de = document.getElementById("fDe").value;
+      const ate = document.getElementById("fAte").value;
+      const soPend = document.getElementById("fPend").checked;
+      return pecas.filter((p) => {
+        if (busca && !busca.split(/\s+/).every((t) => p.busca.includes(t))) return false;
+        if (loc && p.locAp !== loc) return false;
+        if (st && p.st !== st) return false;
+        if (kpiSel === "aguardRec" && ST[p.st].pend !== "rec") return false;
+        if (kpiSel === "aguardCas" && p.st !== "rec") return false;
+        if (kpiSel === "aguardApl" && p.st !== "cas") return false;
+        if (kpiSel === "aplicadas" && p.st !== "apl") return false;
+        if (kpiSel === "canceladas" && p.st !== "can") return false;
+        if (kpiSel === "aparelhos" && !ST[p.st].pend) return false;
+        if (soPend || kpiSel === "aguardRec" || kpiSel === "aguardCas" || kpiSel === "aguardApl" || kpiSel === "aparelhos") {
+          if (!ST[p.st].pend) return false;
+          return true; // pendentes: qualquer data
+        }
+        const d = diaDe(p.dSol);
+        if (de && d < de) return false;
+        if (ate && d > ate) return false;
+        return true;
+      });
+    }
+
+    function renderKpis() {
+      const de = document.getElementById("fDe").value, ate = document.getElementById("fAte").value;
+      const noPer = (t) => { const d = diaDe(t); return d && (!de || d >= de) && (!ate || d <= ate); };
+      const agRec = pecas.filter((p) => ST[p.st].pend === "rec");
+      const agCas = pecas.filter((p) => p.st === "rec");
+      const agApl = pecas.filter((p) => p.st === "cas");
+      setTxt("kAgRec", agRec.length);
+      const velhas = agRec.filter((p) => p.espera > 3 * 86400000).length;
+      setTxt("kAgRecH", velhas ? `${velhas} há mais de 3 dias` : "pedidas e ainda não chegaram");
+      setTxt("kAgCas", agCas.length);
+      const velhasC = agCas.filter((p) => p.espera > 86400000).length;
+      setTxt("kAgCasH", velhasC ? `${velhasC} há mais de 1 dia` : "chegaram e não foram vinculadas");
+      setTxt("kAgApl", agApl.length);
+      setTxt("kApl", pecas.filter((p) => p.st === "apl" && noPer(p.dApl)).length);
+      setTxt("kCan", pecas.filter((p) => p.st === "can" && noPer(p.dCan)).length);
+      setTxt("kApar", new Set(pecas.filter((p) => ST[p.st].pend).map((p) => p.os || p.imei)).size);
+      document.querySelectorAll(".kpi").forEach((k) => k.classList.toggle("sel", k.dataset.k === kpiSel));
+    }
+
+    function renderTabela() {
+      const lista = filtrar();
+      const { campo, dir } = ordem;
+      lista.sort((a, b) => {
+        const va = a[campo] ?? "", vb = b[campo] ?? "";
+        if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+        return String(va).localeCompare(String(vb), "pt-BR") * dir;
+      });
+      setTxt("lblTotal", `${lista.length} peça(s) · ${new Set(lista.map((p) => p.os || p.imei)).size} aparelho(s)`);
+      const mostra = lista.slice(0, LIMITE_LINHAS);
+      setTxt("notaLimite", lista.length > LIMITE_LINHAS ? `Mostrando as primeiras ${LIMITE_LINHAS} de ${lista.length}. Use a busca ou os filtros para achar o resto, ou exporte o CSV com todas.` : "");
+      document.getElementById("tbody").innerHTML = mostra.length ? mostra.map((p) => {
+        const s = ST[p.st];
+        const atraso = (s.pend === "rec" && p.espera > 3 * 86400000) || (s.pend === "cas" && p.espera > 86400000);
+        return `<tr>
+          <td class="mono"><a class="os" data-os="${esc(p.os || p.imei)}">${esc(p.os || "—")}</a></td>
+          <td><span class="mono">${esc(p.imei)}</span><span class="s">${esc(p.modelo)}</span></td>
+          <td><b class="mono">${esc(p.sku || "—")}</b><span class="s">${esc(p.peca)}</span></td>
+          <td>${esc(p.locPeca)}</td>
+          <td>${esc(p.locAp)}<span class="s">${esc(p.statusAp)}</span></td>
+          <td><span class="pill ${s.cls}">${esc(s.txt)}</span><span class="s">Pedido: ${esc(p.solTxt)} · Receb.: ${esc(p.recTxt)} · Casam.: ${esc(p.casTxt)}</span></td>
+          <td class="mono">${fmt(p.dSol)}<span class="s">${esc(p.quemSol || "")}</span></td>
+          <td class="mono">${fmt(p.dRec)}<span class="s">${esc(p.quemRec || "")}</span></td>
+          <td class="mono">${fmt(p.dCas)}<span class="s">${p.dApl ? "aplicada " + fmt(p.dApl) : ""}</span></td>
+          <td class="${atraso ? "atraso" : ""}">${esperaTxt(p.espera)}</td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="10" class="vazio">Nenhuma peça com esses filtros.</td></tr>`;
+    }
+
+    function render() { renderKpis(); renderTabela(); }
+
+    // ── Recebimento: OS/IMEI → aparelho, IMEI e status de cada peça (consulta o WMS na hora) ──
+    function cartaoAparelho(x, origemTxt) {
+      const lista = montarPecas([x], false);
+      const linhas = lista.sort((a, b) => a.ordem - b.ordem || String(a.dSol).localeCompare(String(b.dSol)));
+      const pend = linhas.filter((p) => ST[p.st].pend);
+      return `<div class="ap">
+          <div><span>OS</span><b>${esc(x.os || "—")}</b></div>
+          <div class="imei"><span>IMEI</span><b>${esc(x.imei || "—")}</b></div>
+          <div><span>Aparelho</span><b>${esc(x.produto || [x.marca, x.modelo].filter(Boolean).join(" "))}</b></div>
+          <div><span>Onde está</span><b>${esc(localAparelho(x))}</b></div>
+          <div><span>Status da OS</span><b>${esc(x.status_descricao || x.status || "—")}</b></div>
+          <div><span>Peças</span><b>${linhas.length} no total · ${pend.length} pendente(s)</b></div>
+        </div>
+        ${linhas.length ? `<table><thead><tr><th>Peça</th><th>Status</th><th>Solicitada</th><th>Recebida</th><th>Casada</th></tr></thead><tbody>
+          ${linhas.map((p) => `<tr><td><b class="mono">${esc(p.sku)}</b><span class="s">${esc(p.peca)}</span></td>
+            <td><span class="pill ${ST[p.st].cls}">${esc(ST[p.st].txt)}</span></td>
+            <td class="mono">${fmt(p.dSol)}</td><td class="mono">${fmt(p.dRec)}</td><td class="mono">${fmt(p.dCas)}</td></tr>`).join("")}
+        </tbody></table>` : `<div class="vazio">Nenhuma peça pedida para este aparelho no WMS.</div>`}
+        <div class="nota">${esc(origemTxt)}</div>`;
+    }
+
+
+    async function consultarRecebimento() {
+      const out = document.getElementById("recOut");
+      let v = document.getElementById("recBusca").value.trim().toUpperCase();
+      if (!v) { out.innerHTML = ""; return; }
+      if (/^\d{1,6}$/.test(v)) v = "OS" + v.padStart(6, "0");
+      const tipo = /^\d{14,16}$/.test(v) ? "imei" : "os";
+      out.innerHTML = `<div class="vazio">Consultando ${esc(v)} no WMS…</div>`;
+      try {
+        const x = await SkylineRastreio.buscarAparelho(`${tipo}:${v}`);
+        if (x && (String(x.imei) === v || String(x.os).toUpperCase() === v)) {
+          out.innerHTML = cartaoAparelho(x, `Consultado no WMS agora (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}).`);
+          return;
+        }
+      } catch (e) { /* limite da API: usa a última carga */ }
+      const y = mapaCompleto.get(v);
+      out.innerHTML = y
+        ? cartaoAparelho(y, "Dados da última carga do WMS (a consulta ao vivo não respondeu).")
+        : `<div class="vazio">${esc(v)} não encontrado no WMS.</div>`;
+    }
+    document.getElementById("recBtn").addEventListener("click", consultarRecebimento);
+    document.getElementById("recBusca").addEventListener("keydown", (e) => { if (e.key === "Enter") consultarRecebimento(); });
+    document.getElementById("tbody").addEventListener("click", (e) => {
+      const a = e.target.closest("a.os");
+      if (!a) return;
+      document.getElementById("recBusca").value = a.dataset.os;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      consultarRecebimento();
+    });
+
+    // ── filtros / ordenação / KPIs clicáveis ──
+    ["fBusca", "fLocal", "fStatus", "fDe", "fAte", "fPend"].forEach((id) => {
+      const el = document.getElementById(id);
+      el.addEventListener(id === "fBusca" ? "input" : "change", () => { if (id === "fDe" || id === "fAte") renderKpis(); renderTabela(); });
+    });
+    document.getElementById("fLimpar").addEventListener("click", () => {
+      ["fBusca", "fLocal", "fStatus"].forEach((id) => { document.getElementById(id).value = ""; });
+      document.getElementById("fPend").checked = false;
+      kpiSel = "";
+      periodoPadrao();
+      render();
+    });
+    document.querySelectorAll("th[data-s]").forEach((th) => th.addEventListener("click", () => {
+      const c = th.dataset.s;
+      ordem = { campo: c, dir: ordem.campo === c ? -ordem.dir : (c === "espera" ? -1 : 1) };
+      renderTabela();
+    }));
+    document.querySelectorAll(".kpi").forEach((k) => k.addEventListener("click", () => {
+      kpiSel = kpiSel === k.dataset.k ? "" : k.dataset.k;
+      if (kpiSel && kpiSel !== "aplicadas" && kpiSel !== "canceladas") ordem = { campo: "espera", dir: -1 };
+      render();
+    }));
+
+    // ── CSV (todas as linhas filtradas) ──
+    document.getElementById("btnCsv").addEventListener("click", () => {
+      const lista = filtrar();
+      const cab = ["OS", "IMEI", "Modelo", "Código peça", "Peça", "Origem", "Onde está a peça", "Onde está o aparelho", "Status da peça", "Status pedido", "Status recebimento", "Status casamento", "Solicitada em", "Solicitada por", "Recebida em", "Recebida por", "Casada em", "Aplicada em", "Cancelada em", "Espera"];
+      const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const linhas = lista.map((p) => [p.os, p.imei, p.modelo, p.sku, p.peca, p.origem, p.locPeca, p.locAp, ST[p.st].txt, p.solTxt, p.recTxt, p.casTxt, fmt(p.dSol), p.quemSol, fmt(p.dRec), p.quemRec, fmt(p.dCas), fmt(p.dApl), fmt(p.dCan), esperaTxt(p.espera)].map(q).join(";"));
+      const blob = new Blob(["﻿" + [cab.map(q).join(";"), ...linhas].join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `rastreio-pecas-${SD.todayISO()}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+
+    function periodoPadrao() {
+      const hoje = SD.todayISO();
+      const d = new Date(); d.setDate(d.getDate() - 30);
+      document.getElementById("fDe").value = SD.toLocalDateStr(d.toISOString());
+      document.getElementById("fAte").value = hoje;
+    }
+
+    // ── carga ──
+    let carregando = false;
+    async function loadData() {
+      if (carregando) return;
+      if (SD.useHomologData && SD.useHomologData()) { setTxt("status", "Homologação: esta tela só busca dados no site publicado."); return; }
+      carregando = true;
+      try {
+        SkylineRastreio.CACHE_MS = 10 * 60 * 1000;
+        let itens = await SkylineRastreio.todos({ eventos: true });
+        try {
+          const n = await SkylineRastreio.atualizarRecentes({ max: 12 }); // aparelhos que se movimentaram
+          if (n) itens = await SkylineRastreio.todos({ eventos: true });
+        } catch (_) { /* segue com a carga */ }
+        pecas = montarPecas(itens);
+        preencherSelects();
+        render();
+        const em = await SkylineRastreio.cacheEm();
+        setTxt("status", `${pecas.length} peças em ${itens.length} aparelhos · WMS de ${em ? new Date(em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "agora"} · atualiza sozinho`);
+      } catch (err) {
+        setTxt("status", `Não foi possível ler o WMS agora (${err.message}). Tentando de novo em 5 min.`);
+      } finally {
+        carregando = false;
+      }
+    }
+
+    periodoPadrao();
+    const q0 = new URLSearchParams(location.search).get("os");
+    if (q0) { document.getElementById("recBusca").value = q0; }
+    loadData().then(() => { if (q0) consultarRecebimento(); });
+    SD.startAutoRefresh(loadData, 300000);
+  </script>
+</body>
+</html>
