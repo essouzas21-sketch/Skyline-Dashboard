@@ -50,7 +50,7 @@ const ProducaoDash = {
     { prod: 10, nome: "João", match: "joao" },
     { prod: 11, nome: "André", match: "andre guilherme|andre.guilherme" },
     { prod: 12, nome: "Douglas Domingos", match: "douglas domingos|douglas.domingos" }, // 25/11: douglas.domingos@gruposkytech.com.br
-    { prod: 13, nome: null, match: null },
+    { prod: 13, nome: null, match: null, zeradoEm: "2026-11-27T10:45:00-03:00", desdeAcumulado: "2026-11-27" }, // 27/11: PROD13 zerada (19 aparelhos parados desde 23/11 saem da conta)
     { prod: 14, nome: "Nicolas", match: "nicolas baldiviezo|nicolas.baldiviezo", desde: "2026-11-27", desdeAcumulado: "2026-11-27", zeradoEm: "2026-11-27T00:00:00-03:00" }, // 27/11: Moisés saiu — nicolas.baldiviezo@gruposkytech.com.br, conta a partir de 27/11
     { prod: 15, nome: "Erick Rodrigo", match: "erick rodrigo|erick.rodrigo|erik rodrigo" }, // 25/11: erick.rodrigo@gruposkytech.com.br
     { prod: 16, nome: "Thaís Mazoline", match: "thais mazoline|thais.mazoline|tais mazoline" }, // veio da PROD9 em 16/11
