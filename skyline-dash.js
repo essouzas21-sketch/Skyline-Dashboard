@@ -798,6 +798,7 @@ const SkylineDash = {
     { from: "allef.moises@gruposkytech.com.br", to: "Allef" },
     // 25/11: contas das bancadas — mostra o nome do técnico (PROD6 Alan, PROD9 Gustavo Mendes, PROD12 Douglas, PROD15 Erick)
     { from: "alan.farias@gruposkytech.com.br", to: "Alan" },
+    { from: "nicolas.baldiviezo@gruposkytech.com.br", to: "Nicolas Baldiviezo" },
     { from: "gustavo.mendes@gruposkytech.com.br", to: "Gustavo Mendes" },
     { from: "douglas.domingos@gruposkytech.com.br", to: "Douglas Domingos" },
     { from: "erick.rodrigo@gruposkytech.com.br", to: "Erick Rodrigo" }
